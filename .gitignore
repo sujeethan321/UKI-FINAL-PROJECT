@@ -25,3 +25,5 @@ coverage/
 # Operating system
 .DS_Store
 Thumbs.db
+
+migration_preview.sql
