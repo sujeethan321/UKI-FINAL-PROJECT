@@ -27,3 +27,5 @@ coverage/
 Thumbs.db
 
 migration_preview.sql
+
+.env.local

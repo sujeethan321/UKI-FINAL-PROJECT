@@ -45,20 +45,7 @@ class DriverRegister(RegistrationBase):
 
 # Shop Owner registration
 class ShopOwnerRegister(RegistrationBase):
-    business_name: str = Field(min_length=2, max_length=200)
-    business_type: str = Field(min_length=2, max_length=50)
-    business_address: str = Field(min_length=5, max_length=500)
-
-    business_phone: str | None = Field(
-        default=None,
-        max_length=20,
-    )
-
-    registration_number: str | None = Field(
-        default=None,
-        max_length=100,
-    )
-
+    pass
 
 # Data returned after successful registration
 class RegistrationResponse(BaseModel):

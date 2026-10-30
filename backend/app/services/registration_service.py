@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
-from app.models import Business, BusinessMember, User
+from app.models import User
 from app.schemas.auth import (
     CustomerRegister,
     DriverRegister,
@@ -50,6 +50,7 @@ def _create_user(
     return user
 
 
+
 def register_user(
     db: Session,
     data: CustomerRegister | DriverRegister | ShopOwnerRegister,
@@ -61,41 +62,11 @@ def register_user(
     try:
         user = _create_user(db, data, role)
 
-        if role == "shop_owner":
-            if not isinstance(data, ShopOwnerRegister):
-                raise ValueError("Shop details are required")
-
-            business = Business(
-                business_name=data.business_name.strip(),
-                business_type=data.business_type.strip(),
-                registration_number=data.registration_number,
-                phone=data.business_phone,
-                address=data.business_address.strip(),
-                approval_status="pending",
-            )
-
-            db.add(business)
-            db.flush()
-
-            member = BusinessMember(
-                business_id=business.business_id,
-                user_id=user.user_id,
-                business_role="owner",
-                membership_status="active",
-            )
-
-            db.add(member)
-
         db.commit()
         db.refresh(user)
 
         return user
 
-    except EmailAlreadyRegistered:
-        db.rollback()
-        raise
-
-   
     except EmailAlreadyRegistered:
         db.rollback()
         raise

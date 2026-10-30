@@ -1,19 +1,111 @@
-export default function App() {
+
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  Link,
+} from "react-router-dom";
+
+import LoginPage from "./pages/auth/LoginPage";
+import RegisterPage from "./pages/auth/RegisterPage";
+import { AuthProvider } from "./context/AuthContext.jsx";
+import ProtectedRoute from "./routes/ProtectedRoute";
+import DashboardPlaceholder from "./pages/dashboard/DashboardPlaceholder";
+
+const roleOptions = [
+  { label: "Shop Owner", slug: "shop-owner" },
+  { label: "Customer", slug: "customer" },
+  { label: "Delivery Driver", slug: "driver" },
+  { label: "Administrator", slug: "admin" },
+];
+
+function TemporaryRoleSelector() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#F5F8FC] px-6">
-      <h1 className="text-5xl font-bold text-[#10243E]">
-        LankaPex
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#F5F8FC] p-6">
+      <h1 className="text-3xl font-bold text-[#10243E]">
+        Welcome to LankaPex
       </h1>
 
-      <p className="mt-3 text-lg text-[#12B8A6]">
-        Business Connects Everyone
+      <p className="text-[#526887]">
+        Select your role to log in.
       </p>
 
-      <div className="mt-8 rounded-xl bg-white p-8 shadow-md">
-        <p className="text-center text-gray-600">
-          Frontend setup successful!
-        </p>
+      <div className="grid w-full max-w-xl gap-4 sm:grid-cols-2">
+        {roleOptions.map((role) => (
+          <Link
+            key={role.slug}
+            to={`/login/${role.slug}`}
+            className="rounded-xl border border-[#D8E5F0] bg-white p-6 text-center font-semibold text-[#10243E] shadow-sm hover:border-[#12B8A6]"
+          >
+            {role.label}
+          </Link>
+        ))}
       </div>
     </main>
-  )
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route
+            path="/"
+            element={<Navigate to="/select-role" replace />}
+          />
+
+          <Route
+            path="/select-role"
+            element={<TemporaryRoleSelector />}
+          />
+
+          <Route
+            path="/login/:role"
+            element={<LoginPage />}
+          />
+
+          <Route
+            path="/register/:role"
+            element={<RegisterPage />}
+          />
+
+
+          {/* Customer-only pages */}
+          <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
+            <Route
+              path="/customer/dashboard"
+              element={<DashboardPlaceholder />}
+            />
+          </Route>
+
+          {/* Shop Owner-only pages */}
+          <Route element={<ProtectedRoute allowedRoles={["shop_owner"]} />}>
+            <Route
+              path="/shop-owner/dashboard"
+              element={<DashboardPlaceholder />}
+            />
+          </Route>
+
+          {/* Delivery Driver-only pages */}
+          <Route element={<ProtectedRoute allowedRoles={["driver"]} />}>
+            <Route
+              path="/driver/dashboard"
+              element={<DashboardPlaceholder />}
+            />
+          </Route>
+
+          {/* Administrator-only pages */}
+          <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+            <Route
+              path="/admin/dashboard"
+              element={<DashboardPlaceholder />}
+            />
+          </Route>
+
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
