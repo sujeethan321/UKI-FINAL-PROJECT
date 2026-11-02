@@ -7,6 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers.health import router as health_router
 from app.routers.auth import router as auth_router
 from app.routers.role_access import router as role_access_router
+from app.routers.shop_owner import router as shop_owner_router
+from app.routers.admin_businesses import (
+    router as admin_businesses_router,
+)
 
 
 # 1. Create the FastAPI application FIRST
@@ -16,6 +20,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.include_router(
+    shop_owner_router,
+    prefix="/api/v1",
+)
+app.include_router(
+    admin_businesses_router,
+    prefix="/api/v1",
+)
 
 # 2. Configure CORS
 app.add_middleware(

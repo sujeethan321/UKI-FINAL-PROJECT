@@ -21,7 +21,13 @@ export default function DashboardPlaceholder() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#F5F8FC] p-6">
+    <main
+      className={
+        user?.platform_role === "shop_owner"
+          ? "flex min-h-[360px] items-center justify-center"
+          : "flex min-h-screen items-center justify-center bg-[#F5F8FC] p-6"
+      }
+    >
       <section className="w-full max-w-xl rounded-3xl border border-[#DCE8F0] bg-white p-8 text-center shadow-sm">
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-50">
           <ShieldCheck

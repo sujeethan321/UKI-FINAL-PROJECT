@@ -7,11 +7,18 @@ import {
   Link,
 } from "react-router-dom";
 
+
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import DashboardPlaceholder from "./pages/dashboard/DashboardPlaceholder";
+import ShopOwnerLayout from "./layouts/ShopOwnerLayout";
+import ShopOwnerDashboard from "./pages/shopOwner/ShopOwnerDashboard";
+import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminBusinesses from "./pages/admin/AdminBusinesses";
+import BusinessOnboarding from "./pages/shopOwner/BusinessOnboarding";
 
 const roleOptions = [
   { label: "Shop Owner", slug: "shop-owner" },
@@ -81,12 +88,23 @@ export default function App() {
           </Route>
 
           {/* Shop Owner-only pages */}
+
+
+          {/* Shop Owner protected pages */}
           <Route element={<ProtectedRoute allowedRoles={["shop_owner"]} />}>
-            <Route
-              path="/shop-owner/dashboard"
-              element={<DashboardPlaceholder />}
-            />
+            <Route path="/shop-owner" element={<ShopOwnerLayout />}>
+              <Route
+                path="dashboard"
+                element={<ShopOwnerDashboard />}
+              />
+
+              <Route
+                path="business/register"
+                element={<BusinessOnboarding />}
+              />
+            </Route>
           </Route>
+
 
           {/* Delivery Driver-only pages */}
           <Route element={<ProtectedRoute allowedRoles={["driver"]} />}>
@@ -98,10 +116,16 @@ export default function App() {
 
           {/* Administrator-only pages */}
           <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-            <Route
-              path="/admin/dashboard"
-              element={<DashboardPlaceholder />}
-            />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route
+                path="dashboard"
+                element={<AdminDashboard />}
+              />
+              <Route
+                path="businesses"
+                element={<AdminBusinesses />}
+              />
+            </Route>
           </Route>
 
         </Routes>
