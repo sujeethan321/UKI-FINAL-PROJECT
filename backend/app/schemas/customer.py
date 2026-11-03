@@ -1,11 +1,14 @@
 
 import re
+from decimal import Decimal
+from typing import Literal
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     field_validator,
+    model_validator,
 )
 
 
@@ -64,3 +67,29 @@ class CustomerCreateResponse(BaseModel):
     phone: str | None
     address: str | None
     message: str
+
+
+class CustomerUpdate(CustomerCreate):
+    customer_name: str = Field(default=None, max_length=150)
+
+    @model_validator(mode="after")
+    def require_changes(self):
+        if not self.model_fields_set:
+            raise ValueError("Provide at least one customer field")
+        return self
+
+
+class CreditAccountCreate(BaseModel):
+    credit_limit: Decimal = Field(default=Decimal("0.00"), ge=0, max_digits=14, decimal_places=2)
+    payment_term_days: int = Field(default=30, gt=0, le=2147483647, strict=True)
+    account_status: Literal["active", "suspended", "closed"] = "active"
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class CreditAccountUpdate(CreditAccountCreate):
+    @model_validator(mode="after")
+    def require_changes(self):
+        if not self.model_fields_set:
+            raise ValueError("Provide at least one credit account field")
+        return self

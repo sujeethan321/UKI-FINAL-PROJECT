@@ -19,6 +19,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminBusinesses from "./pages/admin/AdminBusinesses";
 import BusinessOnboarding from "./pages/shopOwner/BusinessOnboarding";
+import ShopOwnerCustomers from "./pages/shopOwner/ShopOwnerCustomers";
 
 const roleOptions = [
   { label: "Shop Owner", slug: "shop-owner" },
@@ -101,6 +102,11 @@ export default function App() {
               <Route
                 path="business/register"
                 element={<BusinessOnboarding />}
+              />
+
+              <Route
+                path="customers"
+                element={<ShopOwnerCustomers />}
               />
             </Route>
           </Route>

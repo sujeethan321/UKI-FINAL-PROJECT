@@ -3,6 +3,8 @@ import { useRef, useState } from "react";
 import { AlertCircle, Plus, UserRoundPlus, X } from "lucide-react";
 import { createShopOwnerCustomer } from "../../services/shopOwnerCustomerService";
 
+import { customerErrorMessage } from "../../utils/customerError";
+
 const initialForm = {
   customer_name: "",
   phone: "",
@@ -75,20 +77,8 @@ export default function AddCustomerModal({
           "A customer with this phone number already exists in this business. Check your customer list before adding again."
         );
         setRequiresVerification(true);
-      } else if (status === 422) {
-        const details = err?.response?.data?.detail;
-
-        const message = Array.isArray(details)
-          ? details.map((d) => d.msg).filter(Boolean).join("; ")
-          : typeof details === "string"
-            ? details
-            : "Check the customer name and Sri Lankan mobile number.";
-
-        setError(message);
-      } else if (status === 401 || status === 403) {
-        setError(
-          "You are not authorized to add customers to this business. Check your login and business approval."
-        );
+      } else if ([401, 403, 404, 422].includes(status)) {
+        setError(customerErrorMessage(err));
       } else if (!err?.response) {
         setError(
           "The request could not be confirmed. Refresh the customer list to check whether the customer was saved before trying again."

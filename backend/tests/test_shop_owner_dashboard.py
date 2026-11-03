@@ -1866,3 +1866,136 @@ def test_add_customer_wrong_role_forbidden(
     finally:
         owner.platform_role = original_role
         db.flush()
+
+def detail_response(client, business_id, customer_id):
+    return client.get(
+        f"/api/v1/shop-owner/customers/{customer_id}",
+        params={"business_id": business_id},
+    )
+
+
+def customer_id_for_account(db, account_id):
+    account = db.get(CreditAccount, account_id)
+    assert account is not None
+    return account.customer_id
+
+
+def test_customer_details_no_credit_account(db, customer_create_api):
+    client, _, business_id = customer_create_api
+    new = create_customer_request(client, business_id)
+    assert new.status_code == 201
+    response = detail_response(client, business_id, new.json()["customer_id"])
+    assert response.status_code == 200
+    data = response.json()
+    assert data["credit_account"] is None
+    assert data["transactions"] == []
+    assert data["outstanding_balance"] == "0.00"
+    assert data["available_credit"] is None
+
+
+def test_customer_details_credit_and_partial_payment(db, customer_create_api):
+    client, _, business_id = customer_create_api
+    user_id, account_id = make_customer_account(db, business_id)
+    sale = make_entry(db, user_id, account_id, "credit_sale", "5000.00")
+    repay = make_entry(db, user_id, account_id, "repayment", "2000.00")
+    db.flush()
+    response = detail_response(client, business_id, customer_id_for_account(db, account_id))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["outstanding_balance"] == "3000.00"
+    assert data["advance_balance"] == "0.00"
+    assert data["available_credit"] == "7000.00"
+    assert {t["entry_id"] for t in data["transactions"]} == {sale, repay}
+    assert sum(Decimal(t["debit"]) - Decimal(t["credit"]) for t in data["transactions"]) == Decimal("3000.00")
+
+
+def test_customer_details_reversed_repayment(db, customer_create_api):
+    client, _, business_id = customer_create_api
+    user_id, account_id = make_customer_account(db, business_id)
+    sale = make_entry(db, user_id, account_id, "credit_sale", "5000.00")
+    repay = make_entry(db, user_id, account_id, "repayment", "2000.00")
+    reversal = make_entry(db, user_id, account_id, "reversal", "2000.00", reverses_entry_id=repay)
+    db.flush()
+    response = detail_response(client, business_id, customer_id_for_account(db, account_id))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["outstanding_balance"] == "5000.00"
+    assert [t["entry_id"] for t in data["transactions"]] == [sale]
+    assert reversal not in [t["entry_id"] for t in data["transactions"]]
+
+
+def test_customer_details_reversed_sale(db, customer_create_api):
+    client, _, business_id = customer_create_api
+    user_id, account_id = make_customer_account(db, business_id)
+    sale = make_entry(db, user_id, account_id, "credit_sale", "5000.00")
+    make_entry(db, user_id, account_id, "reversal", "5000.00", reverses_entry_id=sale)
+    db.flush()
+    response = detail_response(client, business_id, customer_id_for_account(db, account_id))
+    assert response.status_code == 200
+    assert response.json()["outstanding_balance"] == "0.00"
+    assert response.json()["transactions"] == []
+
+
+def test_customer_details_advance_balance(db, customer_create_api):
+    client, _, business_id = customer_create_api
+    user_id, account_id = make_customer_account(db, business_id)
+    make_entry(db, user_id, account_id, "repayment", "800.00")
+    db.flush()
+    response = detail_response(client, business_id, customer_id_for_account(db, account_id))
+    assert response.status_code == 200
+    data = response.json()
+    assert data["outstanding_balance"] == "0.00"
+    assert data["advance_balance"] == "800.00"
+    assert data["available_credit"] == "10000.00"
+    assert data["transactions"][-1]["running_balance"] == "-800.00"
+
+
+def test_customer_details_other_business_customer_hidden(db, customer_create_api):
+    client, owner, business_a = customer_create_api
+    business_b = make_business(db, approval_status="approved")
+    db.execute(insert(BusinessMember).values(
+        business_id=business_b, user_id=owner.user_id,
+        business_role="owner", membership_status="active",
+    ))
+    _, account_id = make_customer_account(db, business_b)
+    db.flush()
+    response = detail_response(client, business_a, customer_id_for_account(db, account_id))
+    assert response.status_code == 404
+
+
+def test_customer_details_unowned_business_forbidden(db, customer_create_api):
+    client, _, _ = customer_create_api
+    other_business = make_business(db, approval_status="approved")
+    _, account_id = make_customer_account(db, other_business)
+    db.flush()
+    response = detail_response(client, other_business, customer_id_for_account(db, account_id))
+    assert response.status_code == 403
+
+
+def test_customer_details_pending_business_forbidden(db, customer_create_api):
+    client, owner, _ = customer_create_api
+    business_id = make_business(db, approval_status="pending")
+    db.execute(insert(BusinessMember).values(
+        business_id=business_id, user_id=owner.user_id,
+        business_role="owner", membership_status="active",
+    ))
+    _, account_id = make_customer_account(db, business_id)
+    db.flush()
+    response = detail_response(client, business_id, customer_id_for_account(db, account_id))
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("role", ["customer", "driver"])
+def test_customer_details_other_roles_forbidden(db, customer_create_api, role):
+    client, owner, business_id = customer_create_api
+    _, account_id = make_customer_account(db, business_id)
+    db.flush()
+    original_role = owner.platform_role
+    try:
+        owner.platform_role = role
+        db.flush()
+        response = detail_response(client, business_id, customer_id_for_account(db, account_id))
+        assert response.status_code == 403
+    finally:
+        owner.platform_role = original_role
+        db.flush()

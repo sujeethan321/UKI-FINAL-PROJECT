@@ -27,7 +27,7 @@ const navigation = [
     label: "Customers",
     path: "/shop-owner/customers",
     icon: Users,
-    ready: false,
+    ready: true,
   },
   {
     label: "Products",

@@ -1,8 +1,13 @@
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
+
+from app.services.shop_owner_customer_details_service import get_customer_details
+from app.services.shop_owner_customer_manage_service import (
+    update_customer,
+    manage_credit_account,
+)
 
 from app.core.auth_dependencies import require_roles
 from app.core.database import get_db
@@ -21,12 +26,14 @@ from app.services.shop_owner_dashboard_service import (
 from app.schemas.customer import (
     CustomerCreate,
     CustomerCreateResponse,
+    CustomerUpdate,
+    CreditAccountCreate,
+    CreditAccountUpdate,
 )
 
 from app.services.shop_owner_customer_create_service import (
     create_business_customer,
 )
-
 
 router = APIRouter(
     prefix="/shop-owner",
@@ -37,6 +44,7 @@ router = APIRouter(
 # ---------------------------------------------------
 # Helper: Check for duplicate business registration
 # ---------------------------------------------------
+
 
 def find_duplicate_owned_business(
     db: Session,
@@ -55,10 +63,7 @@ def find_duplicate_owned_business(
         if value is None:
             return column.is_(None)
 
-        return (
-            func.lower(func.trim(column))
-            == value.strip().lower()
-        )
+        return func.lower(func.trim(column)) == value.strip().lower()
 
     statement = (
         select(Business)
@@ -98,6 +103,7 @@ def find_duplicate_owned_business(
 # POST: Register a new Shop Owner business
 # ---------------------------------------------------
 
+
 @router.post(
     "/businesses",
     response_model=BusinessCreateResponse,
@@ -105,9 +111,7 @@ def find_duplicate_owned_business(
 )
 def create_shop_owner_business(
     payload: BusinessCreate,
-    current_user: User = Depends(
-        require_roles("shop_owner")
-    ),
+    current_user: User = Depends(require_roles("shop_owner")),
     db: Session = Depends(get_db),
 ):
     """
@@ -180,6 +184,7 @@ def create_shop_owner_business(
 # Helper: Verify approved business ownership
 # ---------------------------------------------------
 
+
 def get_approved_owned_business(
     db: Session,
     current_user: User,
@@ -218,10 +223,7 @@ def get_approved_owned_business(
     if business.approval_status != "approved":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "Business approval is required "
-                "to access financial data"
-            ),
+            detail=("Business approval is required " "to access financial data"),
         )
 
     return business
@@ -231,11 +233,10 @@ def get_approved_owned_business(
 # GET: Shop Owner business context
 # ---------------------------------------------------
 
+
 @router.get("/business-context")
 def get_business_context(
-    current_user: User = Depends(
-        require_roles("shop_owner")
-    ),
+    current_user: User = Depends(require_roles("shop_owner")),
     db: Session = Depends(get_db),
 ):
     statement = (
@@ -276,12 +277,11 @@ def get_business_context(
 # GET: Shop Owner dashboard summary
 # ---------------------------------------------------
 
+
 @router.get("/dashboard/summary")
 def read_dashboard_summary(
     business_id: int,
-    current_user: User = Depends(
-        require_roles("shop_owner")
-    ),
+    current_user: User = Depends(require_roles("shop_owner")),
     db: Session = Depends(get_db),
 ):
     get_approved_owned_business(
@@ -300,12 +300,11 @@ def read_dashboard_summary(
 # GET: Recent credit transactions
 # ---------------------------------------------------
 
+
 @router.get("/dashboard/recent-transactions")
 def read_recent_transactions(
     business_id: int,
-    current_user: User = Depends(
-        require_roles("shop_owner")
-    ),
+    current_user: User = Depends(require_roles("shop_owner")),
     db: Session = Depends(get_db),
 ):
     get_approved_owned_business(
@@ -330,12 +329,11 @@ def read_recent_transactions(
 # Day 7 Step 7.1A - Shop Owner Customer List
 # ---------------------------------------------------
 
+
 @router.get("/customers")
 def read_shop_owner_customers(
     business_id: int,
-    current_user: User = Depends(
-        require_roles("shop_owner")
-    ),
+    current_user: User = Depends(require_roles("shop_owner")),
     db: Session = Depends(get_db),
 ):
     # Reuse our existing ownership and approval checks.
@@ -371,9 +369,7 @@ def read_shop_owner_customers(
 def add_shop_owner_customer(
     business_id: int,
     payload: CustomerCreate,
-    current_user: User = Depends(
-        require_roles("shop_owner")
-    ),
+    current_user: User = Depends(require_roles("shop_owner")),
     db: Session = Depends(get_db),
 ):
     get_approved_owned_business(
@@ -383,6 +379,7 @@ def add_shop_owner_customer(
     )
 
     try:
+        db.scalar(select(Business).where(Business.business_id == business_id).with_for_update())
         customer = create_business_customer(
             db=db,
             business_id=business_id,
@@ -411,3 +408,72 @@ def add_shop_owner_customer(
             status_code=500,
             detail="Unable to create customer",
         ) from None
+
+
+@router.get("/customers/{customer_id}")
+def read_shop_owner_customer_details(
+    customer_id: int,
+    business_id: int,
+    current_user: User = Depends(require_roles("shop_owner")),
+    db: Session = Depends(get_db),
+):
+    get_approved_owned_business(
+        db=db,
+        current_user=current_user,
+        business_id=business_id,
+    )
+    return get_customer_details(
+        db=db,
+        business_id=business_id,
+        customer_id=customer_id,
+    )
+
+
+def save_customer_changes(db, business_id, customer_id, operation):
+    try:
+        operation()
+        result = get_customer_details(db, business_id, customer_id)
+        db.commit()
+        return result
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Customer or credit account conflicts with an existing record") from None
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(500, "Unable to save customer changes") from None
+
+
+@router.patch("/customers/{customer_id}")
+def edit_shop_owner_customer(
+    customer_id: int, business_id: int, payload: CustomerUpdate,
+    current_user: User = Depends(require_roles("shop_owner")),
+    db: Session = Depends(get_db),
+):
+    get_approved_owned_business(db, current_user, business_id)
+    return save_customer_changes(db, business_id, customer_id,
+        lambda: update_customer(db, business_id, customer_id, payload))
+
+
+@router.post("/customers/{customer_id}/credit-account", status_code=201)
+def create_shop_owner_credit_account(
+    customer_id: int, business_id: int, payload: CreditAccountCreate,
+    current_user: User = Depends(require_roles("shop_owner")),
+    db: Session = Depends(get_db),
+):
+    get_approved_owned_business(db, current_user, business_id)
+    return save_customer_changes(db, business_id, customer_id,
+        lambda: manage_credit_account(db, business_id, customer_id, payload, create=True))
+
+
+@router.patch("/customers/{customer_id}/credit-account")
+def update_shop_owner_credit_account(
+    customer_id: int, business_id: int, payload: CreditAccountUpdate,
+    current_user: User = Depends(require_roles("shop_owner")),
+    db: Session = Depends(get_db),
+):
+    get_approved_owned_business(db, current_user, business_id)
+    return save_customer_changes(db, business_id, customer_id,
+        lambda: manage_credit_account(db, business_id, customer_id, payload))

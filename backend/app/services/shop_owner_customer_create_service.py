@@ -32,7 +32,7 @@ def create_business_customer(
             select(CustomerProfile).where(
                 CustomerProfile.business_id == business_id,
                 CustomerProfile.phone.is_not(None),
-            )
+            ).with_for_update()
         ).all()
 
         for existing in existing_customers:

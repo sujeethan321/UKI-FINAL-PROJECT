@@ -114,171 +114,59 @@ def create_credit_account(db):
     return user_id, business_id, customer_id, account_id
 
 
-def expect_rejection(db, statement):
-    # A savepoint isolates the failed insert.
-    with pytest.raises(IntegrityError):
+
+def expect_rejection(db, statement, expected_mysql_codes):
+    with pytest.raises((IntegrityError, OperationalError)) as exc_info:
         with db.begin_nested():
             db.execute(statement)
+    assert exc_info.value.orig.args[0] in expected_mysql_codes
 
 
 def test_duplicate_email_rejected(db):
     create_test_records(db)
-
-   
-def expect_rejection(db, statement, expected_mysql_codes):
-    with pytest.raises(
-        (IntegrityError, OperationalError)
-    ) as exc_info:
-        with db.begin_nested():
-            db.execute(statement)
-
-    actual_code = exc_info.value.orig.args[0]
-
-    assert actual_code in expected_mysql_codes, (
-        f"Expected MySQL error {expected_mysql_codes}, "
-        f"but received {actual_code}"
-    )
-
+    expect_rejection(db, insert(User).values(
+        full_name="Duplicate Customer", email="constraint_test@example.com",
+        password_hash="test-only-hash", platform_role="customer",
+        preferred_language="en", account_status="active",
+    ), {1062})
 
 
 def test_negative_credit_limit_rejected(db):
-    _, business_id, customer_id = create_test_records(db)
-
-   
-def expect_rejection(db, statement, expected_mysql_codes):
-    with pytest.raises(
-        (IntegrityError, OperationalError)
-    ) as exc_info:
-        with db.begin_nested():
-            db.execute(statement)
-
-    actual_code = exc_info.value.orig.args[0]
-
-    assert actual_code in expected_mysql_codes, (
-        f"Expected MySQL error {expected_mysql_codes}, "
-        f"but received {actual_code}"
-    )
-
+    _, business, customer = create_test_records(db)
+    expect_rejection(db, insert(CreditAccount).values(
+        creditor_business_id=business, customer_id=customer,
+        credit_limit=Decimal("-0.01"), payment_term_days=30, account_status="active",
+    ), {3819})
 
 
 def test_credit_account_without_debtor_rejected(db):
-    _, business_id, _ = create_test_records(db)
-
-    
-def expect_rejection(db, statement, expected_mysql_codes):
-    with pytest.raises(
-        (IntegrityError, OperationalError)
-    ) as exc_info:
-        with db.begin_nested():
-            db.execute(statement)
-
-    actual_code = exc_info.value.orig.args[0]
-
-    assert actual_code in expected_mysql_codes, (
-        f"Expected MySQL error {expected_mysql_codes}, "
-        f"but received {actual_code}"
-    )
-
+    _, business, _ = create_test_records(db)
+    expect_rejection(db, insert(CreditAccount).values(
+        creditor_business_id=business, customer_id=None, debtor_business_id=None,
+        credit_limit=Decimal("100"), payment_term_days=30, account_status="active",
+    ), {3819})
 
 
 def test_credit_account_with_two_debtors_rejected(db):
-    _, business_id, customer_id = create_test_records(db)
-
-   
-def expect_rejection(db, statement, expected_mysql_codes):
-    with pytest.raises(
-        (IntegrityError, OperationalError)
-    ) as exc_info:
-        with db.begin_nested():
-            db.execute(statement)
-
-    actual_code = exc_info.value.orig.args[0]
-
-    assert actual_code in expected_mysql_codes, (
-        f"Expected MySQL error {expected_mysql_codes}, "
-        f"but received {actual_code}"
-    )
+    _, business, customer = create_test_records(db)
+    expect_rejection(db, insert(CreditAccount).values(
+        creditor_business_id=business, customer_id=customer, debtor_business_id=business,
+        credit_limit=Decimal("100"), payment_term_days=30, account_status="active",
+    ), {3819})
 
 
-
-
-@pytest.mark.parametrize(
-    "amount",
-    [
-        Decimal("0.00"),
-        Decimal("-500.00"),
-    ],
-)
+@pytest.mark.parametrize("amount", [Decimal("0.00"), Decimal("-500.00")])
 def test_invalid_ledger_amount_rejected(db, amount):
-    user_id, _, _, account_id = create_credit_account(db)
-
-    expect_rejection(
-        db,
-        insert(LedgerEntry).values(
-            credit_account_id=account_id,
-            created_by=user_id,
-            entry_type="credit_sale",
-            amount=amount,
-            idempotency_key=f"invalid-amount-{abs(amount)}",
-        ),
-        expected_mysql_codes={3819},
-    )
-
-
-@pytest.mark.parametrize(
-    "amount",
-    [
-        Decimal("0.00"),
-        Decimal("-500.00"),
-    ],
-)
-def test_invalid_ledger_amount_rejected(db, amount):
-    user_id, _, _, account_id = create_credit_account(db)
-
-    expect_rejection(
-        db,
-        insert(LedgerEntry).values(
-            credit_account_id=account_id,
-            created_by=user_id,
-            entry_type="credit_sale",
-            amount=amount,
-            idempotency_key=f"invalid-amount-{abs(amount)}",
-        ),
-        expected_mysql_codes={3819},
-    )
-
-
-   
-def expect_rejection(db, statement, expected_mysql_codes):
-    with pytest.raises(
-        (IntegrityError, OperationalError)
-    ) as exc_info:
-        with db.begin_nested():
-            db.execute(statement)
-
-    actual_code = exc_info.value.orig.args[0]
-
-    assert actual_code in expected_mysql_codes, (
-        f"Expected MySQL error {expected_mysql_codes}, "
-        f"but received {actual_code}"
-    )
+    user, _, _, account = create_credit_account(db)
+    expect_rejection(db, insert(LedgerEntry).values(
+        credit_account_id=account, created_by=user, entry_type="credit_sale",
+        amount=amount, idempotency_key=f"invalid-amount-{abs(amount)}",
+    ), {3819})
 
 
 def test_invalid_customer_foreign_key_rejected(db):
-    _, business_id, _ = create_test_records(db)
-
-   
-def expect_rejection(db, statement, expected_mysql_codes):
-    with pytest.raises(
-        (IntegrityError, OperationalError)
-    ) as exc_info:
-        with db.begin_nested():
-            db.execute(statement)
-
-    actual_code = exc_info.value.orig.args[0]
-
-    assert actual_code in expected_mysql_codes, (
-        f"Expected MySQL error {expected_mysql_codes}, "
-        f"but received {actual_code}"
-    )
-
+    _, business, _ = create_test_records(db)
+    expect_rejection(db, insert(CreditAccount).values(
+        creditor_business_id=business, customer_id=9223372036854775807,
+        credit_limit=Decimal("100"), payment_term_days=30, account_status="active",
+    ), {1452})
