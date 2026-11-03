@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 
 import {
   CreditCard,
@@ -30,7 +31,7 @@ const actions = [
   },
 ];
 
-export default function QuickActions() {
+export default function QuickActions({ businessId }) {
   return (
     <section
       aria-labelledby="quick-actions-title"
@@ -50,13 +51,17 @@ export default function QuickActions() {
       <div className="mt-6 space-y-3">
         {actions.map((action) => {
           const Icon = action.icon;
+          const enabled = action.id === "credit-sale";
+          const Action = enabled ? Link : "div";
 
           return (
-            <div
+            <Action
+              to={enabled ? "/shop-owner/credit-sales" : undefined}
+              state={enabled ? { businessId } : undefined}
               key={action.id}
               className="flex items-center gap-3 rounded-xl border border-[#E5EDF4] bg-[#F8FAFC] px-4 py-3"
-              aria-disabled="true"
-              title={`${action.label} — coming soon`}
+              aria-disabled={!enabled}
+              title={enabled ? action.label : `${action.label} (coming soon)`}
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#E8F8F6] text-[#0AAE9F]">
                 <Icon size={18} aria-hidden="true" />
@@ -66,18 +71,18 @@ export default function QuickActions() {
                 {action.label}
               </span>
 
-              <LockKeyhole
+              {!enabled && <LockKeyhole
                 size={15}
                 className="text-[#94A3B8]"
                 aria-hidden="true"
-              />
-            </div>
+              />}
+            </Action>
           );
         })}
       </div>
 
       <p className="mt-5 text-xs text-[#64748B]">
-        These actions will be enabled as their features
+        Other actions will be enabled as their features
         and backend services are completed.
       </p>
     </section>

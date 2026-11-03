@@ -3,9 +3,11 @@ from decimal import Decimal
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.models import CustomerProfile, CreditAccount, LedgerEntry
+from app.models import CustomerProfile, CreditAccount
+from app.services.ledger_service import (
+    ZERO, load_ledger_entries, effective_entries, entry_delta, balance_position,
+)
 
-ZERO = Decimal("0.00")
 
 def cash(value: Decimal) -> str:
     return f"{value:.2f}"
@@ -40,25 +42,14 @@ def get_customer_details(db: Session, business_id: int, customer_id: int) -> dic
             "advance_balance": "0.00", "available_credit": None, "transactions": [],
         }
 
-    # Include only effective credit sales and repayments. The original
-    # entry and its correction remain in MySQL for audit purposes.
-    reversed_ids = select(LedgerEntry.reverses_entry_id).where(
-        LedgerEntry.credit_account_id == account.credit_account_id,
-        LedgerEntry.entry_type == "reversal",
-        LedgerEntry.reverses_entry_id.is_not(None),
-    )
-    entries = db.scalars(select(LedgerEntry).where(
-        LedgerEntry.credit_account_id == account.credit_account_id,
-        LedgerEntry.entry_type.in_(["credit_sale", "repayment"]),
-        LedgerEntry.entry_id.not_in(reversed_ids),
-    ).order_by(LedgerEntry.recorded_at.asc(), LedgerEntry.entry_id.asc())).all()
+    entries = effective_entries(load_ledger_entries(db, [account.credit_account_id]))
 
     balance = ZERO
     transactions = []
     for entry in entries:
         value = Decimal(entry.amount)
         sale = entry.entry_type == "credit_sale"
-        balance += value if sale else -value
+        balance += entry_delta(entry)
         transactions.append({
             "entry_id": entry.entry_id,
             "entry_type": entry.entry_type,
@@ -74,9 +65,7 @@ def get_customer_details(db: Session, business_id: int, customer_id: int) -> dic
         })
 
     credit_limit = Decimal(account.credit_limit)
-    outstanding = max(balance, ZERO)
-    advance = max(-balance, ZERO)
-    available = max(credit_limit - outstanding, ZERO)
+    position = balance_position(balance, credit_limit)
     return {
         "business_id": business_id, "currency": "LKR", "customer": info,
         "credit_account": {
@@ -86,8 +75,8 @@ def get_customer_details(db: Session, business_id: int, customer_id: int) -> dic
             "account_status": account.account_status,
             "opened_at": iso(account.opened_at),
         },
-        "outstanding_balance": cash(outstanding),
-        "advance_balance": cash(advance),
-        "available_credit": cash(available),
+        "outstanding_balance": cash(position["outstanding_balance"]),
+        "advance_balance": cash(position["advance_balance"]),
+        "available_credit": cash(position["available_credit"]),
         "transactions": transactions,
     }

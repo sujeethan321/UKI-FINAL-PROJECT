@@ -39,13 +39,13 @@ const navigation = [
     label: "Credit Sales",
     path: "/shop-owner/credit-sales",
     icon: CreditCard,
-    ready: false,
+    ready: true,
   },
   {
     label: "Repayments",
     path: "/shop-owner/repayments",
     icon: Wallet,
-    ready: false,
+    ready: true,
   },
   {
     label: "Credit Orders",

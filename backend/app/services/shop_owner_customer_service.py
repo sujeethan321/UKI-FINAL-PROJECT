@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 from app.models import (
     CustomerProfile,
     CreditAccount,
-    LedgerEntry,
 )
+
+from app.services.ledger_service import account_balances, load_ledger_entries
 
 
 def list_business_customers(
@@ -45,35 +46,7 @@ def list_business_customers(
         for account in accounts
     ]
 
-    balances = {
-        account_id: Decimal("0.00")
-        for account_id in account_ids
-    }
-
-    if account_ids:
-        reversed_ids = (
-            select(LedgerEntry.reverses_entry_id)
-            .where(
-                LedgerEntry.entry_type == "reversal",
-                LedgerEntry.reverses_entry_id.is_not(None),
-            )
-        )
-
-        entries = db.scalars(
-            select(LedgerEntry).where(
-                LedgerEntry.credit_account_id.in_(account_ids),
-                LedgerEntry.entry_type.in_(
-                    ["credit_sale", "repayment"]
-                ),
-                LedgerEntry.entry_id.not_in(reversed_ids),
-            )
-        ).all()
-
-        for entry in entries:
-            if entry.entry_type == "credit_sale":
-                balances[entry.credit_account_id] += entry.amount
-            elif entry.entry_type == "repayment":
-                balances[entry.credit_account_id] -= entry.amount
+    balances = account_balances(load_ledger_entries(db, account_ids))
 
     result = []
 

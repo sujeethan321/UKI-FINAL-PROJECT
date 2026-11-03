@@ -20,6 +20,9 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminBusinesses from "./pages/admin/AdminBusinesses";
 import BusinessOnboarding from "./pages/shopOwner/BusinessOnboarding";
 import ShopOwnerCustomers from "./pages/shopOwner/ShopOwnerCustomers";
+import ShopOwnerCreditSales from "./pages/shopOwner/ShopOwnerCreditSales";
+
+import ShopOwnerRepayments from "./pages/shopOwner/ShopOwnerRepayments";
 
 const roleOptions = [
   { label: "Shop Owner", slug: "shop-owner" },
@@ -108,6 +111,8 @@ export default function App() {
                 path="customers"
                 element={<ShopOwnerCustomers />}
               />
+              <Route path="credit-sales" element={<ShopOwnerCreditSales />} />
+              <Route path="repayments" element={<ShopOwnerRepayments />} />
             </Route>
           </Route>
 

@@ -8,6 +8,7 @@ from app.models import CreditAccount, LedgerEntry
 from sqlalchemy.orm import aliased
 
 from app.models import CustomerProfile
+from app.services.ledger_service import account_balances, load_ledger_entries
 
 
 def get_dashboard_summary(
@@ -21,60 +22,11 @@ def get_dashboard_summary(
     Only customer credit accounts are included.
     """
 
-    # Identify ledger entries cancelled by reversals.
-    reversed_entry_ids = (
-        select(LedgerEntry.reverses_entry_id)
-        .where(
-            LedgerEntry.entry_type == "reversal",
-            LedgerEntry.reverses_entry_id.is_not(None),
-        )
-    )
-
-    # Fetch valid credit sales and repayments
-    # belonging to this specific business.
-    statement = (
-        select(
-            LedgerEntry.credit_account_id,
-            LedgerEntry.entry_type,
-            LedgerEntry.amount,
-        )
-        .join(
-            CreditAccount,
-            CreditAccount.credit_account_id
-            == LedgerEntry.credit_account_id,
-        )
-        .where(
-            CreditAccount.creditor_business_id == business_id,
-            CreditAccount.customer_id.is_not(None),
-            LedgerEntry.entry_type.in_(
-                ["credit_sale", "repayment"]
-            ),
-            LedgerEntry.entry_id.not_in(
-                reversed_entry_ids
-            ),
-        )
-    )
-    
-
-    entries = db.execute(statement).all()
-
-    # Calculate balances separately for each
-    # credit account to avoid offsetting one
-    # customer's balance against another's.
-    balances = {}
-
-    for account_id, entry_type, amount in entries:
-        balance = balances.get(
-            account_id,
-            Decimal("0.00"),
-        )
-
-        if entry_type == "credit_sale":
-            balance += amount
-        elif entry_type == "repayment":
-            balance -= amount
-
-        balances[account_id] = balance
+    account_ids = list(db.scalars(select(CreditAccount.credit_account_id).where(
+        CreditAccount.creditor_business_id == business_id,
+        CreditAccount.customer_id.is_not(None),
+    )))
+    balances = account_balances(load_ledger_entries(db, account_ids))
 
     total_outstanding = sum(
         (
@@ -128,6 +80,7 @@ def get_recent_credit_transactions(
             reversed_entry.reverses_entry_id
             == LedgerEntry.entry_id,
             reversed_entry.entry_type == "reversal",
+            reversed_entry.credit_account_id == LedgerEntry.credit_account_id,
         )
         .correlate(LedgerEntry)
         .exists()

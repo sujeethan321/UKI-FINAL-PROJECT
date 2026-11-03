@@ -216,4 +216,12 @@ def test_customer_routes_are_registered_once():
             assert key not in seen
             seen.add(key)
             assert method.lower() in schema[f"/api/v1{route.path}"]
-    assert len(seen) == 6
+    assert seen == {
+        ("GET", "/shop-owner/customers"),
+        ("POST", "/shop-owner/customers"),
+        ("GET", "/shop-owner/customers/{customer_id}"),
+        ("PATCH", "/shop-owner/customers/{customer_id}"),
+        ("POST", "/shop-owner/customers/{customer_id}/credit-account"),
+        ("PATCH", "/shop-owner/customers/{customer_id}/credit-account"),
+        ("GET", "/shop-owner/customers/{customer_id}/statement"),
+    }

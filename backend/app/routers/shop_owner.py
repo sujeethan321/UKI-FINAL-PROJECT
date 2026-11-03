@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.services.shop_owner_customer_details_service import get_customer_details
@@ -8,6 +10,10 @@ from app.services.shop_owner_customer_manage_service import (
     update_customer,
     manage_credit_account,
 )
+
+from app.schemas.ledger import CreditSaleCreate, CreditSaleResponse, RepaymentCreate, RepaymentResponse
+from app.services.shop_owner_credit_sale_service import record_credit_sale
+from app.services.shop_owner_repayment_service import record_repayment
 
 from app.core.auth_dependencies import require_roles
 from app.core.database import get_db
@@ -33,6 +39,11 @@ from app.schemas.customer import (
 
 from app.services.shop_owner_customer_create_service import (
     create_business_customer,
+)
+
+from app.schemas.financial_documents import RepaymentReceipt, CustomerStatement, OutstandingPayments
+from app.services.shop_owner_financial_documents_service import (
+    repayment_receipt, customer_statement, outstanding_payments,
 )
 
 router = APIRouter(
@@ -477,3 +488,106 @@ def update_shop_owner_credit_account(
     get_approved_owned_business(db, current_user, business_id)
     return save_customer_changes(db, business_id, customer_id,
         lambda: manage_credit_account(db, business_id, customer_id, payload))
+
+
+def save_financial_operation(db, current_user, business_id, response, operation, label):
+    # Both writers share retry/rollback behavior and the same account lock.
+    for attempt in range(3):
+        try:
+            get_approved_owned_business(db, current_user, business_id)
+            result = operation()
+            db.commit()
+            response.status_code = 200 if result.replayed else 201
+            return result
+        except HTTPException:
+            db.rollback()
+            raise
+        except IntegrityError:
+            # Unique indexes arbitrate cross-account key/reference races. A
+            # fresh transaction can see the winning row and replay/conflict.
+            db.rollback()
+            if attempt == 2:
+                raise HTTPException(409, f"{label.capitalize()} conflicts with an existing transaction") from None
+        except OperationalError as error:
+            db.rollback()
+            code = error.orig.args[0] if error.orig and error.orig.args else None
+            if code not in (1205, 1213) or attempt == 2:
+                raise HTTPException(500, f"Unable to record {label}") from None
+        except SQLAlchemyError:
+            db.rollback()
+            raise HTTPException(500, f"Unable to record {label}") from None
+
+
+@router.post("/credit-sales", response_model=CreditSaleResponse, status_code=201)
+def add_shop_owner_credit_sale(
+    payload: CreditSaleCreate,
+    response: Response,
+    business_id: int = Query(gt=0, le=9223372036854775807),
+    current_user: User = Depends(require_roles("shop_owner")),
+    db: Session = Depends(get_db),
+):
+    return save_financial_operation(db, current_user, business_id, response,
+        lambda: record_credit_sale(db, business_id, current_user.user_id, payload), "credit sale")
+
+
+@router.post("/repayments", response_model=RepaymentResponse, status_code=201)
+def add_shop_owner_repayment(
+    payload: RepaymentCreate,
+    response: Response,
+    business_id: int = Query(gt=0, le=9223372036854775807),
+    current_user: User = Depends(require_roles("shop_owner")),
+    db: Session = Depends(get_db),
+):
+    return save_financial_operation(db, current_user, business_id, response,
+        lambda: record_repayment(db, business_id, current_user.user_id, payload), "repayment")
+
+
+def read_financial_document(db, current_user, business_id, response, operation):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        business = get_approved_owned_business(db, current_user, business_id)
+        return operation(business)
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(500, "Unable to load financial document") from None
+
+
+@router.get("/repayments/{repayment_id}/receipt", response_model=RepaymentReceipt)
+def read_shop_owner_repayment_receipt(
+    response: Response,
+    repayment_id: int = Path(gt=0, le=9223372036854775807),
+    business_id: int = Query(gt=0, le=9223372036854775807),
+    current_user: User = Depends(require_roles("shop_owner")),
+    db: Session = Depends(get_db),
+):
+    return read_financial_document(db, current_user, business_id, response,
+        lambda business: repayment_receipt(db, business, repayment_id))
+
+
+@router.get("/customers/{customer_id}/statement", response_model=CustomerStatement)
+def read_shop_owner_customer_statement(
+    response: Response,
+    start_date: date,
+    end_date: date,
+    customer_id: int = Path(gt=0, le=9223372036854775807),
+    business_id: int = Query(gt=0, le=9223372036854775807),
+    current_user: User = Depends(require_roles("shop_owner")),
+    db: Session = Depends(get_db),
+):
+    return read_financial_document(db, current_user, business_id, response,
+        lambda business: customer_statement(db, business, customer_id, start_date, end_date))
+
+
+@router.get("/outstanding-payments", response_model=OutstandingPayments)
+def read_shop_owner_outstanding_payments(
+    response: Response,
+    business_id: int = Query(gt=0, le=9223372036854775807),
+    search: str = Query(default="", max_length=150),
+    outstanding_only: bool = False,
+    page: int = Query(default=1, ge=1, le=1000000),
+    page_size: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(require_roles("shop_owner")),
+    db: Session = Depends(get_db),
+):
+    return read_financial_document(db, current_user, business_id, response,
+        lambda business: outstanding_payments(db, business.business_id, search, outstanding_only, page, page_size))

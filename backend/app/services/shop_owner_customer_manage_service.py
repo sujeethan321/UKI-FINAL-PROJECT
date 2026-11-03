@@ -5,7 +5,8 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Business, CreditAccount, CustomerProfile, LedgerEntry
+from app.models import Business, CreditAccount, CustomerProfile
+from app.services.ledger_service import ZERO, account_balances, load_ledger_entries
 from app.services.shop_owner_customer_create_service import normalize_phone
 
 
@@ -54,15 +55,8 @@ def manage_credit_account(db, business_id, customer_id, payload, create=False):
     else:
         if account is None:
             raise HTTPException(404, "Credit account not found")
-        # A locking read sees the latest committed ledger even under MySQL's
-        # REPEATABLE READ isolation. Keep every original and reversal intact.
-        entries = db.scalars(select(LedgerEntry).where(
-            LedgerEntry.credit_account_id == account.credit_account_id,
-        ).with_for_update()).all()
-        reversed_ids = {entry.reverses_entry_id for entry in entries if entry.entry_type == "reversal"}
-        balance = sum((entry.amount if entry.entry_type == "credit_sale" else -entry.amount
-                       for entry in entries if entry.entry_type in ("credit_sale", "repayment")
-                       and entry.entry_id not in reversed_ids), Decimal("0.00"))
+        entries = load_ledger_entries(db, [account.credit_account_id], lock=True)
+        balance = account_balances(entries).get(account.credit_account_id, ZERO)
         changes = payload.model_dump(exclude_unset=True)
         if "credit_limit" in changes and changes["credit_limit"] < max(balance, Decimal("0.00")):
             raise HTTPException(409, "Credit limit cannot be below outstanding debt")

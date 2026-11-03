@@ -67,10 +67,10 @@ export default function ShopOwnerDashboard() {
             ? previousId
             : availableBusinesses[0]?.business_id ?? null;
         });
-      } catch (error) {
+      } catch {
         if (!active) return;
 
-        console.error("Business context failed:", error);
+        console.error("Business context failed.");
 
         setContextError(
           "Unable to load your business information."
@@ -144,10 +144,7 @@ export default function ShopOwnerDashboard() {
       if (summaryResult.status === "fulfilled") {
         setSummary(summaryResult.value);
       } else {
-        console.error(
-          "Dashboard summary failed:",
-          summaryResult.reason
-        );
+        console.error("Dashboard summary failed.");
         setSummaryError(
           "Unable to load dashboard overview."
         );
@@ -165,10 +162,7 @@ export default function ShopOwnerDashboard() {
           );
         }
       } else {
-        console.error(
-          "Recent transactions failed:",
-          transactionsResult.reason
-        );
+        console.error("Recent transactions failed.");
         setTransactionsError(
           "Unable to load recent transactions."
         );
@@ -371,7 +365,7 @@ if (businesses.length === 0) {
               />
             </div>
 
-            <QuickActions />
+            <QuickActions businessId={selectedBusinessId} />
           </div>
         </>
       )}
