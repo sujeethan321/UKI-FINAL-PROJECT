@@ -11,9 +11,20 @@ from app.schemas.business import (
     BusinessCreate,
     BusinessCreateResponse,
 )
+from app.services.shop_owner_customer_service import (
+    list_business_customers,
+)
 from app.services.shop_owner_dashboard_service import (
     get_dashboard_summary,
     get_recent_credit_transactions,
+)
+from app.schemas.customer import (
+    CustomerCreate,
+    CustomerCreateResponse,
+)
+
+from app.services.shop_owner_customer_create_service import (
+    create_business_customer,
 )
 
 
@@ -313,3 +324,90 @@ def read_recent_transactions(
         "business_id": business_id,
         "transactions": transactions,
     }
+
+
+# ---------------------------------------------------
+# Day 7 Step 7.1A - Shop Owner Customer List
+# ---------------------------------------------------
+
+@router.get("/customers")
+def read_shop_owner_customers(
+    business_id: int,
+    current_user: User = Depends(
+        require_roles("shop_owner")
+    ),
+    db: Session = Depends(get_db),
+):
+    # Reuse our existing ownership and approval checks.
+    get_approved_owned_business(
+        db=db,
+        current_user=current_user,
+        business_id=business_id,
+    )
+
+    customers = list_business_customers(
+        db=db,
+        business_id=business_id,
+    )
+
+    return {
+        "business_id": business_id,
+        "currency": "LKR",
+        "total_customers": len(customers),
+        "customers": customers,
+    }
+
+
+# --------------------------------------------------
+# Day 7 Step 7.2A - Add Customer
+# --------------------------------------------------
+
+
+@router.post(
+    "/customers",
+    response_model=CustomerCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_shop_owner_customer(
+    business_id: int,
+    payload: CustomerCreate,
+    current_user: User = Depends(
+        require_roles("shop_owner")
+    ),
+    db: Session = Depends(get_db),
+):
+    get_approved_owned_business(
+        db=db,
+        current_user=current_user,
+        business_id=business_id,
+    )
+
+    try:
+        customer = create_business_customer(
+            db=db,
+            business_id=business_id,
+            payload=payload,
+        )
+
+        result = CustomerCreateResponse(
+            customer_id=customer.customer_id,
+            business_id=customer.business_id,
+            customer_name=customer.customer_name,
+            phone=customer.phone,
+            address=customer.address,
+            message="Customer created successfully",
+        )
+
+        db.commit()
+        return result
+
+    except HTTPException:
+        db.rollback()
+        raise
+
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to create customer",
+        ) from None

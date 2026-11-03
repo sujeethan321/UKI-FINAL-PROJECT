@@ -1358,3 +1358,511 @@ def test_shop_owner_cannot_access_admin_business_list(
         f"Expected 403, received "
         f"{response.status_code}: {response.text}"
     )
+
+
+# ==========================================================
+# Day 7 Step 7.1B - Shop Owner Customer List API Tests
+# ==========================================================
+
+from app.services.shop_owner_customer_service import (
+    list_business_customers,
+)
+
+
+def customer_result(db, business_id):
+    return list_business_customers(
+        db=db,
+        business_id=business_id,
+    )
+
+
+def find_customer_by_account(customers, account_id):
+    return next(
+        customer
+        for customer in customers
+        if customer["credit_account_id"] == account_id
+    )
+
+
+# TEST 1 - Empty customer list
+
+def test_customer_list_empty_business(db):
+    business_id = make_business(db)
+
+    result = customer_result(db, business_id)
+
+    assert result == []
+
+
+# TEST 2 - Customer without credit account
+
+def test_customer_list_without_credit_account(db):
+    business_id = make_business(db)
+
+    created = db.execute(
+        insert(CustomerProfile).values(
+            business_id=business_id,
+            user_id=None,
+            customer_name="Walk-in Test Customer",
+            phone="0771234567",
+            address="Nallur, Jaffna",
+        )
+    )
+
+    customer_id = created.inserted_primary_key[0]
+
+    result = customer_result(db, business_id)
+
+    assert len(result) == 1
+    assert result[0]["customer_id"] == customer_id
+    assert result[0]["customer_name"] == "Walk-in Test Customer"
+    assert result[0]["credit_account_id"] is None
+    assert Decimal(result[0]["outstanding_balance"]) == Decimal("0.00")
+    assert result[0]["account_status"] == "no_account"
+
+
+# TEST 3 - Credit sale increases outstanding
+
+def test_customer_list_credit_sale(db):
+    business_id = make_business(db)
+
+    user_id, account_id = make_customer_account(
+        db, business_id
+    )
+
+    make_entry(
+        db, user_id, account_id,
+        "credit_sale", "5000.00"
+    )
+
+    result = customer_result(db, business_id)
+    customer = find_customer_by_account(result, account_id)
+
+    assert Decimal(
+        customer["outstanding_balance"]
+    ) == Decimal("5000.00")
+
+    assert Decimal(
+        customer["credit_limit"]
+    ) == Decimal("10000.00")
+
+
+# TEST 4 - Partial repayment decreases outstanding
+
+def test_customer_list_partial_repayment(db):
+    business_id = make_business(db)
+
+    user_id, account_id = make_customer_account(
+        db, business_id
+    )
+
+    make_entry(
+        db, user_id, account_id,
+        "credit_sale", "5000.00"
+    )
+
+    make_entry(
+        db, user_id, account_id,
+        "repayment", "2000.00"
+    )
+
+    result = customer_result(db, business_id)
+    customer = find_customer_by_account(result, account_id)
+
+    assert Decimal(
+        customer["outstanding_balance"]
+    ) == Decimal("3000.00")
+
+
+# TEST 5 - Reversed repayment restores outstanding
+
+def test_customer_list_reversed_repayment(db):
+    business_id = make_business(db)
+
+    user_id, account_id = make_customer_account(
+        db, business_id
+    )
+
+    make_entry(
+        db, user_id, account_id,
+        "credit_sale", "5000.00"
+    )
+
+    repayment_id = make_entry(
+        db, user_id, account_id,
+        "repayment", "2000.00"
+    )
+
+    make_entry(
+        db, user_id, account_id,
+        "reversal", "2000.00",
+        reverses_entry_id=repayment_id,
+    )
+
+    result = customer_result(db, business_id)
+    customer = find_customer_by_account(result, account_id)
+
+    assert Decimal(
+        customer["outstanding_balance"]
+    ) == Decimal("5000.00")
+
+
+# TEST 6 - Reversed credit sale is excluded
+
+def test_customer_list_reversed_credit_sale(db):
+    business_id = make_business(db)
+
+    user_id, account_id = make_customer_account(
+        db, business_id
+    )
+
+    sale_id = make_entry(
+        db, user_id, account_id,
+        "credit_sale", "5000.00"
+    )
+
+    make_entry(
+        db, user_id, account_id,
+        "reversal", "5000.00",
+        reverses_entry_id=sale_id,
+    )
+
+    result = customer_result(db, business_id)
+    customer = find_customer_by_account(result, account_id)
+
+    assert Decimal(
+        customer["outstanding_balance"]
+    ) == Decimal("0.00")
+
+
+# TEST 7 - Two businesses cannot see each other's customers
+
+def test_customer_list_business_isolation(db):
+    business_a = make_business(db)
+    business_b = make_business(db)
+
+    user_a, account_a = make_customer_account(
+        db, business_a
+    )
+
+    user_b, account_b = make_customer_account(
+        db, business_b
+    )
+
+    make_entry(
+        db, user_a, account_a,
+        "credit_sale", "4000.00"
+    )
+
+    make_entry(
+        db, user_b, account_b,
+        "credit_sale", "8000.00"
+    )
+
+    customers_a = customer_result(db, business_a)
+    customers_b = customer_result(db, business_b)
+
+    assert len(customers_a) == 1
+    assert len(customers_b) == 1
+
+    assert customers_a[0]["credit_account_id"] == account_a
+    assert customers_b[0]["credit_account_id"] == account_b
+
+    assert account_b not in {
+        c["credit_account_id"] for c in customers_a
+    }
+
+    assert account_a not in {
+        c["credit_account_id"] for c in customers_b
+    }
+
+    assert Decimal(
+        customers_a[0]["outstanding_balance"]
+    ) == Decimal("4000.00")
+
+    assert Decimal(
+        customers_b[0]["outstanding_balance"]
+    ) == Decimal("8000.00")
+
+
+# TEST 8 - Endpoint enforces business ownership
+
+def test_customer_list_endpoint_blocks_other_owner(db):
+    business_a = make_business(db)
+    business_b = make_business(db)
+
+    unique = uuid4().hex[:12]
+
+    created = db.execute(
+        insert(User).values(
+            full_name="Customer List Security Owner",
+            email=f"customer-list-{unique}@example.com",
+            password_hash="test-only-hash",
+            platform_role="shop_owner",
+            preferred_language="en",
+            account_status="active",
+        )
+    )
+
+    owner = db.get(User, created.inserted_primary_key[0])
+
+    db.execute(
+        insert(BusinessMember).values(
+            business_id=business_a,
+            user_id=owner.user_id,
+            business_role="owner",
+            membership_status="active",
+        )
+    )
+
+    db.flush()
+
+    def override_db():
+        yield db
+
+    def override_user():
+        return owner
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = override_user
+
+    try:
+        with TestClient(app) as client:
+            own_response = client.get(
+                "/api/v1/shop-owner/customers",
+                params={"business_id": business_a},
+            )
+
+            other_response = client.get(
+                "/api/v1/shop-owner/customers",
+                params={"business_id": business_b},
+            )
+
+        assert own_response.status_code == 200
+        assert own_response.json()["business_id"] == business_a
+        assert own_response.json()["customers"] == []
+
+        assert other_response.status_code == 403
+
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+# ============================================================
+# Day 7 Step 7.2B - Add Customer API Security and Validation
+# ============================================================
+
+@pytest.fixture
+def customer_create_api(db, onboarding_api):
+    client, owner = onboarding_api
+
+    business_id = make_business(
+        db,
+        approval_status="approved",
+    )
+
+    db.execute(
+        insert(BusinessMember).values(
+            business_id=business_id,
+            user_id=owner.user_id,
+            business_role="owner",
+            membership_status="active",
+        )
+    )
+    db.flush()
+
+    return client, owner, business_id
+
+
+def create_customer_request(client, business_id, **changes):
+    payload = {
+        "customer_name": "Kumar Raj",
+        "phone": "0771234567",
+        "address": "Nallur, Jaffna",
+    }
+    payload.update(changes)
+
+    return client.post(
+        "/api/v1/shop-owner/customers",
+        params={"business_id": business_id},
+        json=payload,
+    )
+
+
+def test_add_customer_valid(customer_create_api):
+    client, owner, business_id = customer_create_api
+
+    response = create_customer_request(client, business_id)
+
+    assert response.status_code == 201
+    assert response.json()["customer_name"] == "Kumar Raj"
+    assert response.json()["business_id"] == business_id
+
+
+def test_add_customer_blank_name(customer_create_api):
+    client, _, business_id = customer_create_api
+
+    response = create_customer_request(
+        client, business_id, customer_name="   "
+    )
+
+    assert response.status_code == 422
+
+
+def test_add_customer_invalid_phone(customer_create_api):
+    client, _, business_id = customer_create_api
+
+    response = create_customer_request(
+        client, business_id, phone="123"
+    )
+
+    assert response.status_code == 422
+
+
+def test_add_customer_duplicate_phone(customer_create_api):
+    client, _, business_id = customer_create_api
+
+    first = create_customer_request(
+        client, business_id
+    )
+
+    second = create_customer_request(
+        client,
+        business_id,
+        customer_name="Another Name",
+        phone="+94771234567",
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 409
+
+    records = db_count_customers(
+        business_id,
+        "0771234567",
+        client,
+    )
+    assert records == 1
+
+
+def db_count_customers(business_id, phone, client):
+    response = client.get(
+        "/api/v1/shop-owner/customers",
+        params={"business_id": business_id},
+    )
+    assert response.status_code == 200
+
+    return sum(
+        customer["phone"] == phone
+        for customer in response.json()["customers"]
+    )
+
+
+def test_add_customer_optional_fields(customer_create_api):
+    client, _, business_id = customer_create_api
+
+    response = create_customer_request(
+        client,
+        business_id,
+        phone=None,
+        address=None,
+    )
+
+    assert response.status_code == 201
+    assert response.json()["phone"] is None
+    assert response.json()["address"] is None
+
+
+def test_add_customer_same_phone_different_business(
+    db, customer_create_api
+):
+    client, owner, business_a = customer_create_api
+
+    business_b = make_business(
+        db,
+        approval_status="approved",
+    )
+
+    db.execute(
+        insert(BusinessMember).values(
+            business_id=business_b,
+            user_id=owner.user_id,
+            business_role="owner",
+            membership_status="active",
+        )
+    )
+    db.flush()
+
+    first = create_customer_request(client, business_a)
+    second = create_customer_request(client, business_b)
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+
+def test_add_customer_other_business_forbidden(
+    db, customer_create_api
+):
+    client, _, _ = customer_create_api
+
+    other_business = make_business(
+        db,
+        approval_status="approved",
+    )
+
+    response = create_customer_request(
+        client,
+        other_business,
+    )
+
+    assert response.status_code == 403
+
+
+def test_add_customer_pending_business_forbidden(
+    db, customer_create_api
+):
+    client, owner, _ = customer_create_api
+
+    pending_business = make_business(
+        db,
+        approval_status="pending",
+    )
+
+    db.execute(
+        insert(BusinessMember).values(
+            business_id=pending_business,
+            user_id=owner.user_id,
+            business_role="owner",
+            membership_status="active",
+        )
+    )
+    db.flush()
+
+    response = create_customer_request(
+        client,
+        pending_business,
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("role", ["customer", "driver"])
+def test_add_customer_wrong_role_forbidden(
+    db, customer_create_api, role
+):
+    client, owner, business_id = customer_create_api
+
+    original_role = owner.platform_role
+    try:
+        owner.platform_role = role
+        db.flush()
+
+        response = create_customer_request(
+            client,
+            business_id,
+        )
+
+        assert response.status_code == 403
+    finally:
+        owner.platform_role = original_role
+        db.flush()

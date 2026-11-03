@@ -1,0 +1,59 @@
+
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.models import CustomerProfile
+from app.schemas.customer import CustomerCreate
+
+
+def normalize_phone(phone: str | None) -> str | None:
+    if not phone:
+        return None
+
+    digits = "".join(char for char in phone if char.isdigit())
+
+    if digits.startswith("94") and len(digits) == 11:
+        return "0" + digits[2:]
+
+    return digits
+
+
+def create_business_customer(
+    db: Session,
+    business_id: int,
+    payload: CustomerCreate,
+) -> CustomerProfile:
+
+    normalized_phone = normalize_phone(payload.phone)
+
+    if normalized_phone:
+        existing_customers = db.scalars(
+            select(CustomerProfile).where(
+                CustomerProfile.business_id == business_id,
+                CustomerProfile.phone.is_not(None),
+            )
+        ).all()
+
+        for existing in existing_customers:
+            if normalize_phone(existing.phone) == normalized_phone:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "A customer with this phone number "
+                        "already exists in your business"
+                    ),
+                )
+
+    customer = CustomerProfile(
+        business_id=business_id,
+        user_id=None,
+        customer_name=payload.customer_name,
+        phone=normalized_phone,
+        address=payload.address,
+    )
+
+    db.add(customer)
+    db.flush()
+
+    return customer
