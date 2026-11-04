@@ -7,6 +7,8 @@ import {
   UserRound,
 } from "lucide-react";
 
+import NotificationBell from "../notifications/NotificationBell";
+
 import { useAuth } from "../../context/useAuth";
 
 export default function ShopOwnerHeader({
@@ -38,12 +40,14 @@ export default function ShopOwnerHeader({
   return (
     <header className="relative z-20 flex min-h-[90px] items-center justify-between border-b border-[#E2EAF2] bg-white px-5 pl-20 sm:px-8 sm:pl-20 lg:px-10">
       {/* Page title */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-[#10243E] sm:text-2xl lg:text-3xl">
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-xl font-bold tracking-tight text-[#10243E] sm:text-2xl lg:text-3xl">
           {title}
         </h1>
       </div>
 
+      <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+      <NotificationBell />
       {/* Account menu */}
       <div className="relative">
         <button
@@ -51,7 +55,7 @@ export default function ShopOwnerHeader({
           onClick={() => setMenuOpen((value) => !value)}
           aria-expanded={menuOpen}
           aria-haspopup="menu"
-          className="flex items-center gap-3 rounded-xl px-2 py-2 text-[#10243E] transition hover:bg-[#F5F8FC]"
+          className="flex items-center gap-2 rounded-xl px-1 py-2 sm:gap-3 sm:px-2 text-[#10243E] transition hover:bg-[#F5F8FC]"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E2F8F4] text-sm font-bold text-[#087D78]">
             {initials || <UserRound size={20} />}
@@ -68,7 +72,7 @@ export default function ShopOwnerHeader({
 
           <ChevronDown
             size={17}
-            className="text-[#64748B]"
+            className="hidden text-[#64748B] sm:block"
           />
         </button>
 
@@ -108,6 +112,7 @@ export default function ShopOwnerHeader({
             </div>
           </>
         )}
+      </div>
       </div>
     </header>
   );

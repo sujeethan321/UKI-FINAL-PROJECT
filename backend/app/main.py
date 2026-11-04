@@ -4,7 +4,10 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routers.notifications import router as notification_router
+from app.routers.shop_owner_communication import router as communication_router
 from app.routers.health import router as health_router
+from app.routers.shop_owner_reminders import router as reminder_router
 from app.routers.auth import router as auth_router
 from app.routers.role_access import router as role_access_router
 from app.routers.shop_owner import router as shop_owner_router
@@ -19,6 +22,9 @@ app = FastAPI(
     description="Backend API for LankaPex",
     version="1.0.0",
 )
+app.include_router(reminder_router, prefix="/api/v1")
+app.include_router(notification_router, prefix="/api/v1")
+app.include_router(communication_router, prefix="/api/v1")
 
 app.include_router(
     shop_owner_router,

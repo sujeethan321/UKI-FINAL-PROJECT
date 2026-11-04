@@ -1,4 +1,6 @@
 """Manual Shop Owner repayments; no external payment verification is implied."""
+from app.services.notification_service import notify_event
+
 from fastapi import HTTPException
 
 from app.models import LedgerEntry
@@ -49,5 +51,6 @@ def record_repayment(db, business_id, user_id, payload):
     )
     db.add(entry)
     db.flush()
+    notify_event(db, "repayment_recorded", entry.entry_id)
     return repayment_response(entry, account, business_id, payload.customer_id,
                               balance - payload.amount, False)

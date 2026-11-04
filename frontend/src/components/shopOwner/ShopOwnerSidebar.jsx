@@ -69,7 +69,7 @@ const navigation = [
     label: "Notifications",
     path: "/shop-owner/notifications",
     icon: Bell,
-    ready: false,
+    ready: true,
   },
   {
     label: "Settings",

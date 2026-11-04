@@ -16,8 +16,7 @@ export default function ApiConnectionTest() {
       if (response.status === 200) {
         setStatus("Connected successfully!");
       }
-    } catch (error) {
-      console.error("API connection error:", error);
+    } catch {
       setStatus("Connection failed");
     } finally {
       setLoading(false);

@@ -119,7 +119,6 @@ export default function BusinessOnboarding() {
         state: { businessRegistered: true },
       });
     } catch (err) {
-      console.error("Business registration error:", err);
 
       if (err.response?.status === 409) {
         setError("This business is already registered under your account. Review your businesses before submitting again.");
@@ -163,8 +162,7 @@ export default function BusinessOnboarding() {
         // that a previous request failed; keep the cautious recovery path.
         setError("No matching business appears in your account yet. If the connection failed, verify with an administrator before resubmitting.");
       }
-    } catch (err) {
-      console.error("Business status verification error:", err);
+    } catch {
       setError("Could not verify your businesses. Please check again later.");
     } finally {
       setCheckingStatus(false);

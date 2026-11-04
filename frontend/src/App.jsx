@@ -24,6 +24,11 @@ import ShopOwnerCreditSales from "./pages/shopOwner/ShopOwnerCreditSales";
 
 import ShopOwnerRepayments from "./pages/shopOwner/ShopOwnerRepayments";
 
+import NotificationProvider from "./context/NotificationProvider";
+import AdminNotifications from "./pages/admin/AdminNotifications";
+
+import ShopOwnerNotifications from "./pages/shopOwner/ShopOwnerNotifications";
+
 const roleOptions = [
   { label: "Shop Owner", slug: "shop-owner" },
   { label: "Customer", slug: "customer" },
@@ -61,6 +66,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <NotificationProvider>
         <Routes>
           <Route
             path="/"
@@ -113,6 +119,7 @@ export default function App() {
               />
               <Route path="credit-sales" element={<ShopOwnerCreditSales />} />
               <Route path="repayments" element={<ShopOwnerRepayments />} />
+              <Route path="notifications" element={<ShopOwnerNotifications />} />
             </Route>
           </Route>
 
@@ -128,6 +135,7 @@ export default function App() {
           {/* Administrator-only pages */}
           <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
             <Route path="/admin" element={<AdminLayout />}>
+              <Route path="notifications" element={<AdminNotifications />} />
               <Route
                 path="dashboard"
                 element={<AdminDashboard />}
@@ -140,6 +148,7 @@ export default function App() {
           </Route>
 
         </Routes>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );

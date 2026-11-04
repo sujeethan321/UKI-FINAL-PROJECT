@@ -1,6 +1,8 @@
 """Record one sale while holding the account lock until the route commits."""
 from datetime import timedelta
 
+from app.services.notification_service import notify_event
+
 from fastapi import HTTPException
 
 from app.models import LedgerEntry
@@ -47,5 +49,6 @@ def record_credit_sale(db, business_id, user_id, payload):
     except OverflowError:
         raise HTTPException(422, "Account payment terms exceed the supported due-date range") from None
     db.flush()
+    notify_event(db, "credit_sale_recorded", entry.entry_id)
     return sale_response(entry, account, business_id, payload.customer_id,
                          balance + payload.amount, False)

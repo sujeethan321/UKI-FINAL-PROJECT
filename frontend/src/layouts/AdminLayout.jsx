@@ -2,6 +2,8 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { LogOut, ShieldCheck } from "lucide-react";
 
+import NotificationBell from "../components/notifications/NotificationBell";
+
 import AdminSidebar from "../components/admin/AdminSidebar.jsx";
 import { useAuth } from "../context/useAuth";
 
@@ -10,7 +12,7 @@ export default function AdminLayout() {
     const { user, logout } = useAuth();
 
     const title =
-        pathname === "/admin/businesses"
+        pathname === "/admin/notifications" ? "Notifications" : pathname === "/admin/businesses"
             ? "Business Management"
             : "Admin Dashboard";
 
@@ -19,12 +21,13 @@ export default function AdminLayout() {
             <AdminSidebar />
 
             <div className="min-w-0 flex-1">
-                <header className="flex min-h-[90px] items-center justify-between gap-3 border-b border-[#E2EAF2] bg-white px-5 pl-20 sm:px-8 sm:pl-20 lg:px-10">
-                    <h1 className="text-xl font-bold text-[#10243E] sm:text-2xl">
+                <header className="relative z-20 flex min-h-[90px] items-center justify-between gap-3 border-b border-[#E2EAF2] bg-white px-5 pl-20 sm:px-8 sm:pl-20 lg:px-10">
+                    <h1 className="min-w-0 flex-1 truncate text-xl font-bold text-[#10243E] sm:text-2xl">
                         {title}
                     </h1>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex shrink-0 items-center gap-3">
+                        <NotificationBell />
                         <ShieldCheck
                             size={22}
                             className="hidden text-[#12B8A6] sm:block"

@@ -1,10 +1,13 @@
 
 from typing import Literal
 
+from app.services.notification_service import notify_event
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.auth_dependencies import require_roles
 from app.core.database import get_db
@@ -209,7 +212,10 @@ def decide_business(
 
         db.add(audit)
 
-        # Commit the status change and audit together.
+        db.flush()
+        notify_event(db, "business_approved" if payload.decision == "approve" else "business_rejected", audit.audit_id)
+
+        # Commit the status change, audit and notifications together.
         db.commit()
         db.refresh(business)
 
@@ -222,6 +228,9 @@ def decide_business(
             **business_response(business),
         }
 
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(500, "Unable to save business decision") from None
     except Exception:
         db.rollback()
         raise

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
+  Bell,
   LayoutDashboard,
   Store,
   Users,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 
 const navigation = [
+  { label: "Notifications", path: "/admin/notifications", icon: Bell, enabled: true },
   {
     label: "Dashboard",
     path: "/admin/dashboard",
