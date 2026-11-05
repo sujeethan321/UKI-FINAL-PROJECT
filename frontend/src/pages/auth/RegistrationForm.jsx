@@ -1,8 +1,11 @@
 
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useSyncExternalStore } from "react";
+import { Link } from "react-router-dom";
 import {
   UserRound,
+  Store,
+  Truck,
+  Check,
   Mail,
   LockKeyhole,
   Phone,
@@ -12,107 +15,30 @@ import {
   LoaderCircle,
 } from "lucide-react";
 
-import {
-  registerCustomer,
-  registerDriver,
-  registerShopOwner,
-} from "../../services/authService";
-
-import { getApiErrorMessage } from "../../utils/apiError";
-
 const roleConfigs = {
   "shop-owner": {
     title: "Create Shop Owner Account",
     subtitle: "Start managing your business with LankaPex.",
-    register: registerShopOwner,
   },
   customer: {
     title: "Create Customer Account",
     subtitle: "Connect with local shops and manage your credit.",
-    register: registerCustomer,
   },
   driver: {
     title: "Join as a Delivery Partner",
     subtitle: "Start your delivery journey with LankaPex.",
-    register: registerDriver,
   },
 };
 
-const initialForm = {
-  full_name: "",
-  email: "",
-  password: "",
-  phone: "",
-  preferred_language: "en",
-};
-
-export default function RegistrationForm({ role }) {
-  const navigate = useNavigate();
+export default function RegistrationForm({ controller }) {
+  const { role, form, confirmPassword, loading, error } = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const config = roleConfigs[role];
-
-  const [form, setForm] = useState(initialForm);
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  function updateField(event) {
-    const { name, value } = event.target;
-
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+  function updateField(event) { controller.update(event.target.name, event.target.value); }
+  function selectRole(value) {
+    if (controller.selectRole(value)) setShowPassword(false);
   }
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    if (loading) return;
-
-    setError("");
-
-    if (form.full_name.trim().length < 2) {
-      setError("Please enter your full name.");
-      return;
-    }
-
-    if (form.password.length < 12) {
-      setError("Password must contain at least 12 characters.");
-      return;
-    }
-
-    if (form.password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    const payload = {
-      full_name: form.full_name.trim(),
-      email: form.email.trim().toLowerCase(),
-      password: form.password,
-      preferred_language: form.preferred_language,
-      phone: form.phone.trim() || null,
-    };
-
-    setLoading(true);
-
-    try {
-      await config.register(payload);
-
-      // Do not automatically log in.
-      // The user signs in using their new account.
-      navigate(`/login/${role}`, {
-        replace: true,
-        state: {
-          registrationSuccess: true,
-        },
-      });
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }
+  function handleSubmit(event) { event.preventDefault(); return controller.submit(); }
 
   const inputClass =
     "w-full rounded-xl border border-[#CBDCEC] bg-white/85 py-3.5 pl-12 pr-4 text-[#10243E] outline-none transition focus:border-[#12B8A6] focus:ring-2 focus:ring-teal-100";
@@ -127,6 +53,27 @@ export default function RegistrationForm({ role }) {
           {config.subtitle}
         </p>
       </div>
+
+      <fieldset disabled={loading} className="mb-7 grid grid-cols-1 gap-3 min-[420px]:grid-cols-3">
+        <legend className="sr-only">Choose your account type</legend>
+        {[
+          { value: "shop-owner", label: "Shop Owner", description: "Manage customers and credit.", Icon: Store },
+          { value: "customer", label: "Customer", description: "Shop and manage credit.", Icon: UserRound },
+          { value: "driver", label: "Delivery Driver", description: "Deliver orders and earn.", Icon: Truck },
+        ].map(({ value, label, description, Icon }) => (
+          <label key={value} className="relative cursor-pointer">
+            <input type="radio" name="registration-role" value={value} checked={role === value}
+              onChange={() => selectRole(value)}
+              className="peer sr-only" />
+            <span className="flex h-full min-h-36 flex-col items-center rounded-2xl border border-[#CBDCEC] bg-white px-2 py-5 text-center peer-checked:border-[#12B8A6] peer-checked:bg-[#F0FCF9] peer-focus-visible:ring-2 peer-focus-visible:ring-[#12B8A6] peer-focus-visible:ring-offset-2">
+              <Icon size={29} className="mb-3 text-[#12B8A6]" aria-hidden="true" />
+              <span className="text-sm font-bold text-[#10243E]">{label}</span>
+              <span className="mt-1 text-xs leading-5 text-[#526887]">{description}</span>
+            </span>
+            {role === value && <span className="pointer-events-none absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#12B8A6] text-white" aria-hidden="true"><Check size={13} strokeWidth={3} /></span>}
+          </label>
+        ))}
+      </fieldset>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
@@ -143,6 +90,7 @@ export default function RegistrationForm({ role }) {
               className="absolute left-4 top-1/2 -translate-y-1/2 text-[#65809E]"
             />
             <input
+              disabled={loading}
               id="full_name"
               name="full_name"
               value={form.full_name}
@@ -171,6 +119,7 @@ export default function RegistrationForm({ role }) {
               className="absolute left-4 top-1/2 -translate-y-1/2 text-[#65809E]"
             />
             <input
+              disabled={loading}
               id="email"
               name="email"
               type="email"
@@ -199,6 +148,7 @@ export default function RegistrationForm({ role }) {
               className="absolute left-4 top-1/2 -translate-y-1/2 text-[#65809E]"
             />
             <input
+              disabled={loading}
               id="phone"
               name="phone"
               type="tel"
@@ -221,6 +171,7 @@ export default function RegistrationForm({ role }) {
           </label>
 
           <select
+            disabled={loading}
             id="preferred_language"
             name="preferred_language"
             value={form.preferred_language}
@@ -247,6 +198,7 @@ export default function RegistrationForm({ role }) {
               className="absolute left-4 top-1/2 -translate-y-1/2 text-[#65809E]"
             />
             <input
+              disabled={loading}
               id="password"
               name="password"
               type={showPassword ? "text" : "password"}
@@ -262,6 +214,7 @@ export default function RegistrationForm({ role }) {
 
             <button
               type="button"
+              disabled={loading}
               onClick={() => setShowPassword((v) => !v)}
               aria-label={showPassword ? "Hide password" : "Show password"}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-[#65809E]"
@@ -280,10 +233,11 @@ export default function RegistrationForm({ role }) {
           </label>
 
           <input
+              disabled={loading}
             id="confirm-password"
             type={showPassword ? "text" : "password"}
             value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
+            onChange={(event) => controller.update("confirmPassword", event.target.value)}
             required
             autoComplete="new-password"
             placeholder="Re-enter your password"
@@ -322,7 +276,7 @@ export default function RegistrationForm({ role }) {
       <div className="mt-7 text-center text-sm text-[#526887]">
         Already have an account?{" "}
         <Link
-          to={`/login/${role}`}
+          to="/login"
           className="font-semibold text-[#00AFA8] hover:underline"
         >
           Log In

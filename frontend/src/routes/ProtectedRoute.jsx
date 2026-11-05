@@ -33,6 +33,11 @@ export default function ProtectedRoute({ allowedRoles }) {
     );
   }
 
+  // Unsupported or inactive identities never render a private route.
+  if (user.account_status !== "active" || getDashboardPath(user.platform_role) === "/login") {
+    return <Navigate to="/login" replace />;
+  }
+
   // Valid session, but the wrong role.
   if (
     allowedRoles?.length &&

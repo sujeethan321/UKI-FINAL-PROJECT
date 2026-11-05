@@ -1,3 +1,4 @@
+import BrandLogo from "../BrandLogo";
 
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
@@ -48,7 +49,7 @@ export default function AdminSidebar() {
   const menu = (
     <div className="flex h-full flex-col bg-[#10243E] text-white">
       <div className="border-b border-white/10 px-7 py-7">
-        <h2 className="text-2xl font-bold">LankaPex</h2>
+        <div className="p-2"><BrandLogo /></div>
         <p className="mt-1 text-xs font-semibold tracking-widest text-[#12B8A6]">
           PLATFORM ADMIN
         </p>

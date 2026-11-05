@@ -1,3 +1,4 @@
+import BrandLogo from "../../components/BrandLogo";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { getRepaymentReceipt, getCustomerStatement, getOutstandingPayments } from "../../services/shopOwnerFinancialDocumentService";
@@ -47,7 +48,7 @@ function DocumentModal({ title, onClose, printable, children }) {
 }
 
 function DocumentIdentity({ business, customer, title }) {
-  return <header className="mb-6 space-y-1 border-b border-[#DAE5F3] pb-5"><p className="text-2xl font-extrabold text-[#10243E]">LankaPex</p><p className="text-xs text-[#587098]">Business Connects Everyone</p><h2 className="pt-3 text-xl font-bold">{title}</h2><p className="font-semibold">{business.business_name}</p>{business.address && <p>{business.address}</p>}{business.phone && <p>Shop phone: {business.phone}</p>}<p className="pt-3">Customer: <strong>{customer.customer_name}</strong> (ID {customer.customer_id})</p>{customer.phone && <p>Customer phone: {customer.phone}</p>}</header>;
+  return <header className="mb-6 space-y-1 border-b border-[#DAE5F3] pb-5"><BrandLogo /><h2 className="pt-3 text-xl font-bold">{title}</h2><p className="font-semibold">{business.business_name}</p>{business.address && <p>{business.address}</p>}{business.phone && <p>Shop phone: {business.phone}</p>}<p className="pt-3">Customer: <strong>{customer.customer_name}</strong> (ID {customer.customer_id})</p>{customer.phone && <p>Customer phone: {customer.phone}</p>}</header>;
 }
 
 export function ReceiptContent({ receipt }) {

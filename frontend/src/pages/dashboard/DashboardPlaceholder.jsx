@@ -1,3 +1,4 @@
+import BrandLogo from "../../components/BrandLogo";
 
 import { useNavigate } from "react-router-dom";
 import { LogOut, ShieldCheck } from "lucide-react";
@@ -29,6 +30,7 @@ export default function DashboardPlaceholder() {
       }
     >
       <section className="w-full max-w-xl rounded-3xl border border-[#DCE8F0] bg-white p-8 text-center shadow-sm">
+        <BrandLogo className="mx-auto mb-6" />
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-50">
           <ShieldCheck
             size={32}

@@ -7,16 +7,16 @@ export const roleRoutes = {
 };
 
 export const loginRoutes = {
-  shop_owner: "/login/shop-owner",
-  customer: "/login/customer",
-  driver: "/login/driver",
-  admin: "/login/admin",
+  shop_owner: "/login",
+  customer: "/login",
+  driver: "/login",
+  admin: "/login",
 };
 
 export function getDashboardPath(role) {
-  return roleRoutes[role] ?? "/select-role";
+  return Object.hasOwn(roleRoutes, role) ? roleRoutes[role] : "/login";
 }
 
 export function getLoginPath(role) {
-  return loginRoutes[role] ?? "/select-role";
+  return Object.hasOwn(loginRoutes, role) ? loginRoutes[role] : "/login";
 }

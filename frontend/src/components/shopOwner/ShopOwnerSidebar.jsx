@@ -1,3 +1,4 @@
+import BrandLogo from "../BrandLogo";
 
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
@@ -90,21 +91,8 @@ export default function ShopOwnerSidebar() {
     <div className="flex h-full flex-col bg-[#10243E] text-white">
       {/* Logo and role */}
       <div className="border-b border-white/10 px-6 pb-7 pt-9">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#12B8A6] text-xl font-bold">
-            L
-          </div>
-
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              LankaPex
-            </h1>
-
-            <p className="mt-1 text-xs font-semibold tracking-wider text-[#6AE5D6]">
-              SHOP OWNER
-            </p>
-          </div>
-        </div>
+        <div className="p-2"><BrandLogo /></div>
+        <p className="mt-3 text-xs font-semibold tracking-wider text-[#6AE5D6]">SHOP OWNER</p>
       </div>
 
       {/* Navigation */}

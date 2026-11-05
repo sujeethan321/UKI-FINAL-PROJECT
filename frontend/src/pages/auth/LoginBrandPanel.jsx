@@ -1,3 +1,4 @@
+import BrandLogo from "../../components/BrandLogo";
 
 import {
   Users,
@@ -156,32 +157,18 @@ const iconColors = {
 };
 
 export function LankaPexLogo() {
-  return (
-    <div className="flex items-center gap-3">
-      <div
-        className="flex h-12 w-12 items-center justify-center
-                   rounded-2xl bg-gradient-to-br
-                   from-[#12B8A6] to-[#10243E] text-white"
-      >
-        <span className="text-3xl font-bold">L</span>
-      </div>
-
-      <div>
-        <div className="text-3xl font-extrabold tracking-tight">
-          <span className="text-[#10243E]">Lanka</span>
-          <span className="text-[#12B8A6]">Pex</span>
-        </div>
-        <p className="text-xs text-[#405677]">
-          Business Connects Everyone
-        </p>
-      </div>
-    </div>
-  );
+  return <BrandLogo />;
 }
 
 export default function LoginBrandPanel({ role }) {
   const content =
-    contentByRole[role] ?? contentByRole["shop-owner"];
+    contentByRole[role] ?? {
+      ...contentByRole["shop-owner"],
+      label: "BUSINESS CONNECTS EVERYONE",
+      title: "Welcome to LankaPex",
+      highlight: "Connect with Confidence",
+      description: "Sign in to access your shop owner, customer, delivery driver or administrator account.",
+    };
 
   return (
     <section className="relative flex flex-col justify-between gap-10 px-6 py-8 sm:px-10 lg:min-h-screen lg:px-12 xl:px-20">

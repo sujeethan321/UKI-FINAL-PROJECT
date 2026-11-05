@@ -1,17 +1,30 @@
 
-import { Navigate, useParams } from "react-router-dom";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { registerShopOwner, registerCustomer, registerDriver } from "../../services/authService";
+import { createRegistrationController, publicRegistrationRoles } from "../../utils/registration";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 import RegistrationForm from "./RegistrationForm";
 import LoginBrandPanel from "./LoginBrandPanel";
 
-const publicRoles = ["shop-owner", "customer", "driver"];
+
 
 export default function RegisterPage() {
-  const { role } = useParams();
-
-  if (!publicRoles.includes(role)) {
-    return <Navigate to="/select-role" replace />;
-  }
+  const { role = "shop-owner" } = useParams();
+  const navigate = useNavigate();
+  const [controller] = useState(() => createRegistrationController({
+    role,
+    services: { "shop-owner": registerShopOwner, customer: registerCustomer, driver: registerDriver },
+    errorMessage: getApiErrorMessage,
+    onSuccess: () => navigate("/login", { replace: true, state: { registrationSuccess: true } }),
+  }));
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  useEffect(() => {
+    controller.resetRole(role);
+    return () => controller.cancel();
+  }, [controller, role]);
+  if (!publicRegistrationRoles.includes(role)) return <Navigate to="/register" replace />;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#F8FCFF] via-[#EAF8FF] to-[#D8F0FF] font-sans">
@@ -26,10 +39,10 @@ export default function RegisterPage() {
       />
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
-        <LoginBrandPanel role={role} />
+        <LoginBrandPanel role={state.role} />
 
         <section className="flex items-center justify-center px-5 py-10 sm:px-10 lg:px-8 xl:px-12">
-          <RegistrationForm key={role} role={role} />
+          <RegistrationForm controller={controller} />
         </section>
       </div>
     </main>

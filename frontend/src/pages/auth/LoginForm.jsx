@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -12,77 +12,43 @@ import {
 
 import { useAuth } from "../../context/useAuth";
 
-import { getApiErrorMessage } from "../../utils/apiError";
+import { getLoginErrorMessage } from "../../utils/authSession";
 import { LankaPexLogo } from "./LoginBrandPanel";
-import { useNavigate } from "react-router-dom";
-import { getDashboardPath } from "../../utils/roleRoutes";
 
-const roles = {
-  "shop-owner": {
-    title: "Shop Owner Login",
-    description:
-      "Access your shop account to manage customers, credit sales, repayments and deliveries.",
-    backendRole: "shop_owner",
-  },
-  customer: {
-    title: "Customer Login",
-    description:
-      "Sign in to explore local shops, manage credit and track your orders.",
-    backendRole: "customer",
-  },
-  driver: {
-    title: "Delivery Partner Login",
-    description:
-      "Sign in to manage your delivery activity.",
-    backendRole: "driver",
-  },
-  admin: {
-    title: "Administrator Login",
-    description:
-      "Secure access to LankaPex platform administration.",
-    backendRole: "admin",
-  },
-};
 
-export default function LoginForm({ role }) {
-  const config = roles[role] ?? roles["shop-owner"];
+export default function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { user, login, logout, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+  const { user, login, logout, isAuthenticated, notice } = useAuth();
+  const submitting = useRef(false);
 
 
   async function handleSubmit(event) {
     event.preventDefault();
 
-    if (loading) return;
+    if (submitting.current) return;
+    submitting.current = true;
 
     setError("");
     setLoading(true);
 
     try {
-      const currentUser = await login(
+      await login(
         email.trim(),
-        password,
-        config.backendRole
+        password
       );
 
       setPassword("");
 
-      navigate(getDashboardPath(currentUser.platform_role), {
-        replace: true,
-      });
+
     } catch (err) {
-      if (err.code === "ROLE_MISMATCH") {
-        setError(err.message);
-      } else {
-        setError(getApiErrorMessage(err));
-      }
+      setError(getLoginErrorMessage(err));
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   }
@@ -95,11 +61,11 @@ export default function LoginForm({ role }) {
       </div>
 
       <h2 className="text-center text-3xl font-extrabold tracking-tight text-[#10243E]">
-        {config.title}
+        Welcome Back
       </h2>
 
       <p className="mx-auto mt-3 max-w-md text-center leading-6 text-[#526887]">
-        {config.description}
+        Sign in to your LankaPex account.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-9 space-y-5">
@@ -166,6 +132,10 @@ export default function LoginForm({ role }) {
           </div>
         </div>
 
+        {notice && !error && (
+          <p role="status" className="rounded-lg border border-[#CBDCEC] bg-white/80 p-3 text-sm text-[#10243E]">{notice}</p>
+        )}
+
         {error && (
           <p
             role="alert"
@@ -195,7 +165,7 @@ export default function LoginForm({ role }) {
       </form>
 
 
-      {isAuthenticated && user?.platform_role === config.backendRole && (
+      {isAuthenticated && user && (
         <div
           role="status"
           className="mt-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800"
@@ -227,14 +197,14 @@ export default function LoginForm({ role }) {
 
       <div className="mt-8 border-t border-[#D8E5F0] pt-6 text-center">
         <p className="text-sm text-[#526887]">
-          Want to use a different account type?
+          New to LankaPex?
         </p>
 
         <Link
-          to="/select-role"
+          to="/register"
           className="mt-2 inline-flex items-center gap-2 font-semibold text-[#00AFA8] hover:underline"
         >
-          Choose another role <ArrowRight size={16} />
+          Create an account <ArrowRight size={16} />
         </Link>
       </div>
     </div>

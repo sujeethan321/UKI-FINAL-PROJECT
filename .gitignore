@@ -29,3 +29,6 @@ Thumbs.db
 migration_preview.sql
 
 .env.local
+
+# Local server and verification artifacts
+.server-logs/

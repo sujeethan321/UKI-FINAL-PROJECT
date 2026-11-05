@@ -1,23 +1,17 @@
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../../context/useAuth";
+import { getDashboardPath } from "../../utils/roleRoutes";
 
-import { Navigate, useParams } from "react-router-dom";
 
 import LoginBrandPanel from "./LoginBrandPanel";
 import LoginForm from "./LoginForm";
 
-const allowedRoles = [
-  "shop-owner",
-  "customer",
-  "driver",
-  "admin",
-];
-
 export default function LoginPage() {
-  const { role } = useParams();
-
-  if (!allowedRoles.includes(role)) {
-    return <Navigate to="/select-role" replace />;
+  const { user, loading, isAuthenticated } = useAuth();
+  if (!loading && isAuthenticated && user) {
+    const destination = getDashboardPath(user.platform_role);
+    if (destination !== "/login") return <Navigate to={destination} replace />;
   }
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#F8FCFF] via-[#EAF8FF] to-[#D8F0FF] font-sans">
       {/* Background decorative shapes */}
@@ -37,10 +31,10 @@ export default function LoginPage() {
       />
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
-        <LoginBrandPanel role={role} />
+        <LoginBrandPanel />
 
         <section className="flex items-center justify-center px-5 py-10 sm:px-10 lg:px-8 xl:px-12">
-          <LoginForm key={role} role={role} />
+          <LoginForm />
         </section>
       </div>
     </main>

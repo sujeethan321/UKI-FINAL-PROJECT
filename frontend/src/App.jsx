@@ -1,12 +1,13 @@
 
 import {
   BrowserRouter,
-  Navigate,
   Route,
   Routes,
-  Link,
+  Navigate,
 } from "react-router-dom";
 
+
+import LandingPage from "./pages/landing/LandingPage";
 
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -29,39 +30,6 @@ import AdminNotifications from "./pages/admin/AdminNotifications";
 
 import ShopOwnerNotifications from "./pages/shopOwner/ShopOwnerNotifications";
 
-const roleOptions = [
-  { label: "Shop Owner", slug: "shop-owner" },
-  { label: "Customer", slug: "customer" },
-  { label: "Delivery Driver", slug: "driver" },
-  { label: "Administrator", slug: "admin" },
-];
-
-function TemporaryRoleSelector() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#F5F8FC] p-6">
-      <h1 className="text-3xl font-bold text-[#10243E]">
-        Welcome to LankaPex
-      </h1>
-
-      <p className="text-[#526887]">
-        Select your role to log in.
-      </p>
-
-      <div className="grid w-full max-w-xl gap-4 sm:grid-cols-2">
-        {roleOptions.map((role) => (
-          <Link
-            key={role.slug}
-            to={`/login/${role.slug}`}
-            className="rounded-xl border border-[#D8E5F0] bg-white p-6 text-center font-semibold text-[#10243E] shadow-sm hover:border-[#12B8A6]"
-          >
-            {role.label}
-          </Link>
-        ))}
-      </div>
-    </main>
-  );
-}
-
 export default function App() {
   return (
     <BrowserRouter>
@@ -70,19 +38,21 @@ export default function App() {
         <Routes>
           <Route
             path="/"
-            element={<Navigate to="/select-role" replace />}
+            element={<LandingPage />}
           />
 
           <Route
             path="/select-role"
-            element={<TemporaryRoleSelector />}
+            element={<Navigate to="/login" replace />}
           />
 
           <Route
-            path="/login/:role"
+            path="/login"
             element={<LoginPage />}
           />
 
+          <Route path="/login/:role" element={<Navigate to="/login" replace />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route
             path="/register/:role"
             element={<RegisterPage />}
