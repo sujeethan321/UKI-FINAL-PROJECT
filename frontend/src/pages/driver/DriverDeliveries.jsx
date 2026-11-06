@@ -1,4 +1,5 @@
 import {useEffect,useState,useSyncExternalStore} from 'react';
+import DeliveryTimeline from '../../components/delivery/DeliveryTimeline';
 import {Link,useParams} from 'react-router-dom';
 import {useAuth} from '../../context/useAuth';
 import {getDriverProfile,getDriverSummary} from '../../services/driverDashboardService';
@@ -29,7 +30,7 @@ export function DriverDeliveriesView({state,actions,history=false,detail=false})
       <div className="flex flex-wrap items-start justify-between gap-3"><h3 className="break-all text-xl font-bold">{row.reference}</h3><Status value={row.status}/></div>
       <dl className="mt-5 grid min-w-0 gap-5 sm:grid-cols-2">{[['Requesting shop',row.business_name],['Pickup area',row.pickup_area],['Delivery area',row.delivery_area],['Assigned Driver',state.profile.data?.full_name||'Your Driver account']].map(([label,value])=><div className="min-w-0" key={label}><dt className="text-sm text-[#64748B]">{label}</dt><dd className="mt-1 break-words font-semibold">{value}</dd></div>)}</dl>
       <p className="mt-5 text-sm">Assigned: <RecordedTime value={row.assigned_at}/></p>
-      <h3 className="mt-6 font-bold">Recorded delivery progress</h3><ol className="mt-3 space-y-3 border-l-2 border-[#12B8A6] pl-4">{state.detail.data.events.map(event=><li key={event.status}><p className="font-semibold">{deliveryLabels[event.status]}</p><p className="text-sm text-[#64748B]"><RecordedTime value={event.occurred_at}/></p></li>)}</ol>
+      <DeliveryTimeline status={row.status} events={state.detail.data.events}/>
       <p className="mt-3 text-xs text-[#64748B]">Only recorded events are shown. Earlier progress dates may be unavailable. Precise addresses, customer contacts, vehicle requirements and operational instructions are not stored in this delivery record.</p>
       {next&&eligible&&!state.uncertain&&<div className="mt-6">{confirm&&next==='delivered'?<div role="group" aria-label="Confirm delivery completion" className="space-y-3 rounded-xl bg-[#F5F8FC] p-4"><p>Confirm this delivery has reached its destination?</p><div className="flex flex-wrap gap-3"><button type="button" className={button+' bg-[#12B8A6] text-[#10243E]'} disabled={state.busy} onClick={()=>{setConfirm(false);actions.update();}}>Confirm Delivered</button><button type="button" className={button} disabled={state.busy} onClick={()=>setConfirm(false)}>Cancel</button></div></div>:<button type="button" className={button+' bg-[#12B8A6] text-[#10243E]'} disabled={state.busy||state.profile.loading} onClick={()=>next==='delivered'?setConfirm(true):actions.update()}>{state.busy?'Updating delivery...':deliveryActions[next]}</button>}</div>}
       {['delivered','cancelled'].includes(row.status)&&<p className="mt-5 text-sm">This delivery is {deliveryLabels[row.status].toLowerCase()}. No further status updates are permitted.</p>}

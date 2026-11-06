@@ -8,7 +8,7 @@ from sqlalchemy import delete, event, func, select, text
 from sqlalchemy.orm import Session
 from app.core.database import engine
 from app.core.config import settings
-from app.models import User, Business, BusinessMember, DriverProfile, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent
+from app.models import User, Business, BusinessMember, DriverProfile, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent, Notification
 from app.services import driver_service as service
 
 
@@ -35,6 +35,7 @@ def race_data():
         with engine.begin() as connection:
             assert connection.scalar(text("SELECT DATABASE()"))=="lankapex_test_db"
             if request_id is not None:
+                connection.execute(delete(Notification).where(Notification.business_id==business_id, Notification.related_entity_type=="delivery_request", Notification.related_entity_id==request_id))
                 connection.execute(delete(DeliveryStatusEvent).where(DeliveryStatusEvent.delivery_request_id==request_id))
                 connection.execute(delete(DeliveryAssignment).where(DeliveryAssignment.delivery_request_id==request_id))
                 connection.execute(delete(DeliveryRequest).where(DeliveryRequest.delivery_request_id==request_id))

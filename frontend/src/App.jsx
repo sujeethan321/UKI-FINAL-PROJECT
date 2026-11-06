@@ -35,6 +35,7 @@ import ShopOwnerCustomers from "./pages/shopOwner/ShopOwnerCustomers";
 import ShopOwnerCreditSales from "./pages/shopOwner/ShopOwnerCreditSales";
 
 import ShopOwnerRepayments from "./pages/shopOwner/ShopOwnerRepayments";
+import ShopOwnerDeliveries from "./pages/shopOwner/ShopOwnerDeliveries";
 
 import NotificationProvider from "./context/NotificationProvider";
 import AdminNotifications from "./pages/admin/AdminNotifications";
@@ -104,6 +105,7 @@ export default function App() {
               />
               <Route path="credit-sales" element={<ShopOwnerCreditSales />} />
               <Route path="repayments" element={<ShopOwnerRepayments />} />
+              <Route path="deliveries" element={<ShopOwnerDeliveries />} />
               <Route path="notifications" element={<ShopOwnerNotifications />} />
             </Route>
           </Route>

@@ -3,8 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-NotificationType = Literal["credit_sale_recorded", "repayment_recorded", "payment_reminder_recorded", "business_approved", "business_rejected"]
-RelatedEntityType = Literal["ledger_entry", "payment_reminder", "business_approval_audit"]
+NotificationType = Literal["credit_sale_recorded", "repayment_recorded", "payment_reminder_recorded", "business_approved", "business_rejected", "delivery_assigned", "delivery_picked_up", "delivery_in_transit", "delivery_delivered"]
+RelatedEntityType = Literal["ledger_entry", "payment_reminder", "business_approval_audit", "delivery_request"]
 
 
 class NotificationFilters(BaseModel):

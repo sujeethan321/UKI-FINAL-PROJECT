@@ -28,7 +28,7 @@ export function NotificationsView({ state, actions, inbox, onReviewReminder, com
     {inbox}
     <div className="flex flex-wrap items-center gap-3">
       <label className="text-sm font-semibold" htmlFor="reminder-business">Business</label>
-      <select id="reminder-business" className="rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm" value={state.businessId} disabled={busy || !state.businesses.length} onChange={e => actions.selectBusiness(e.target.value)}>
+      <select id="reminder-business" className="min-w-0 max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm" value={state.businessId} disabled={busy || !state.businesses.length} onChange={e => actions.selectBusiness(e.target.value)}>
         {!state.businesses.length && <option value="">No linked businesses</option>}
         {state.businesses.map(b => <option key={b.business_id} value={b.business_id}>{b.business_name || "Unnamed business"} ({b.approval_status})</option>)}
       </select>

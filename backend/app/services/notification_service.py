@@ -11,10 +11,14 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.mysql import insert
 
 from app.models import (Business, BusinessApprovalAudit, BusinessMember, CreditAccount,
-                        CustomerProfile, LedgerEntry, Notification, PaymentReminder, User)
+                        CustomerProfile, LedgerEntry, Notification, PaymentReminder, User, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent)
 from app.schemas.notification import NotificationResponse, NotificationType
 
 CONTENT = {
+    "delivery_assigned": ("Delivery assigned", "Your delivery request has been accepted by a driver."),
+    "delivery_picked_up": ("Delivery picked up", "Your delivery has been picked up."),
+    "delivery_in_transit": ("Delivery in transit", "Your delivery is on the way."),
+    "delivery_delivered": ("Delivery marked as delivered", "Your delivery has been marked as delivered by the driver."),
     "credit_sale_recorded": ("Credit sale recorded", "A credit sale was recorded for your linked customer account."),
     "repayment_recorded": ("Repayment recorded", "A manual repayment was recorded for your linked customer account. This does not verify an electronic payment."),
     "payment_reminder_recorded": ("Payment reminder recorded", "Another owner recorded an internal payment reminder for this business. No external message was sent."),
@@ -65,7 +69,18 @@ def notify_event(db, notification_type: NotificationType, entity_id: int):
         raise ValueError("Unsupported notification type")
     if type(entity_id) is not int or entity_id <= 0:
         raise ValueError("Invalid event identifier")
-    if notification_type in ("credit_sale_recorded", "repayment_recorded"):
+    if notification_type.startswith("delivery_"):
+        event = db.get(DeliveryRequest, entity_id)
+        expected = notification_type.removeprefix("delivery_")
+        assigned = db.scalar(select(DeliveryAssignment).where(DeliveryAssignment.delivery_request_id == entity_id))
+        persisted = assigned if expected == "assigned" else db.scalar(select(DeliveryStatusEvent).where(
+            DeliveryStatusEvent.delivery_request_id == entity_id, DeliveryStatusEvent.status == expected))
+        business = db.get(Business, event.business_id) if event else None
+        if event is None or event.status != expected or assigned is None or persisted is None or business is None:
+            raise ValueError("Delivery notification requires a persisted transition")
+        recipients = active_owners(db, business.business_id, assigned.driver_user_id)
+        related_type = "delivery_request"
+    elif notification_type in ("credit_sale_recorded", "repayment_recorded"):
         event = db.get(LedgerEntry, entity_id)
         expected = "credit_sale" if notification_type == "credit_sale_recorded" else "repayment"
         if event is None or event.entry_type != expected:

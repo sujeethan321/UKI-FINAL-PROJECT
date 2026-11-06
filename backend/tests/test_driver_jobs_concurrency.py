@@ -1,4 +1,8 @@
 """Public HTTP acceptance races against the actual MySQL request row lock."""
+from sqlalchemy import select, func
+from sqlalchemy.orm import Session
+from app.core.database import engine
+from app.models import Notification
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from app.main import app
@@ -18,6 +22,8 @@ def test_two_driver_http_requests_cannot_both_win(race_data):
     with TestClient(app) as client:
         results=race(ctx,[lambda session,driver=driver:http_accept(client,driver,ctx["request"]) for driver in ctx["drivers"]])
     assert sorted(result[0] for result in results)==[200,409]
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(Notification).where(Notification.related_entity_type=="delivery_request", Notification.related_entity_id==ctx["request"], Notification.notification_type=="delivery_assigned"))==1
     result=next(row[1] for row in results if row[0]==200)
     assert result["driver_user_id"] in ctx["drivers"] and result["delivery"]["status"]=="assigned"
 

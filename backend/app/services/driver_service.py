@@ -171,6 +171,8 @@ def accept_delivery(db, driver_id, request_id):
         raise HTTPException(409, "Delivery is no longer available")
     result = DeliveryAssignment(delivery_request_id=row.delivery_request_id, driver_user_id=driver_id)
     db.add(result); row.status = "assigned"; row.updated_at = utc_now(); db.flush()
+    from app.services.notification_service import notify_event
+    notify_event(db, "delivery_assigned", request_id)
     return result
 
 
@@ -187,6 +189,9 @@ def transition_delivery(db, driver_id, request_id, next_status, expected_status=
     db.add(DeliveryStatusEvent(delivery_request_id=request_id, actor_user_id=driver_id,
                               status=next_status, occurred_at=row.updated_at))
     db.flush()
+    from app.services.notification_service import notify_event
+    if next_status in {"picked_up", "in_transit", "delivered"}:
+        notify_event(db, "delivery_" + next_status, request_id)
     return row
 
 

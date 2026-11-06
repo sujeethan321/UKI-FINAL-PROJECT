@@ -11,8 +11,8 @@ class Notification(Base):
     __tablename__ = "notifications"
     __table_args__ = (
         UniqueConstraint("recipient_user_id", "event_key", name="uq_notification_recipient_event"),
-        CheckConstraint("notification_type IN ('credit_sale_recorded', 'repayment_recorded', 'payment_reminder_recorded', 'business_approved', 'business_rejected')", name="ck_notification_type"),
-        CheckConstraint("(notification_type IN ('credit_sale_recorded', 'repayment_recorded') AND related_entity_type = 'ledger_entry') OR (notification_type = 'payment_reminder_recorded' AND related_entity_type = 'payment_reminder') OR (notification_type IN ('business_approved', 'business_rejected') AND related_entity_type = 'business_approval_audit')", name="ck_notification_entity_type"),
+        CheckConstraint("notification_type IN ('credit_sale_recorded', 'repayment_recorded', 'payment_reminder_recorded', 'business_approved', 'business_rejected', 'delivery_assigned', 'delivery_picked_up', 'delivery_in_transit', 'delivery_delivered')", name="ck_notification_type"),
+        CheckConstraint("(notification_type IN ('credit_sale_recorded', 'repayment_recorded') AND related_entity_type = 'ledger_entry') OR (notification_type = 'payment_reminder_recorded' AND related_entity_type = 'payment_reminder') OR (notification_type IN ('business_approved', 'business_rejected') AND related_entity_type = 'business_approval_audit') OR (notification_type IN ('delivery_assigned', 'delivery_picked_up', 'delivery_in_transit', 'delivery_delivered') AND related_entity_type = 'delivery_request')", name="ck_notification_entity_type"),
         CheckConstraint("related_entity_id > 0", name="ck_notification_entity_id"),
         CheckConstraint("(is_read = 0 AND read_at IS NULL) OR (is_read = 1 AND read_at IS NOT NULL)", name="ck_notification_read_state"),
         Index("ix_notification_recipient_created", "recipient_user_id", "created_at", "notification_id"),

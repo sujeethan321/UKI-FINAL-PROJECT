@@ -1,4 +1,8 @@
 export const NOTIFICATION_TYPES = [
+  ["delivery_assigned", "Delivery assigned", "delivery_request"],
+  ["delivery_picked_up", "Delivery picked up", "delivery_request"],
+  ["delivery_in_transit", "Delivery in transit", "delivery_request"],
+  ["delivery_delivered", "Delivery marked as delivered", "delivery_request"],
   ["credit_sale_recorded", "Credit sale recorded", "ledger_entry"],
   ["repayment_recorded", "Repayment recorded", "ledger_entry"],
   ["payment_reminder_recorded", "Payment reminder recorded", "payment_reminder"],
@@ -44,6 +48,7 @@ export function notificationInboxPath(role) {
 export function notificationDestination(row, role) {
   if (!validNotification(row) || !validNotificationId(row.business_id)) return null;
   if (role === "shop_owner") {
+    if (row.related_entity_type === "delivery_request") return { to: `/shop-owner/deliveries?business_id=${row.business_id}&delivery_id=${row.related_entity_id}`, label: "View delivery tracking" };
     if (["business_approved", "business_rejected"].includes(row.notification_type)) return { to: "/shop-owner/dashboard", label: "View my businesses" };
   }
   if (role === "admin" && ["business_approved", "business_rejected"].includes(row.notification_type)) return { to: "/admin/businesses", label: "View businesses" };

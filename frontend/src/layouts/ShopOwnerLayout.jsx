@@ -11,7 +11,7 @@ const pageTitles = {
   "/shop-owner/credit-sales": "Credit Sales",
   "/shop-owner/repayments": "Repayments",
   "/shop-owner/credit-orders": "Credit Orders",
-  "/shop-owner/deliveries": "Deliveries",
+  "/shop-owner/deliveries": "Delivery Management",
   "/shop-owner/reports": "Reports",
   "/shop-owner/notifications": "Notifications",
   "/shop-owner/settings": "Settings",

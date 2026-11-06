@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.main import app
 from app.core.database import engine
 from app.core.security import create_access_token
-from app.models import DeliveryStatusEvent,DeliveryRequest
+from app.models import DeliveryStatusEvent,DeliveryRequest,Notification
 from app.services import driver_service as service
 from test_driver_concurrency import race_data,race
 
@@ -29,3 +29,4 @@ def test_competing_http_updates_record_exactly_one_event(race_data,before,after)
     with Session(engine) as session:
         assert session.get(DeliveryRequest,ctx['request']).status==after
         assert session.scalar(select(func.count()).select_from(DeliveryStatusEvent).where(DeliveryStatusEvent.delivery_request_id==ctx['request'],DeliveryStatusEvent.status==after))==1
+        assert session.scalar(select(func.count()).select_from(Notification).where(Notification.related_entity_type=="delivery_request", Notification.related_entity_id==ctx["request"], Notification.notification_type=="delivery_"+after))==1

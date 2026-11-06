@@ -58,7 +58,7 @@ const navigation = [
     label: "Deliveries",
     path: "/shop-owner/deliveries",
     icon: Truck,
-    ready: false,
+    ready: true,
   },
   {
     label: "Reports",

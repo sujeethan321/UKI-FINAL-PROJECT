@@ -9,6 +9,7 @@ from app.routers.shop_owner_communication import router as communication_router
 from app.routers.health import router as health_router
 from app.routers.shop_owner_reminders import router as reminder_router
 from app.routers.driver import router as driver_router
+from app.routers.shop_owner_deliveries import router as shop_owner_delivery_router
 from app.routers.customer import router as customer_router
 from app.routers.auth import router as auth_router
 from app.routers.role_access import router as role_access_router
@@ -25,6 +26,7 @@ app = FastAPI(
     version="1.0.0",
 )
 app.include_router(driver_router, prefix="/api/v1")
+app.include_router(shop_owner_delivery_router, prefix="/api/v1")
 app.include_router(customer_router, prefix="/api/v1")
 app.include_router(reminder_router, prefix="/api/v1")
 app.include_router(notification_router, prefix="/api/v1")

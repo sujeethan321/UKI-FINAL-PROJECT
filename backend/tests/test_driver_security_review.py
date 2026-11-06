@@ -31,8 +31,13 @@ def test_delivery_lifecycle_preserves_statements_reminders_and_financial_notific
     ctx['db'].flush()
 
     def snapshot():
-        return {model.__tablename__: ctx['db'].execute(select(model.__table__).order_by(*model.__table__.primary_key)).all()
-                for model in [CreditAccount, LedgerEntry, PaymentReminder, Notification]}
+        result = {}
+        for model in [CreditAccount, LedgerEntry, PaymentReminder, Notification]:
+            query = select(model.__table__).order_by(*model.__table__.primary_key)
+            if model is Notification:
+                query = query.where(~Notification.notification_type.like('delivery_%'))
+            result[model.__tablename__] = ctx['db'].execute(query).all()
+        return result
 
     before = snapshot()
     period = (date(2026, 1, 1), date(2026, 12, 31))
@@ -55,7 +60,10 @@ def test_delivery_lifecycle_preserves_statements_reminders_and_financial_notific
         event.remove(connection, 'before_cursor_execute', observe)
     assert snapshot() == before
     assert customer.statement(ctx['db'], ctx['user'].user_id, account.credit_account_id, *period) == statement_before
-    assert writes and not any(table in sql for sql in writes for table in before)
+    assert writes and not any(table in sql for sql in writes for table in before if table != 'notifications')
+    delivery_notifications=list(ctx['db'].scalars(select(Notification).where(Notification.related_entity_type=='delivery_request',Notification.related_entity_id==row.delivery_request_id)))
+    assert len(delivery_notifications)==4
+    assert all(n.recipient_user_id==ctx['owner'].user_id for n in delivery_notifications)
     assert get(ctx, '/history').json()['deliveries'][0]['status'] == 'delivered'
 
 
