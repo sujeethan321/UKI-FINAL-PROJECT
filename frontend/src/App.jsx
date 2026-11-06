@@ -13,7 +13,11 @@ import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import DashboardPlaceholder from "./pages/dashboard/DashboardPlaceholder";
+import DriverDeliveries from "./pages/driver/DriverDeliveries";
+import AvailableJobs from "./pages/driver/AvailableJobs";
+import DriverDashboard from "./pages/driver/DriverDashboard";
+import DriverNotifications from "./pages/driver/DriverNotifications";
+import DriverLayout from "./layouts/DriverLayout";
 import TransactionHistory from "./pages/customer/TransactionHistory";
 import CreditStatement from "./pages/customer/CreditStatement";
 import MyShops from "./pages/customer/MyShops";
@@ -107,10 +111,14 @@ export default function App() {
 
           {/* Delivery Driver-only pages */}
           <Route element={<ProtectedRoute allowedRoles={["driver"]} />}>
-            <Route
-              path="/driver/dashboard"
-              element={<DashboardPlaceholder />}
-            />
+            <Route element={<DriverLayout />}>
+              <Route path="/driver/dashboard" element={<DriverDashboard />} />
+              <Route path="/driver/deliveries" element={<DriverDeliveries />} />
+              <Route path="/driver/deliveries/:deliveryId" element={<DriverDeliveries detail />} />
+              <Route path="/driver/history" element={<DriverDeliveries history />} />
+              <Route path="/driver/jobs" element={<AvailableJobs />} />
+              <Route path="/driver/notifications" element={<DriverNotifications />} />
+            </Route>
           </Route>
 
           {/* Administrator-only pages */}

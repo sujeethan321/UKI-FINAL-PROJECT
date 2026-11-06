@@ -13,7 +13,7 @@ function NotificationSession({ children, role }) {
 }
 export default function NotificationProvider({ children }) {
   const { user, token, isAuthenticated } = useAuth();
-  // Reuse one authenticated workflow; the Driver placeholder remains inactive.
-  if (!isAuthenticated || !user || !["shop_owner", "customer", "admin"].includes(user.platform_role)) return children;
+  // One recipient-scoped workflow for every implemented role layout.
+  if (!isAuthenticated || !user || !["shop_owner", "customer", "driver", "admin"].includes(user.platform_role)) return children;
   return <NotificationSession key={user.user_id + ":" + user.platform_role + ":" + token} role={user.platform_role}>{children}</NotificationSession>;
 }

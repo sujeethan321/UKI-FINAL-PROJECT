@@ -70,7 +70,7 @@ test("customer dashboard React views, routes and existing Axios contracts", asyn
       assert.ok(app.includes('<Route path="/customer" element={<CustomerLayout />}>'));
       assert.ok(app.includes('<Route path="dashboard" element={<CustomerDashboard />} />'));
       assert.ok(app.includes('<Route path="notifications" element={<CustomerNotifications />} />'));
-      assert.ok(app.includes('path="/driver/dashboard"')); assert.ok(app.includes('element={<DashboardPlaceholder />}'));
+      assert.ok(app.includes('path="/driver/dashboard"')); assert.ok(app.includes('element={<DriverDashboard />}'));
     });
     await t.test("new service uses authenticated shared Axios GETs and exact bounded preview params", async () => {
       const { default: api } = await server.ssrLoadModule('/src/services/api.js');
