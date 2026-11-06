@@ -14,6 +14,13 @@ import RegisterPage from "./pages/auth/RegisterPage";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import DashboardPlaceholder from "./pages/dashboard/DashboardPlaceholder";
+import TransactionHistory from "./pages/customer/TransactionHistory";
+import CreditStatement from "./pages/customer/CreditStatement";
+import MyShops from "./pages/customer/MyShops";
+import CreditAccountDetails from "./pages/customer/CreditAccountDetails";
+import CustomerLayout from "./layouts/CustomerLayout";
+import CustomerDashboard from "./pages/customer/CustomerDashboard";
+import CustomerNotifications from "./pages/customer/CustomerNotifications";
 import ShopOwnerLayout from "./layouts/ShopOwnerLayout";
 import ShopOwnerDashboard from "./pages/shopOwner/ShopOwnerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
@@ -61,10 +68,14 @@ export default function App() {
 
           {/* Customer-only pages */}
           <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
-            <Route
-              path="/customer/dashboard"
-              element={<DashboardPlaceholder />}
-            />
+            <Route path="/customer" element={<CustomerLayout />}>
+              <Route path="dashboard" element={<CustomerDashboard />} />
+              <Route path="shops" element={<MyShops />} />
+              <Route path="transactions" element={<TransactionHistory />} />
+              <Route path="credit/:accountId/statement" element={<CreditStatement />} />
+              <Route path="credit/:accountId" element={<CreditAccountDetails />} />
+              <Route path="notifications" element={<CustomerNotifications />} />
+            </Route>
           </Route>
 
           {/* Shop Owner-only pages */}

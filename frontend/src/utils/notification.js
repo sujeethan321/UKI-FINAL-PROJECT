@@ -36,7 +36,7 @@ export function notificationError(error, mutation = false) {
     status >= 500 ? "The notification service is unavailable. Please retry." : "Unable to load notifications. Check your connection and retry.";
 }
 export function notificationInboxPath(role) {
-  return role === "shop_owner" ? "/shop-owner/notifications" : role === "admin" ? "/admin/notifications" : null;
+  return role === "shop_owner" ? "/shop-owner/notifications" : role === "admin" ? "/admin/notifications" : role === "customer" ? "/customer/notifications" : null;
 }
 
 // Ignore URLs/text/metadata completely. Only existing role-appropriate routes.
