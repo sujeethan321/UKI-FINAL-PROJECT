@@ -38,7 +38,7 @@ export default function ShopOwnerHeader({
   }
 
   return (
-    <header className="relative z-20 flex min-h-[90px] items-center justify-between border-b border-[#E2EAF2] bg-white px-5 pl-20 sm:px-8 sm:pl-20 lg:px-10">
+    <header className="sticky top-0 z-20 lg:relative flex min-h-[90px] items-center justify-between border-b border-[#E2EAF2] bg-white px-5 pl-20 sm:px-8 sm:pl-20 lg:px-10">
       {/* Page title */}
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-xl font-bold tracking-tight text-[#10243E] sm:text-2xl lg:text-3xl">

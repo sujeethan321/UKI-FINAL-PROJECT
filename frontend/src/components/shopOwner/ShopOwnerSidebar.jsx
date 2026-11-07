@@ -31,10 +31,10 @@ const navigation = [
     ready: true,
   },
   {
-    label: "Products",
+    label: "Shop & Products",
     path: "/shop-owner/products",
     icon: Package,
-    ready: false,
+    ready: true,
   },
   {
     label: "Credit Sales",
@@ -49,10 +49,10 @@ const navigation = [
     ready: true,
   },
   {
-    label: "Credit Orders",
-    path: "/shop-owner/credit-orders",
+    label: "Orders",
+    path: "/shop-owner/orders",
     icon: ShoppingCart,
-    ready: false,
+    ready: true,
   },
   {
     label: "Deliveries",

@@ -1,3 +1,5 @@
+import ShoppingCart from './pages/customer/ShoppingCart';
+import OrderHistory from './pages/customer/OrderHistory';
 
 import {
   BrowserRouter,
@@ -36,6 +38,8 @@ import ShopOwnerCreditSales from "./pages/shopOwner/ShopOwnerCreditSales";
 
 import ShopOwnerRepayments from "./pages/shopOwner/ShopOwnerRepayments";
 import ShopOwnerDeliveries from "./pages/shopOwner/ShopOwnerDeliveries";
+import ShopOwnerProducts from "./pages/shopOwner/ShopOwnerProducts";
+import CustomerCatalogue from "./pages/customer/CustomerCatalogue";
 
 import NotificationProvider from "./context/NotificationProvider";
 import AdminNotifications from "./pages/admin/AdminNotifications";
@@ -76,6 +80,13 @@ export default function App() {
             <Route path="/customer" element={<CustomerLayout />}>
               <Route path="dashboard" element={<CustomerDashboard />} />
               <Route path="shops" element={<MyShops />} />
+<Route path="cart" element={<ShoppingCart />} />
+<Route path="checkout" element={<ShoppingCart checkout />} />
+<Route path="orders" element={<OrderHistory />} />
+<Route path="orders/:orderId" element={<OrderHistory />} />
+              <Route path="shops/explore" element={<CustomerCatalogue />} />
+              <Route path="explore/:businessId" element={<CustomerCatalogue mode="shop" />} />
+              <Route path="explore/:businessId/products/:productId" element={<CustomerCatalogue mode="product" />} />
               <Route path="transactions" element={<TransactionHistory />} />
               <Route path="credit/:accountId/statement" element={<CreditStatement />} />
               <Route path="credit/:accountId" element={<CreditAccountDetails />} />
@@ -106,6 +117,10 @@ export default function App() {
               <Route path="credit-sales" element={<ShopOwnerCreditSales />} />
               <Route path="repayments" element={<ShopOwnerRepayments />} />
               <Route path="deliveries" element={<ShopOwnerDeliveries />} />
+              <Route path="products" element={<ShopOwnerProducts />} />
+<Route path="orders" element={<OrderHistory owner />} />
+<Route path="orders/:orderId" element={<OrderHistory owner />} />
+<Route path="credit-orders" element={<Navigate to="/shop-owner/orders" replace />} />
               <Route path="notifications" element={<ShopOwnerNotifications />} />
             </Route>
           </Route>

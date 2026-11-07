@@ -7,7 +7,7 @@ import ShopOwnerHeader from "../components/shopOwner/ShopOwnerHeader";
 const pageTitles = {
   "/shop-owner/dashboard": "Dashboard",
   "/shop-owner/customers": "Customers",
-  "/shop-owner/products": "Products",
+  "/shop-owner/products": "Shop & Products",
   "/shop-owner/credit-sales": "Credit Sales",
   "/shop-owner/repayments": "Repayments",
   "/shop-owner/credit-orders": "Credit Orders",
@@ -21,7 +21,7 @@ const pageTitles = {
 export default function ShopOwnerLayout() {
   const { pathname } = useLocation();
 
-  const title = pageTitles[pathname] ?? "Dashboard";
+  const title = pathname.startsWith("/shop-owner/orders") ? "Orders" : pageTitles[pathname] ?? "Dashboard";
 
   return (
     <div className="min-h-screen bg-[#F5F8FC] lg:flex">

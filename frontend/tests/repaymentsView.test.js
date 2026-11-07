@@ -57,7 +57,7 @@ test("repayment React view, routes, navigation and Axios contract", async t => {
       const { default: Sidebar } = await server.ssrLoadModule("/src/components/shopOwner/ShopOwnerSidebar.jsx");
       const html = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(Sidebar)));
       for (const path of ["dashboard", "customers", "credit-sales", "repayments"]) assert.ok(html.includes(`href="/shop-owner/${path}"`));
-      assert.ok(html.includes("bg-[#10243E]")); assert.ok(!html.includes('href="/shop-owner/products"'));
+      assert.ok(html.includes("bg-[#10243E]")); assert.ok(html.includes('href="/shop-owner/products"'));
       await server.ssrLoadModule("/src/App.jsx");
     });
     await t.test("repayment service uses authenticated Axios and exact endpoint/payload", async () => {

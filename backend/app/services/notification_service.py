@@ -11,10 +11,16 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.mysql import insert
 
 from app.models import (Business, BusinessApprovalAudit, BusinessMember, CreditAccount,
-                        CustomerProfile, LedgerEntry, Notification, PaymentReminder, User, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent)
+                        CustomerProfile, LedgerEntry, Notification, PaymentReminder, User, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent, Order)
 from app.schemas.notification import NotificationResponse, NotificationType
 
 CONTENT = {
+"order_submitted": ("Shopping order updated", "Your shopping order status is submitted."),
+"order_approved": ("Shopping order updated", "Your shopping order status is approved."),
+"order_rejected": ("Shopping order updated", "Your shopping order status is rejected."),
+"order_processing": ("Shopping order updated", "Your shopping order status is processing."),
+"order_completed": ("Shopping order updated", "Your shopping order status is completed."),
+"order_cancelled": ("Shopping order updated", "Your shopping order status is cancelled."),
     "delivery_assigned": ("Delivery assigned", "Your delivery request has been accepted by a driver."),
     "delivery_picked_up": ("Delivery picked up", "Your delivery has been picked up."),
     "delivery_in_transit": ("Delivery in transit", "Your delivery is on the way."),
@@ -69,7 +75,16 @@ def notify_event(db, notification_type: NotificationType, entity_id: int):
         raise ValueError("Unsupported notification type")
     if type(entity_id) is not int or entity_id <= 0:
         raise ValueError("Invalid event identifier")
-    if notification_type.startswith("delivery_"):
+    if notification_type.startswith("order_"):
+        event = db.get(Order, entity_id)
+        expected = notification_type.removeprefix("order_")
+        if event is None or event.status != expected:
+            raise ValueError("Order event requires a persisted transition")
+        business = db.get(Business, event.business_id)
+        recipient = current_recipient_row(db, User, event.customer_user_id)
+        recipients = active_owners(db, event.business_id, event.customer_user_id) if expected == 'submitted' else ([recipient.user_id] if recipient and recipient.platform_role == 'customer' and recipient.account_status == 'active' else [])
+        related_type = 'order'
+    elif notification_type.startswith("delivery_"):
         event = db.get(DeliveryRequest, entity_id)
         expected = notification_type.removeprefix("delivery_")
         assigned = db.scalar(select(DeliveryAssignment).where(DeliveryAssignment.delivery_request_id == entity_id))

@@ -1,4 +1,10 @@
 export const NOTIFICATION_TYPES = [
+  ["order_submitted", "Order submitted", "order"],
+  ["order_approved", "Order approved", "order"],
+  ["order_rejected", "Order rejected", "order"],
+  ["order_processing", "Order processing", "order"],
+  ["order_completed", "Order completed", "order"],
+  ["order_cancelled", "Order cancelled", "order"],
   ["delivery_assigned", "Delivery assigned", "delivery_request"],
   ["delivery_picked_up", "Delivery picked up", "delivery_request"],
   ["delivery_in_transit", "Delivery in transit", "delivery_request"],
@@ -47,6 +53,10 @@ export function notificationInboxPath(role) {
 // Minimal events cannot safely resolve a financial customer: never guess an ID.
 export function notificationDestination(row, role) {
   if (!validNotification(row) || !validNotificationId(row.business_id)) return null;
+  if (row.related_entity_type === "order") {
+    if(role === "customer") return {to: `/customer/orders/${row.related_entity_id}`, label: "View order"};
+    if(role === "shop_owner") return {to: `/shop-owner/orders/${row.related_entity_id}?business_id=${row.business_id}`, label: "View order"};
+  }
   if (role === "shop_owner") {
     if (row.related_entity_type === "delivery_request") return { to: `/shop-owner/deliveries?business_id=${row.business_id}&delivery_id=${row.related_entity_id}`, label: "View delivery tracking" };
     if (["business_approved", "business_rejected"].includes(row.notification_type)) return { to: "/shop-owner/dashboard", label: "View my businesses" };

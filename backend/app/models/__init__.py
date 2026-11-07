@@ -9,3 +9,6 @@ from app.models.payment_reminder import PaymentReminder
 from app.models.notification import Notification
 from app.models.communication import CommunicationConsent, CommunicationAttempt
 from app.models.delivery import DriverProfile, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent
+from app.models.catalogue import ProductCategory, Product
+
+from app.models.order import Order, OrderItem

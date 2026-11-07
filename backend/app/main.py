@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.notifications import router as notification_router
+from app.routers.catalogue import owner_router as owner_catalogue_router, customer_router as customer_catalogue_router
 from app.routers.shop_owner_communication import router as communication_router
 from app.routers.health import router as health_router
 from app.routers.shop_owner_reminders import router as reminder_router
@@ -26,6 +27,8 @@ app = FastAPI(
     version="1.0.0",
 )
 app.include_router(driver_router, prefix="/api/v1")
+app.include_router(owner_catalogue_router, prefix="/api/v1")
+app.include_router(customer_catalogue_router, prefix="/api/v1")
 app.include_router(shop_owner_delivery_router, prefix="/api/v1")
 app.include_router(customer_router, prefix="/api/v1")
 app.include_router(reminder_router, prefix="/api/v1")
@@ -81,3 +84,7 @@ def root():
     return {
         "message": "Welcome to LankaPex API"
     }
+
+from app.routers.orders import customer_router as customer_order_router, owner_router as owner_order_router
+app.include_router(customer_order_router, prefix='/api/v1')
+app.include_router(owner_order_router, prefix='/api/v1')

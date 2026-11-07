@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink } from "react-router-dom";
-import { LayoutDashboard, Store, CreditCard, History, Bell, UserRound, Settings, Menu, X } from "lucide-react";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { LayoutDashboard, Store, Compass, CreditCard, History, Bell, UserRound, Settings, Menu, X } from "lucide-react";
 import BrandLogo from "../BrandLogo";
 
 export default function CustomerSidebar() {
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const dialog = useRef(null);
   useEffect(() => { if (open && !dialog.current.open) dialog.current.showModal(); }, [open]);
@@ -12,7 +13,9 @@ export default function CustomerSidebar() {
     <div className="border-b border-white/10 px-6 pb-7 pt-9"><BrandLogo /><p className="mt-3 text-xs font-semibold tracking-wider text-[#12B8A6]">CUSTOMER</p></div>
     <nav aria-label="Customer navigation" className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
       <NavLink to="/customer/dashboard" onClick={close} className={({ isActive }) => "flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium focus-visible:outline-2 focus-visible:outline-[#12B8A6] " + (isActive ? "bg-[#176079] text-white" : "text-[#BED1DE] hover:bg-white/10")}><LayoutDashboard size={19} aria-hidden="true" />Dashboard</NavLink>
-      <NavLink to="/customer/shops" onClick={close} className={({ isActive }) => "flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium focus-visible:outline-2 focus-visible:outline-[#12B8A6] " + (isActive ? "bg-[#176079] text-white" : "text-[#BED1DE] hover:bg-white/10")}><Store size={19} aria-hidden="true" />My Shops</NavLink>
+      <NavLink end to="/customer/shops" onClick={close} className={({ isActive }) => "flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium focus-visible:outline-2 focus-visible:outline-[#12B8A6] " + (isActive ? "bg-[#176079] text-white" : "text-[#BED1DE] hover:bg-white/10")}><Store size={19} aria-hidden="true" />My Shops</NavLink>
+      <NavLink to="/customer/shops/explore" onClick={close} className={({ isActive }) => "flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium focus-visible:outline-2 focus-visible:outline-[#12B8A6] " + (isActive || location.pathname.startsWith("/customer/explore/") ? "bg-[#176079] text-white" : "text-[#BED1DE] hover:bg-white/10")}><Compass size={19} aria-hidden="true" />Explore Shops</NavLink>
+      {[['Shopping Cart','/customer/cart'],['My Orders','/customer/orders']].map(([label,to])=><NavLink key={to} to={to} onClick={close} className={({isActive})=>'flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium focus-visible:outline-2 focus-visible:outline-[#12B8A6] '+(isActive?'bg-[#176079] text-white':'text-[#BED1DE] hover:bg-white/10')}><Store size={19} aria-hidden="true"/>{label}</NavLink>)}
       {[["My Credit", "my-credit", CreditCard]].map(([label, id, Icon]) => <Link key={id} to={"/customer/dashboard#" + id} onClick={close} className="flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium text-[#BED1DE] hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#12B8A6]"><Icon size={19} aria-hidden="true" />{label}</Link>)}
       <NavLink to="/customer/transactions" onClick={close} className={({ isActive }) => "flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium focus-visible:outline-2 focus-visible:outline-[#12B8A6] " + (isActive ? "bg-[#176079] text-white" : "text-[#BED1DE] hover:bg-white/10")}><History size={19} aria-hidden="true" />Transactions</NavLink>
       <NavLink to="/customer/notifications" onClick={close} className={({ isActive }) => "flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium focus-visible:outline-2 focus-visible:outline-[#12B8A6] " + (isActive ? "bg-[#176079] text-white" : "text-[#BED1DE] hover:bg-white/10")}><Bell size={19} aria-hidden="true" />Notifications</NavLink>
