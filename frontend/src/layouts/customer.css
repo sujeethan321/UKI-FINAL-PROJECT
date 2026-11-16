@@ -1,0 +1,22 @@
+.customer-shell { font-family: 'Inter',ui-sans-serif,system-ui,sans-serif; color:#10243e; background:radial-gradient(ellipse at top,#effaff,#f5f8fc 75%); }
+.customer-shell > aside > div { background:radial-gradient(ellipse at bottom left,#123b56,transparent 65%),#10243e; }
+.customer-main h2 { font-size:clamp(26px,2.3vw,37px); font-weight:750; letter-spacing:-.035em; line-height:1.25; }
+.customer-main section h2 { font-size:21px; }
+.customer-main :where(section,article,div).bg-white:where(.rounded-xl,.rounded-2xl) { border-color:#dfedf7; border-radius:12px; box-shadow:0 3px 14px #17607906; }
+.customer-main :where(button,a):focus-visible,.customer-shell header :where(button,a,input,summary):focus-visible { outline:2px solid #12b8a6; outline-offset:3px; }
+.customer-main :where(input,select,textarea) { border-color:#d6e4f2; border-radius:7px; }
+.customer-main :where(button,a)[class*='bg-[#12B8A6]'] { background:linear-gradient(110deg,#12b8a6,#009ba7); color:white; }
+.customer-main table { border-collapse:separate; border-spacing:0; width:100%; text-align:left; font-size:14px; }
+.customer-main thead { background:#edf5fb; color:#36517b; }
+.customer-main :where(th,td) { padding:13px 15px; border-bottom:1px solid #e8f0f7; }
+.customer-main th { font-weight:500; white-space:nowrap; }
+.customer-main tr:last-child td { border-bottom:0; }
+.customer-main tr[aria-selected=true] { background:#edfaf9; }
+.customer-main tr[aria-selected=true] td:first-child { border-left:3px solid #12b8a6; }
+.customer-main .customer-table-wrap { overflow-x:auto; margin-top:16px; }
+.customer-main .customer-table-wrap table { min-width:650px; }
+.customer-main .customer-unavailable { border:1px dashed #d6e4f2; border-radius:10px; padding:20px; color:#52698a; background:#f8fbfe; font-size:14px; }
+.customer-main .customer-primary { display:inline-flex; justify-content:center; align-items:center; gap:8px; border-radius:7px; padding:10px 16px; background:linear-gradient(110deg,#12b8a6,#009ba7); color:white; font-size:14px; font-weight:600; }
+.customer-main .customer-inbox-list > li { position:relative; padding-left:80px; border-radius:10px; border:1px solid #e4eff6; }
+.customer-main .customer-inbox-list h4 { font-size:16px; }
+@media(min-width:1024px) { .customer-shell > aside { width:264px; } }

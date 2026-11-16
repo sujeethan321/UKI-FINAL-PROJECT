@@ -11,16 +11,20 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.mysql import insert
 
 from app.models import (Business, BusinessApprovalAudit, BusinessMember, CreditAccount,
-                        CustomerProfile, LedgerEntry, Notification, PaymentReminder, User, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent, Order)
+                        CustomerProfile, LedgerEntry, Notification, PaymentReminder, User, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent, Order, AdminAudit, DriverProfile)
 from app.schemas.notification import NotificationResponse, NotificationType
 
 CONTENT = {
+    "driver_approved": ("Driver application approved", "Your Driver application was approved. Check your dashboard for current eligibility."),
+    "driver_rejected": ("Driver application rejected", "Your Driver application was rejected. Review your application status on your dashboard."),
 "order_submitted": ("Shopping order updated", "Your shopping order status is submitted."),
 "order_approved": ("Shopping order updated", "Your shopping order status is approved."),
 "order_rejected": ("Shopping order updated", "Your shopping order status is rejected."),
 "order_processing": ("Shopping order updated", "Your shopping order status is processing."),
 "order_completed": ("Shopping order updated", "Your shopping order status is completed."),
 "order_cancelled": ("Shopping order updated", "Your shopping order status is cancelled."),
+    "delivery_requested": ("Delivery requested", "Delivery has been requested for your order."),
+    "delivery_cancelled": ("Delivery cancelled", "The delivery request has been cancelled. Order and payment records remain separate."),
     "delivery_assigned": ("Delivery assigned", "Your delivery request has been accepted by a driver."),
     "delivery_picked_up": ("Delivery picked up", "Your delivery has been picked up."),
     "delivery_in_transit": ("Delivery in transit", "Your delivery is on the way."),
@@ -75,7 +79,18 @@ def notify_event(db, notification_type: NotificationType, entity_id: int):
         raise ValueError("Unsupported notification type")
     if type(entity_id) is not int or entity_id <= 0:
         raise ValueError("Invalid event identifier")
-    if notification_type.startswith("order_"):
+    if notification_type in {'driver_approved','driver_rejected'}:
+        event=db.get(AdminAudit,entity_id)
+        expected=notification_type.removeprefix('driver_')
+        if event is None or event.target_type!='driver' or event.action!=notification_type or event.previous_state!='pending' or event.new_state!=expected:
+            raise ValueError('Driver notification requires a persisted audit event')
+        profile=current_recipient_row(db,DriverProfile,event.target_id)
+        recipient=current_recipient_row(db,User,event.target_id)
+        if profile is None or profile.approval_status!=expected:
+            raise ValueError('Driver decision is not current')
+        recipients=[recipient.user_id] if recipient and recipient.platform_role=='driver' and recipient.account_status=='active' else []
+        business=None;related_type='admin_audit'
+    elif notification_type.startswith("order_"):
         event = db.get(Order, entity_id)
         expected = notification_type.removeprefix("order_")
         if event is None or event.status != expected:
@@ -85,16 +100,39 @@ def notify_event(db, notification_type: NotificationType, entity_id: int):
         recipients = active_owners(db, event.business_id, event.customer_user_id) if expected == 'submitted' else ([recipient.user_id] if recipient and recipient.platform_role == 'customer' and recipient.account_status == 'active' else [])
         related_type = 'order'
     elif notification_type.startswith("delivery_"):
+        # Writers lock the linked Order before the request, matching bridge
+        # creation/replay/summary lock order and avoiding stale auth snapshots.
+        linked = db.scalar(select(Order).where(Order.delivery_request_id == entity_id)
+            .with_for_update(read=True).execution_options(populate_existing=True))
         event = db.get(DeliveryRequest, entity_id)
         expected = notification_type.removeprefix("delivery_")
-        assigned = db.scalar(select(DeliveryAssignment).where(DeliveryAssignment.delivery_request_id == entity_id))
+        assigned = db.scalar(select(DeliveryAssignment).where(
+            DeliveryAssignment.delivery_request_id == entity_id).with_for_update(read=True))
         persisted = assigned if expected == "assigned" else db.scalar(select(DeliveryStatusEvent).where(
-            DeliveryStatusEvent.delivery_request_id == entity_id, DeliveryStatusEvent.status == expected))
+            DeliveryStatusEvent.delivery_request_id == entity_id,
+            DeliveryStatusEvent.status == expected).with_for_update(read=True))
         business = db.get(Business, event.business_id) if event else None
-        if event is None or event.status != expected or assigned is None or persisted is None or business is None:
+        if expected == 'requested':
+            valid = event is not None and event.status == 'available' and assigned is None and linked is not None
+        else:
+            valid = event is not None and event.status == expected and persisted is not None
+            if expected != 'cancelled':
+                valid = valid and assigned is not None
+        if not valid or business is None or (linked and linked.business_id != event.business_id):
             raise ValueError("Delivery notification requires a persisted transition")
-        recipients = active_owners(db, business.business_id, assigned.driver_user_id)
+        actor_id = event.created_by if expected == 'requested' else (assigned.driver_user_id if expected == 'assigned' else persisted.actor_user_id)
+        recipients = [] if expected == 'requested' else active_owners(db, business.business_id, actor_id)
         related_type = "delivery_request"
+        customer_id = None
+        if linked is not None:
+            customer = current_recipient_row(db, User, linked.customer_user_id)
+            if customer and customer.platform_role == 'customer' and customer.account_status == 'active':
+                customer_id = customer.user_id
+                recipients.append(customer_id)
+        if expected in {'assigned', 'cancelled'} and assigned is not None:
+            driver = current_recipient_row(db, User, assigned.driver_user_id)
+            if driver and driver.platform_role == 'driver' and driver.account_status == 'active':
+                recipients.append(driver.user_id)
     elif notification_type in ("credit_sale_recorded", "repayment_recorded"):
         event = db.get(LedgerEntry, entity_id)
         expected = "credit_sale" if notification_type == "credit_sale_recorded" else "repayment"
@@ -134,11 +172,13 @@ def notify_event(db, notification_type: NotificationType, entity_id: int):
     title, message = CONTENT[notification_type]
     event_key = notification_type + ":" + str(entity_id)
     ids = []
-    for recipient_id in recipients:
+    for recipient_id in sorted(set(recipients)):
+        customer_delivery = notification_type.startswith('delivery_') and recipient_id == customer_id
         statement = insert(Notification).values(
-            recipient_user_id=recipient_id, business_id=business.business_id,
+            recipient_user_id=recipient_id, business_id=business.business_id if business else None,
             notification_type=notification_type, title=title, message=message,
-            related_entity_type=related_type, related_entity_id=entity_id,
+            related_entity_type='order' if customer_delivery else related_type,
+            related_entity_id=linked.order_id if customer_delivery else entity_id,
             event_key=event_key, is_read=False, created_at=utc_now(), read_at=None,
         )
         # MySQL no-op upsert keeps the original content, timestamp and read

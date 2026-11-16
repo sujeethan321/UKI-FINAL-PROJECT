@@ -16,11 +16,11 @@ test('Customer catalogue real views, role guards, navigation and authenticated G
     const state=w=>structuredClone(w.getSnapshot());
     const render=(value=state(explore),mode='explore')=>renderToStaticMarkup(h(MemoryRouter,null,h(View,{state:value,actions:mode==='explore'?explore:shop,mode,businessId:mode==='explore'?null:1})));
     await t.test('explore renders actual eligible shop fields and server search/pagination controls',()=>{
-      const html=render();for(const value of ['Explore Shops','Discover products from local businesses.','Local Shop','published product','Catalogue available','View Shop','Shop name','Search shops','Shop pages'])assert.ok(html.includes(value),value);
+      const html=render();for(const value of ['Browse Shops','Discover trusted local shops and browse their published products.','Local Shop','published product','Catalogue available','View Shop','Shop name','Search shops','Shop pages'])assert.ok(html.includes(value),value);
       assert.ok(html.includes('href="/customer/explore/1"'));for(const value of ['rating','latitude','credit_balance','Buy Now'])assert.ok(!html.includes(value));
     });
     await t.test('shop and product pages show actual categories, prices, availability and placeholders',()=>{
-      let html=render(state(shop),'shop');for(const value of ['Shop Catalogue','Public shop details','Groceries','Rice','LKR 125.25','Product image unavailable','View Details','Product pages','Category pages'])assert.ok(html.includes(value),value);
+      let html=render(state(shop),'shop');for(const value of ['Local Shop','Public shop details','Groceries','Rice','LKR 125.25','Product image unavailable','View Details','Product pages','Category pages'])assert.ok(html.includes(value),value);
       html=render(state(detail),'product');for(const value of ['Product Details','Shop: Local Shop','Category: Groceries','Retail unit','LKR 125.25'])assert.ok(html.includes(value),value);
       for(const value of ['Add to Cart','Buy Now','Edit Product','Publish Product'])assert.ok(!html.includes(value));
     });
@@ -46,12 +46,12 @@ test('Customer catalogue real views, role guards, navigation and authenticated G
       const {AuthContext}=await server.ssrLoadModule('/src/context/AuthContext.jsx'),{default:Guard}=await server.ssrLoadModule('/src/routes/ProtectedRoute.jsx');
       const auth={isAuthenticated:true,loading:false,token:'fixture',user:{user_id:7,platform_role:'customer',account_status:'active'}};
       const route=(value,path='/customer/shops/explore',mode='explore')=>renderToStaticMarkup(h(MemoryRouter,{initialEntries:[path]},h(AuthContext.Provider,{value},h(Routes,null,h(Route,{element:h(Guard,{allowedRoles:['customer']})},h(Route,{path:mode==='explore'?'/customer/shops/explore':'/customer/explore/:businessId/products/:productId',element:h(Page,{mode})}))))));
-      assert.ok(route(auth).includes('Explore Shops'));for(const role of ['shop_owner','driver','admin'])assert.ok(!route({...auth,user:{...auth.user,platform_role:role}}).includes('Explore Shops'));assert.ok(!route({...auth,isAuthenticated:false}).includes('Explore Shops'));
+      assert.ok(route(auth).includes('Browse Shops'));for(const role of ['shop_owner','driver','admin'])assert.ok(!route({...auth,user:{...auth.user,platform_role:role}}).includes('Browse Shops'));assert.ok(!route({...auth,isAuthenticated:false}).includes('Browse Shops'));
       assert.ok(route(auth,'/customer/explore/bad/products/1','product').includes('Invalid catalogue identifier'));
     });
     await t.test('Explore Shops and My Shops remain separate with all financial and owner routes retained',async()=>{
       const {default:Sidebar}=await server.ssrLoadModule('/src/components/customer/CustomerSidebar.jsx');const html=renderToStaticMarkup(h(MemoryRouter,{initialEntries:['/customer/shops/explore']},h(Sidebar)));
-      for(const value of ['href="/customer/shops"','href="/customer/shops/explore"','href="/customer/dashboard#my-credit"','href="/customer/transactions"','href="/customer/notifications"'])assert.ok(html.includes(value),value);
+      for(const value of ['href="/customer/shops"','href="/customer/shops/explore"','href="/customer/credit-accounts"','href="/customer/transactions"','href="/customer/notifications"'])assert.ok(html.includes(value),value);
       const app=await readFile(new URL('../src/App.jsx',import.meta.url),'utf8');for(const value of ['path="shops" element={<MyShops />}','path="shops/explore"','path="explore/:businessId"','path="explore/:businessId/products/:productId"','<ShopOwnerProducts />','<CreditAccountDetails />','<CreditStatement />'])assert.ok(app.includes(value),value);
     });
     await t.test('shared Axios catalogue methods are all GET with real scoped paths/filters and cancellation',async()=>{

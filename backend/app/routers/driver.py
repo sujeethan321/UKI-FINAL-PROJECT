@@ -10,6 +10,7 @@ from app.models import User
 from app.schemas.driver import DriverProfileResponse, DriverSummary, DriverDeliveries, AvailableJobs, AvailableJobDetail, DriverAssignmentDetail, JobAcceptance, AcceptJobRequest
 from app.services import driver_service as service
 from app.schemas.driver import DeliveryProgress, StatusUpdateRequest
+from app.schemas.driver import DriverProfileSubmission
 
 router = APIRouter(prefix="/driver", tags=["Driver Dashboard"])
 Driver = Annotated[User, Depends(require_roles("driver"))]
@@ -27,6 +28,27 @@ def read(response, operation):
 @router.get("/profile", response_model=DriverProfileResponse)
 def profile(response: Response, user: Driver, db: Database):
     return read(response, lambda: service.driver_profile(db, user))
+
+
+@router.post('/profile', response_model=DriverProfileResponse, status_code=201)
+def submit_profile(payload: DriverProfileSubmission, response: Response, user: Driver, db: Database):
+    response.headers['Cache-Control'] = 'no-store'
+    try:
+        # Existing service locks the authenticated User and rejects replacement.
+        # The caller cannot choose an identity, reviewer or approval state.
+        service.create_profile(db, user.user_id, payload.vehicle_type, payload.registration_reference)
+        result = DriverProfileResponse.model_validate(service.driver_profile(db, user))
+        db.commit()
+        return result
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, 'Driver profile already exists; refresh your profile') from None
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(503, 'Profile submission could not be confirmed; refresh before retrying') from None
 
 
 @router.get("/dashboard/summary", response_model=DriverSummary)

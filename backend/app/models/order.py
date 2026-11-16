@@ -1,7 +1,7 @@
 """Shopping snapshots; credit is posted exclusively through the existing ledger."""
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import BigInteger, String, DateTime, Numeric, ForeignKey, UniqueConstraint, CheckConstraint, Index
+from sqlalchemy import BigInteger, String, DateTime, Numeric, ForeignKey, ForeignKeyConstraint, UniqueConstraint, CheckConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 from app.models.catalogue import utc_now
@@ -12,6 +12,10 @@ class Order(Base):
         UniqueConstraint('customer_user_id','request_key',name='uq_order_customer_request'),
         UniqueConstraint('reference',name='uq_order_reference'),
         UniqueConstraint('credit_sale_id',name='uq_order_credit_sale'),
+        UniqueConstraint('delivery_request_id', name='uq_order_delivery_request'),
+        ForeignKeyConstraint(['delivery_request_id', 'business_id'],
+            ['delivery_requests.delivery_request_id', 'delivery_requests.business_id'],
+            name='fk_order_delivery_business', ondelete='RESTRICT'),
         CheckConstraint("payment_method IN ('cash','credit')",name='ck_order_method'),
         CheckConstraint("status IN ('submitted','approved','rejected','processing','completed','cancelled')",name='ck_order_status'),
         CheckConstraint("(payment_method = 'cash' AND payment_status = 'unpaid' AND credit_sale_id IS NULL AND credit_account_id IS NULL) OR (payment_method = 'credit' AND credit_account_id IS NOT NULL AND ((payment_status = 'pending' AND credit_sale_id IS NULL AND status IN ('submitted','rejected','cancelled')) OR (payment_status = 'posted' AND credit_sale_id IS NOT NULL AND status IN ('approved','processing','completed'))))",name='ck_order_financial_state'),
@@ -32,6 +36,7 @@ class Order(Base):
     total: Mapped[Decimal] = mapped_column(Numeric(14,2))
     credit_account_id: Mapped[int | None] = mapped_column(BigInteger,ForeignKey('credit_accounts.credit_account_id',ondelete='RESTRICT'),nullable=True)
     credit_sale_id: Mapped[int | None] = mapped_column(BigInteger,ForeignKey('ledger_entries.entry_id',ondelete='RESTRICT'),nullable=True)
+    delivery_request_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime,default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime,default=utc_now)
 

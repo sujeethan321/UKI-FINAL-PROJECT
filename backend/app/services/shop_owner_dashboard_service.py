@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.models import CreditAccount, LedgerEntry
 from sqlalchemy.orm import aliased
+from fastapi import HTTPException
+from app.core.config import settings
 
 from app.models import CustomerProfile
 from app.services.ledger_service import account_balances, load_ledger_entries
@@ -25,8 +27,11 @@ def get_dashboard_summary(
     account_ids = list(db.scalars(select(CreditAccount.credit_account_id).where(
         CreditAccount.creditor_business_id == business_id,
         CreditAccount.customer_id.is_not(None),
-    )))
-    balances = account_balances(load_ledger_entries(db, account_ids))
+    ).limit(settings.MAX_INTERACTIVE_CUSTOMERS + 1)))
+    if len(account_ids) > settings.MAX_INTERACTIVE_CUSTOMERS:
+        raise HTTPException(422, 'Dashboard exceeds the interactive account limit. Contact support.')
+    balances = account_balances(load_ledger_entries(db, account_ids,
+        max_entries=settings.MAX_READ_LEDGER_ENTRIES))
 
     total_outstanding = sum(
         (

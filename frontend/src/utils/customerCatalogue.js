@@ -35,7 +35,7 @@ export function catalogueBrowseError(error){
     status===404?'This shop or product is no longer available.':status===422?'Check the search, filters and page selection.':
     error?.code==='INVALID_RESPONSE'?'The catalogue response could not be verified. Refresh to retry.':'Catalogue service unavailable. Check your connection and refresh.';
 }
-export function createCustomerCatalogueWorkflow(api,{businessId=null,productId=null}={}){
+export function createCustomerCatalogueWorkflow(api,{businessId=null,productId=null,initialQuery=''}={}){
   let state=initial(),alive=false,generation=0;const listeners=new Set(),controllers={},versions={};
   const publish=patch=>{if(alive){state={...state,...patch};listeners.forEach(fn=>fn());}};
   const abort=()=>Object.values(controllers).forEach(c=>c.abort());
@@ -65,7 +65,7 @@ export function createCustomerCatalogueWorkflow(api,{businessId=null,productId=n
     return Promise.allSettled([products(),categories()]);
   }
   return {getSnapshot:()=>state,subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},
-    start(){alive=true;generation++;abort();publish(initial());if((businessId!==null&&!validCatalogueId(businessId))||(productId!==null&&!validCatalogueId(productId))){publish({shop:{data:null,loading:false,error:'Invalid catalogue identifier.'}});return Promise.resolve();}return refresh();},refresh,
+    start(){alive=true;generation++;abort();publish({...initial(),q:typeof initialQuery==='string'?initialQuery.trim().slice(0,200):''});if((businessId!==null&&!validCatalogueId(businessId))||(productId!==null&&!validCatalogueId(productId))){publish({shop:{data:null,loading:false,error:'Invalid catalogue identifier.'}});return Promise.resolve();}return refresh();},refresh,
     searchShops(q){if(typeof q!=='string'||q.length>200||businessId!==null)return;publish({q:q.trim(),shopsPage:1});return shops();},
     shopsPage(page){if(!validCatalogueId(page)||page>1000000||businessId!==null)return;publish({shopsPage:page});return shops();},
     filter(changes){if(!state.shop.data||productId!==null||!Object.entries(changes).every(([key,value])=>Object.hasOwn(state.filters,key)&&typeof value==='string'))return;

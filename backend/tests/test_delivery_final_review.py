@@ -9,7 +9,7 @@ from test_shop_driver_integration import ctx, api, db, approve, call, create
 
 def test_delivery_recipient_policy_excludes_inactive_members_accounts_and_wrong_roles(ctx):
     approve(ctx)
-    expected = {ctx['owner'].user_id}
+    expected = {ctx['owner'].user_id, ctx['driver'].user_id}
     excluded = []
     for role, account_status, membership_status, business_role in [
         ('shop_owner', 'active', 'active', 'owner'),

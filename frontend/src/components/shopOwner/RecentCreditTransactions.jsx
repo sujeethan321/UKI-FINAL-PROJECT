@@ -1,3 +1,4 @@
+import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
 import { ReceiptText } from "lucide-react";
 
@@ -21,6 +22,7 @@ function formatAmount(value) {
 export default function RecentCreditTransactions({
   transactions = null,
 }) {
+  const { tr } = useAppTranslation();
   // null means the API hasn't been connected.
   // [] means the API loaded successfully but found no records.
   const isConnected = Array.isArray(transactions);
@@ -37,9 +39,7 @@ export default function RecentCreditTransactions({
       <h2
         id="recent-transactions-title"
         className="text-lg font-semibold text-[#10243E]"
-      >
-        Recent Credit Transactions
-      </h2>
+      >{tr("Recent Activity")}</h2>
 
       {!isConnected ? (
         <div className="flex min-h-[230px] flex-col items-center justify-center gap-3 text-center">
@@ -49,14 +49,9 @@ export default function RecentCreditTransactions({
             aria-hidden="true"
           />
 
-          <p className="font-medium text-[#10243E]">
-            Transaction data not connected yet
-          </p>
+          <p className="font-medium text-[#10243E]">{tr("Transaction data not connected yet")}</p>
 
-          <p className="max-w-xs text-sm text-[#64748B]">
-            Your latest credit sales and repayments will appear
-            here after the ledger API is connected.
-          </p>
+          <p className="max-w-xs text-sm text-[#64748B]">{tr("Your latest credit sales and repayments will appear here after the ledger API is connected.")}</p>
         </div>
       ) : recentTransactions.length === 0 ? (
         <div className="flex min-h-[230px] flex-col items-center justify-center text-center">
@@ -65,24 +60,18 @@ export default function RecentCreditTransactions({
             className="mb-3 text-[#9AAFC1]"
           />
 
-          <p className="font-medium text-[#10243E]">
-            No recent transactions
-          </p>
+          <p className="font-medium text-[#10243E]">{tr("No recent transactions")}</p>
 
-          <p className="mt-2 text-sm text-[#64748B]">
-            Transactions will appear here when available.
-          </p>
+          <p className="mt-2 text-sm text-[#64748B]">{tr("Transactions will appear here when available.")}</p>
         </div>
       ) : (
         <div className="mt-6 overflow-x-auto">
           <table className="w-full min-w-[420px] text-left">
             <thead>
               <tr className="border-b border-[#E2EAF2] text-sm text-[#64748B]">
-                <th className="pb-3 font-medium">Customer</th>
-                <th className="pb-3 font-medium">Transaction</th>
-                <th className="pb-3 text-right font-medium">
-                  Amount
-                </th>
+                <th className="pb-3 font-medium">{tr("Customer")}</th>
+                <th className="pb-3 font-medium">{tr("Transaction")}</th>
+                <th className="pb-3 text-right font-medium">{tr("Amount")}</th>
               </tr>
             </thead>
 
@@ -93,18 +82,18 @@ export default function RecentCreditTransactions({
                   className="border-b border-[#F0F4F8] last:border-0"
                 >
                   <td className="py-4 text-sm font-medium text-[#10243E]">
-                    {transaction.customer_name || "Unknown customer"}
+                    {transaction.customer_name || tr("Unknown customer")}
                   </td>
 
                   <td className="py-4 text-sm text-[#64748B]">
                     {transaction.type === "credit_sale"
-                      ? "Credit sale"
+                      ? tr("Credit sale")
                       : transaction.type === "repayment"
-                        ? "Repayment"
-                        : transaction.type || "Other"}
+                        ? tr("Repayment")
+                        : transaction.type || tr("Other")}
                   </td>
 
-                  <td className="py-4 text-right text-sm font-semibold text-[#10243E]">
+                  <td className={"py-4 text-right text-sm font-semibold " + (transaction.type === "repayment" ? "text-[#16A566]" : "text-[#10243E]")}>
                     {formatAmount(transaction.amount)}
                   </td>
                 </tr>

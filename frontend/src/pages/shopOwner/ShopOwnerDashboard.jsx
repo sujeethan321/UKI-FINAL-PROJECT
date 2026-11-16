@@ -1,10 +1,12 @@
+import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, RefreshCw, Store } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import OverviewCards from "../../components/shopOwner/OverviewCards";
 import RecentCreditTransactions from "../../components/shopOwner/RecentCreditTransactions";
+import NeedsAttention from "../../components/shopOwner/NeedsAttention";
 import QuickActions from "../../components/shopOwner/QuickActions";
 
 
@@ -16,6 +18,7 @@ import {
 } from "../../services/shopOwnerDashboardService";
 
 export default function ShopOwnerDashboard() {
+  const { tr, statusLabel } = useAppTranslation();
   const [businesses, setBusinesses] = useState([]);
   const [selectedBusinessId, setSelectedBusinessId] =
     useState(null);
@@ -25,13 +28,7 @@ export default function ShopOwnerDashboard() {
 
   const location = useLocation();
 
-  const [summary, setSummary] = useState(null);
-  const [transactions, setTransactions] = useState(null);
-
-  const [dataLoading, setDataLoading] = useState(false);
-  const [summaryError, setSummaryError] = useState("");
-  const [transactionsError, setTransactionsError] =
-    useState("");
+  const [dashboardResult, setDashboardResult] = useState(null);
 
   const [contextRefresh, setContextRefresh] = useState(0);
   const [dataRefresh, setDataRefresh] = useState(0);
@@ -103,72 +100,56 @@ export default function ShopOwnerDashboard() {
   ).toLowerCase();
 
   const isApproved = approvalStatus === "approved";
+  const businessId = selectedBusiness?.business_id;
+  const resultKey = `${businessId}:${dataRefresh}`;
+  const currentResult = dashboardResult?.key === resultKey ? dashboardResult : null;
+  const summary = currentResult?.summary ?? null;
+  const transactions = currentResult?.transactions ?? null;
+  const summaryError = currentResult?.summaryError ?? "";
+  const transactionsError = currentResult?.transactionsError ?? "";
+  const dataLoading = !contextLoading && !contextError && isApproved && !currentResult;
 
   // Step 2: Load dashboard records for the selected
   // and approved business.
   useEffect(() => {
     let active = true;
 
-    setSummary(null);
-    setTransactions(null);
-    setSummaryError("");
-    setTransactionsError("");
-
     if (
       contextLoading ||
       contextError ||
-      !selectedBusiness ||
+      !businessId ||
       !isApproved
     ) {
-      setDataLoading(false);
       return () => {
         active = false;
       };
     }
 
     async function loadDashboardData() {
-      setDataLoading(true);
-
       const [summaryResult, transactionsResult] =
         await Promise.allSettled([
           getShopOwnerDashboardSummary(
-            selectedBusiness.business_id
+            businessId
           ),
           getShopOwnerRecentTransactions(
-            selectedBusiness.business_id
+            businessId
           ),
         ]);
 
       if (!active) return;
 
-      if (summaryResult.status === "fulfilled") {
-        setSummary(summaryResult.value);
-      } else {
-        console.error("Dashboard summary failed.");
-        setSummaryError(
-          "Unable to load dashboard overview."
-        );
-      }
-
-      if (transactionsResult.status === "fulfilled") {
-        const records =
-          transactionsResult.value?.transactions;
-
-        if (Array.isArray(records)) {
-          setTransactions(records);
-        } else {
-          setTransactionsError(
-            "Transaction response was not valid."
-          );
-        }
-      } else {
-        console.error("Recent transactions failed.");
-        setTransactionsError(
-          "Unable to load recent transactions."
-        );
-      }
-
-      setDataLoading(false);
+      if (summaryResult.status !== "fulfilled") console.error("Dashboard summary failed.");
+      if (transactionsResult.status !== "fulfilled") console.error("Recent transactions failed.");
+      const records = transactionsResult.status === "fulfilled" ? transactionsResult.value?.transactions : null;
+      setDashboardResult({
+        key: resultKey,
+        summary: summaryResult.status === "fulfilled" ? summaryResult.value : null,
+        transactions: Array.isArray(records) ? records : null,
+        summaryError: summaryResult.status === "fulfilled" ? "" : "Unable to load dashboard overview.",
+        transactionsError: transactionsResult.status !== "fulfilled"
+          ? "Unable to load recent transactions."
+          : Array.isArray(records) ? "" : "Transaction response was not valid.",
+      });
     }
 
     loadDashboardData();
@@ -179,9 +160,9 @@ export default function ShopOwnerDashboard() {
   }, [
     contextLoading,
     contextError,
-    selectedBusiness?.business_id,
+    businessId,
     isApproved,
-    dataRefresh,
+    resultKey,
   ]);
 
   function refreshDashboard() {
@@ -197,9 +178,7 @@ export default function ShopOwnerDashboard() {
       <div
         role="status"
         className="rounded-2xl border border-[#D4E2EE] bg-white p-8 text-[#64748B]"
-      >
-        Loading your business information...
-      </div>
+      >{tr("Loading your business information...")}</div>
     );
   }
 
@@ -210,41 +189,31 @@ export default function ShopOwnerDashboard() {
         className="rounded-2xl border border-red-200 bg-white p-6"
       >
         <p className="font-semibold text-red-600">
-          {contextError}
+          {tr(contextError)}
         </p>
 
         <button
           type="button"
           onClick={refreshBusinessContext}
           className="mt-4 rounded-lg bg-[#10243E] px-4 py-2 text-sm font-medium text-white"
-        >
-          Try Again
-        </button>
+        >{tr("Try Again")}</button>
       </div>
     );
   }
 
 
-  
+
 if (businesses.length === 0) {
   return (
     <div className="rounded-2xl border border-[#D4E2EE] bg-white p-8">
-      <h2 className="text-xl font-semibold text-[#10243E]">
-        Welcome to LankaPex!
-      </h2>
+      <h2 className="text-xl font-semibold text-[#10243E]">{tr("Welcome to LankaPex!")}</h2>
 
-      <p className="mt-3 text-sm text-[#64748B]">
-        Your Shop Owner account is ready.
-        Register your business to start using LankaPex.
-        Your business will require Admin approval.
-      </p>
+      <p className="mt-3 text-sm text-[#64748B]">{tr("Your Shop Owner account is ready. Register your business to start using LankaPex. Your business will require Admin approval.")}</p>
 
       <Link
         to="/shop-owner/business/register"
         className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#12B8A6] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0A9B8C]"
-      >
-        Register Your Business
-      </Link>
+      >{tr("Register Your Business")}</Link>
     </div>
   );
 }
@@ -252,30 +221,21 @@ if (businesses.length === 0) {
 
 
   return (
-    <div className="space-y-8">
+    <div className="relative flex flex-col gap-6">
       {/* Current business and refresh controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className={businesses.length > 1 || location.state?.businessRegistered
+        ? "flex flex-wrap items-center justify-between gap-4"
+        : "absolute -top-[68px] right-0 flex items-center"}>
         <div>
           {location.state?.businessRegistered && (
             <div
               role="status"
               className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800"
-            >
-              Your business was submitted successfully.
-              It is now waiting for administrator approval.
-            </div>
+            >{tr("Your business was submitted successfully. It is now waiting for administrator approval.")}</div>
           )}
-          <p className="text-sm text-[#64748B]">
-            Viewing business
-          </p>
-
-          {businesses.length === 1 ? (
-            <h2 className="mt-1 text-lg font-semibold text-[#10243E]">
-              {selectedBusiness?.business_name}
-            </h2>
-          ) : (
+          {businesses.length > 1 && (
             <select
-              aria-label="Select business"
+              aria-label={tr("Select business")}
               value={selectedBusinessId ?? ""}
               onChange={(event) =>
                 setSelectedBusinessId(event.target.value)
@@ -300,41 +260,29 @@ if (businesses.length === 0) {
           disabled={dataLoading || !isApproved}
           className="flex items-center gap-2 rounded-xl border border-[#D4E2EE] bg-white px-4 py-2 text-sm font-medium text-[#10243E] hover:bg-[#F5F8FC] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <RefreshCw size={16} aria-hidden="true" />
-          Refresh
-        </button>
+          <RefreshCw size={16} aria-hidden="true" />{tr("Refresh")}</button>
       </div>
 
       {/* Business approval must be completed first */}
       {!isApproved ? (
         <div className="rounded-2xl border border-amber-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-[#10243E]">
-            Business approval required
-          </h2>
+          <h2 className="text-lg font-semibold text-[#10243E]">{tr("Business approval required")}</h2>
 
-          <p className="mt-2 text-sm text-[#64748B]">
-            Current status:{" "}
+          <p className="mt-2 text-sm text-[#64748B]">{tr("Current status:")}{" "}
             <span className="font-semibold">
-              {selectedBusiness?.approval_status || "Unknown"}
-            </span>
-            . The business dashboard will load after your
-            business has been approved.
-          </p>
+              {statusLabel(selectedBusiness?.approval_status) || tr("Unknown")}
+            </span>{tr(". The business dashboard will load after your business has been approved.")}</p>
 
           <button
             type="button"
             onClick={refreshBusinessContext}
             className="mt-4 text-sm font-semibold text-[#087D78] underline"
-          >
-            Check approval status
-          </button>
+          >{tr("Check approval status")}</button>
         </div>
       ) : (
         <>
           {dataLoading && (
-            <p role="status" className="text-sm text-[#64748B]">
-              Loading dashboard data...
-            </p>
+            <p role="status" className="text-sm text-[#64748B]">{tr("Loading dashboard data...")}</p>
           )}
 
           {summaryError && (
@@ -343,7 +291,7 @@ if (businesses.length === 0) {
               className="flex items-center gap-2 text-sm text-red-600"
             >
               <AlertCircle size={17} />
-              {summaryError}
+              {tr(summaryError)}
             </p>
           )}
 
@@ -356,7 +304,7 @@ if (businesses.length === 0) {
                   role="alert"
                   className="mb-3 text-sm text-red-600"
                 >
-                  {transactionsError}
+                  {tr(transactionsError)}
                 </p>
               )}
 
@@ -365,8 +313,9 @@ if (businesses.length === 0) {
               />
             </div>
 
-            <QuickActions businessId={selectedBusinessId} />
+            <NeedsAttention summary={summary} businessId={selectedBusinessId} />
           </div>
+          <QuickActions businessId={selectedBusinessId} />
         </>
       )}
     </div>

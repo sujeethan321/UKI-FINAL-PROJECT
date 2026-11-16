@@ -179,21 +179,24 @@ def test_both_customer_sessions_are_isolated_across_all_customer_views(api):
 
 def test_customer_totals_match_shop_owner_positions_for_the_same_authorized_accounts(api):
     from app.services.shop_owner_customer_service import list_business_customers
-    shop=make_business(api["db"])
-    _,first=api["profile"](shop);_,second=api["profile"](shop);_,advance=api["profile"](shop)
-    _,foreign=api["profile"](shop,api["other"])
+    shops=[make_business(api["db"]) for _ in range(3)]
+    _,first=api["profile"](shops[0]);_,second=api["profile"](shops[1]);_,advance=api["profile"](shops[2])
+    _,foreign=api["profile"](shops[0],api["other"])
     timed(api,first,"credit_sale","100.25","2026-02-01T12:00:00")
     timed(api,first,"repayment","25.10","2026-02-02T12:00:00")
     original=timed(api,second,"credit_sale","200.20","2026-02-01T12:00:00")
     timed(api,second,"reversal","0.01","2026-02-02T12:00:00",original)
     timed(api,advance,"repayment","7.77","2026-02-01T12:00:00")
     timed(api,foreign,"credit_sale","999.99","2026-02-01T12:00:00")
-    owner_rows={row["credit_account_id"]:row for row in list_business_customers(api["db"],shop)}
+    owner_rows={row["credit_account_id"]:row for shop in shops
+                for row in list_business_customers(api["db"],shop)}
     rows=get(api,"/credit-accounts").json()["credit_accounts"]
     assert len(rows)==3
     for row in rows: assert Decimal(row["outstanding_balance"])==Decimal(owner_rows[row["credit_account_id"]]["outstanding_balance"])
     assert get(api,"/dashboard/summary").json()["total_outstanding_balance"]=="75.15"
-    assert get(api,"/shops").json()["shops"][0]["outstanding_balance"]=="75.15"
+    shop_rows={row["business_id"]:row for row in get(api,"/shops").json()["shops"]}
+    assert {shop:shop_rows[shop]["outstanding_balance"] for shop in shops} == {
+        shops[0]:"75.15", shops[1]:"0.00", shops[2]:"0.00"}
 
 
 def test_large_account_statement_is_rejected_without_truncating_history(api):

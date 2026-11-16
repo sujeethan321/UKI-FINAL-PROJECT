@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import select
+from app.core.config import settings
 
 from app.models import CreditAccount, CustomerProfile, LedgerEntry
 from app.services.ledger_service import ZERO, entry_delta, load_ledger_entries
@@ -74,7 +75,8 @@ def customer_statement(db, business, customer_id, start_date, end_date):
     account = db.scalar(select(CreditAccount).where(
         CreditAccount.customer_id == customer_id, CreditAccount.creditor_business_id == business.business_id,
     ))
-    entries = load_ledger_entries(db, [account.credit_account_id]) if account else []
+    entries = load_ledger_entries(db, [account.credit_account_id],
+        max_entries=settings.MAX_READ_LEDGER_ENTRIES) if account else []
     by_id = {entry.entry_id: entry for entry in entries}
     through_end = [entry for entry in entries if entry.recorded_at < stop]
     reversed_ids = {entry.reverses_entry_id for entry in through_end if entry.entry_type == "reversal"}

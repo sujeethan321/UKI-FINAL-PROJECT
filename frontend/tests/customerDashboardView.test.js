@@ -19,10 +19,10 @@ test("customer dashboard React views, routes and existing Axios contracts", asyn
     const { default: Layout } = await server.ssrLoadModule("/src/layouts/CustomerLayout.jsx");
     const { AuthContext } = await server.ssrLoadModule("/src/context/AuthContext.jsx");
     const { default: Guard } = await server.ssrLoadModule("/src/routes/ProtectedRoute.jsx");
-    const render = (state = ready()) => renderToStaticMarkup(createElement(CustomerDashboardView, { state, actions, displayName: "Kumar" }));
+    const render = (state = ready()) => renderToStaticMarkup(createElement(MemoryRouter, null, createElement(CustomerDashboardView, { state, actions, displayName: "Kumar" })));
     await t.test("successful overview and previews display actual backend fields", () => {
       const html = render();
-      for (const value of ["Welcome, Kumar!", "Outstanding Credit", "My Shops", "Credit Accounts", "Recent Activity", "LKR 100.25", "LKR 1,000.00", "Linked Shop", "Account #8", "CS-test-reference", "Credit sale", "2026-11-06 10:00:00", "latest 5 transactions"]) assert.ok(html.includes(value), value);
+      for (const value of ["Welcome, Kumar!", "Outstanding Credit", "My Shops", "Credit Accounts", "Due Soon", "Overdue Amount", "LKR 100.25", "LKR 1,000.00", "Linked Shop", "Account #8", "CS-test-reference", "Credit sale", "2026-11-06 10:00:00", "Next Payment"]) assert.ok(html.includes(value), value);
       assert.ok(!html.includes("View Details")); assert.ok(!html.includes("Make Payment"));
     });
     await t.test("loading and unavailable values cannot masquerade as zero balances", () => {
@@ -54,9 +54,9 @@ test("customer dashboard React views, routes and existing Axios contracts", asyn
     });
     await t.test("sidebar links target supported routes or real dashboard sections", () => {
       const html = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(Sidebar)));
-      for (const target of ["/customer/dashboard", "/customer/shops", "/customer/dashboard#my-credit", "/customer/transactions", "/customer/notifications"]) assert.ok(html.includes('href="' + target + '"'));
+      for (const target of ["/customer/dashboard", "/customer/shops", "/customer/credit-accounts", "/customer/transactions", "/customer/notifications"]) assert.ok(html.includes('href="' + target + '"'));
       for (const id of ["my-shops", "my-credit", "transactions"]) assert.ok(render().includes('id="' + id + '"'));
-      assert.ok(html.includes("Planned")); assert.ok(!html.includes('href="/customer/settings"')); assert.ok(!html.includes('href="/customer/profile"'));
+      assert.ok(!html.includes("Planned")); assert.ok(html.includes('href="/customer/settings"')); assert.ok(html.includes('href="/customer/profile"'));
       assert.ok(html.includes('aria-label="Customer menu"')); assert.ok(html.includes("<dialog")); assert.ok(html.includes("LankaPex"));
     });
     await t.test("actual customer route renders through its role guard and new layout", async () => {
@@ -88,7 +88,7 @@ test("customer dashboard React views, routes and existing Axios contracts", asyn
     });
     await t.test("new code uses responsive grids and does not persist ledger responses or poll notifications", async () => {
       const source = await readFile(new URL('../src/pages/customer/CustomerDashboard.jsx', import.meta.url), 'utf8');
-      for (const cls of ['sm:grid-cols-2', 'xl:grid-cols-4', 'md:grid-cols-2', 'min-w-0', 'overflow-wrap:anywhere']) assert.ok(source.includes(cls));
+      for (const cls of ['md:grid-cols-2', 'min-w-0', 'overflow-wrap:anywhere', 'CustomerCreditOverview']) assert.ok(source.includes(cls));
       const controller = await readFile(new URL('../src/utils/customerDashboard.js', import.meta.url), 'utf8');
       assert.ok(!controller.includes('localStorage')); assert.ok(!controller.includes('sessionStorage')); assert.ok(!controller.includes('setInterval'));
       assert.ok(source.includes('key={user.user_id + ":" + token}'));

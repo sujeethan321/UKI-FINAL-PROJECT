@@ -1,3 +1,4 @@
+import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import BrandLogo from "../BrandLogo";
 
 import { useState } from "react";
@@ -49,7 +50,7 @@ const navigation = [
     ready: true,
   },
   {
-    label: "Orders",
+    label: "Credit Orders",
     path: "/shop-owner/orders",
     icon: ShoppingCart,
     ready: true,
@@ -64,7 +65,7 @@ const navigation = [
     label: "Reports",
     path: "/shop-owner/reports",
     icon: BarChart3,
-    ready: false,
+    ready: true,
   },
   {
     label: "Notifications",
@@ -76,11 +77,15 @@ const navigation = [
     label: "Settings",
     path: "/shop-owner/settings",
     icon: Settings,
-    ready: false,
+    ready: true,
   },
 ];
 
+// Keep the reference order, with catalogue after delivery management.
+const orderedNavigation = [navigation[0], navigation[1], navigation[3], navigation[4], navigation[5], navigation[6], navigation[2], ...navigation.slice(7)];
+
 export default function ShopOwnerSidebar() {
+  const { tr } = useAppTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
   function closeSidebar() {
@@ -88,19 +93,18 @@ export default function ShopOwnerSidebar() {
   }
 
   const sidebar = (
-    <div className="flex h-full flex-col bg-[#10243E] text-white">
+    <div className="owner-sidebar flex h-full flex-col bg-[#10243E] text-white">
       {/* Logo and role */}
-      <div className="border-b border-white/10 px-6 pb-7 pt-9">
-        <div className="p-2"><BrandLogo /></div>
-        <p className="mt-3 text-xs font-semibold tracking-wider text-[#6AE5D6]">SHOP OWNER</p>
+      <div className="owner-brand border-b border-white/10 px-6 py-7">
+        <BrandLogo tone="dark" />
       </div>
 
       {/* Navigation */}
       <nav
-        aria-label="Shop owner navigation"
+        aria-label={tr("Shop owner navigation")}
         className="flex-1 space-y-1 overflow-y-auto px-4 py-6"
       >
-        {navigation.map((item) => {
+        {orderedNavigation.map((item) => {
           const Icon = item.icon;
 
           if (!item.ready) {
@@ -114,7 +118,7 @@ export default function ShopOwnerSidebar() {
                 <Icon size={19} aria-hidden="true" />
 
                 <span className="text-[15px] font-medium">
-                  {item.label}
+                  {tr(item.label)}
                 </span>
               </div>
             );
@@ -129,23 +133,18 @@ export default function ShopOwnerSidebar() {
                 [
                   "flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium transition-colors",
                   isActive
-                    ? "bg-[#176079] text-white"
-                    : "text-[#BED1DE] hover:bg-white/10 hover:text-white",
+                    ? "bg-gradient-to-r from-[#12B8A6] to-[#007B91] text-white shadow-sm"
+                    : "text-white hover:bg-white/10",
                 ].join(" ")
               }
             >
               <Icon size={19} aria-hidden="true" />
-              <span>{item.label}</span>
+              <span>{tr(item.label)}</span>
             </NavLink>
           );
         })}
       </nav>
 
-      <div className="border-t border-white/10 px-6 py-5">
-        <p className="text-xs text-[#91A8BF]">
-          LankaPex — Business Connects Everyone
-        </p>
-      </div>
     </div>
   );
 
@@ -155,7 +154,7 @@ export default function ShopOwnerSidebar() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        aria-label="Open shop owner menu"
+        aria-label={tr("Open shop owner menu")}
         aria-expanded={isOpen}
         className="fixed left-4 top-4 z-40 flex h-11 w-11 items-center justify-center rounded-xl bg-[#10243E] text-white shadow-lg lg:hidden"
       >
@@ -172,7 +171,7 @@ export default function ShopOwnerSidebar() {
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            aria-label="Close sidebar overlay"
+            aria-label={tr("Close sidebar overlay")}
             onClick={closeSidebar}
             className="absolute inset-0 bg-black/50"
           />
@@ -183,7 +182,7 @@ export default function ShopOwnerSidebar() {
             <button
               type="button"
               onClick={closeSidebar}
-              aria-label="Close shop owner menu"
+              aria-label={tr("Close shop owner menu")}
               className="absolute right-3 top-3 rounded-lg p-2 text-white hover:bg-white/10"
             >
               <X size={22} />

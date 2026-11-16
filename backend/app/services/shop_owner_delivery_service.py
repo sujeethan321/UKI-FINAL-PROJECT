@@ -1,6 +1,6 @@
 """Own-business delivery management on the existing Day 12 records.
 
-Write callers commit/rollback. No payment, order, notification or ledger writes.
+Write callers commit/rollback. Notifications share the event transaction; no ledger writes.
 """
 from fastapi import HTTPException
 from sqlalchemy import func, select
@@ -92,6 +92,7 @@ def request_detail(db, user, business_id, request_id):
 
 def cancel_request(db, user, business_id, request_id):
     authorized_business(db, user.user_id, business_id)
+    delivery.lock_linked_order(db, request_id)
     row = scoped_request(db, business_id, request_id, current=True)
     assigned = delivery.assignment(db, request_id)
     if row.status == 'cancelled' and assigned is None:

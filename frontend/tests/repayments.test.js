@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRepaymentWorkflow } from "../src/pages/shopOwner/repaymentWorkflow.js";
-import { decimalAmount, minorUnits, formatCreditMoney, secureRepaymentKey, sessionRepaymentStore } from "../src/utils/repayment.js";
+import { secureRepaymentKey, sessionRepaymentStore } from "../src/utils/repayment.js";
 
 const deferred = () => {
   let resolve, reject;
@@ -110,9 +110,14 @@ test("Full Payment uses exact outstanding decimal string", async () => {
 for (const [field, value] of [["payment_method", "cheque"], ["receipt_number", "RP-reserved"], ["receipt_number", "CS-reserved"], ["receipt_number", "a".repeat(61)], ["receipt_number", "bad\nref"], ["notes", "x".repeat(2001)]]) {
   test(`invalid ${field}: ${value.slice(0, 20)}`, async () => { const h = harness(); await h.ready(); h.fill(); h.workflow.edit(field, value); await h.workflow.submit(); assert.equal(h.calls.record.length, 0); });
 }
-test("duplicate clicks and edits during submission cannot create a second operation", async () => {
-  const gate = deferred(); const h = harness({ record: (b, p) => gate.promise.then(() => successFor(b, p)) }); await h.ready(); h.fill();
-  const one = h.workflow.submit(), two = h.workflow.submit(); await new Promise(resolve => setTimeout(resolve, 15)); assert.equal(h.calls.record.length, 1);
+test("duplicate clicks and edits during submission cannot create a second operation", { timeout: 10000 }, async () => {
+  const gate = deferred(), dispatched = deferred();
+  const h = harness({ record: (b, p) => { dispatched.resolve(); return gate.promise.then(() => successFor(b, p)); } }); await h.ready(); h.fill();
+  const one = h.workflow.submit(), two = h.workflow.submit();
+  // Fingerprinting uses asynchronous crypto; observe dispatch rather than
+  // assuming it finishes within 15 ms on a busy regression-test host.
+  await dispatched.promise;
+  assert.equal(h.calls.record.length, 1);
   h.workflow.edit("amount", "1"); await h.workflow.selectBusiness("2"); await h.workflow.selectCustomer("11"); assert.equal(h.workflow.getSnapshot().amount, "50.25");
   gate.resolve(); await Promise.all([one, two]); assert.ok(h.workflow.getSnapshot().success);
 });

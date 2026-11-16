@@ -1,3 +1,4 @@
+import {NOTIFICATION_CHANGE_EVENT} from './notificationChange.js';
 import { NOTIFICATION_TYPES, notificationError, validCount, validNotification, validNotificationId, validNotificationPage } from "./notification.js";
 
 const initialState = () => ({ count: null, countLoading: false, countError: "", authError: "",
@@ -8,7 +9,7 @@ const initialState = () => ({ count: null, countLoading: false, countError: "", 
 export function createNotificationWorkflow({ api, timers = globalThis, now = () => Date.now(), pollMs = 60000 }) {
   let state = initialState(), alive = false, generation = 0, visible = true, pageActive = false;
   let countVersion = 0, listVersion = 0, recentVersion = 0, countAbort, listAbort, recentAbort, writeAbort;
-  let countTask = null, timer = null, failures = 0, locked = false, lastReturn = -Infinity;
+  let countTask = null, timer = null, failures = 0, locked = false, lastReturn = -Infinity, pendingChange = false;
   const listeners = new Set();
   const publish = patch => { if (alive) { state = { ...state, ...patch }; listeners.forEach(fn => fn()); } };
   const current = epoch => alive && generation === epoch && !state.authError;
@@ -89,6 +90,13 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
     if (!alive || state.authError || (locked && !force)) return;
     await Promise.all([loadCount(force), loadFeed("recent", force), loadFeed("list", force)]);
   }
+  async function refreshAfterChange() {
+    if (!alive || state.authError) return;
+    if (locked) { pendingChange = true; return; }
+    invalidateReads();
+    publish({ countLoading: false, listLoading: false, recentLoading: false });
+    return refresh();
+  }
   async function setFilter(field, value) {
     if (locked || !alive || state.authError) return;
     if (field === "readFilter" && !["all", "read", "unread"].includes(value)) return;
@@ -120,7 +128,7 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
     try {
       const result = all ? await api.markAll({ signal }) : await api.markOne(notificationId, { signal });
       if (!current(epoch) || signal.aborted) return;
-      if (all ? !validCount(result?.updated_count) : !validNotification(result) || result.notification_id !== notificationId || !result.is_read || result.notification_type !== original.notification_type || result.business_id !== original.business_id || result.related_entity_id !== original.related_entity_id) throw new Error("Unconfirmed read response");
+      if (all ? !validCount(result?.updated_count) : !validNotification(result) || result.notification_id !== notificationId || !result.is_read || result.notification_type !== original.notification_type || result.business_id !== original.business_id || result.related_entity_id !== original.related_entity_id || result.related_entity_type !== original.related_entity_type) throw new Error("Unconfirmed read response");
       const update = feed => feed ? { ...feed, notifications: feed.notifications.map(row =>
         (all || row.notification_id === notificationId) ? (all ? { ...row, is_read: true } : result) : row) } : null;
       // Confirmed changes appear immediately; count and filtered pagination come
@@ -132,13 +140,13 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
         publish({ actionError: notificationError(error, true), count: null, countError: "Refresh to confirm the current unread count." });
       }
     } finally {
-      if (current(epoch)) { locked = false; publish({ mutating: false, markingId: null }); schedule(); }
+      if (current(epoch)) { locked = false; publish({ mutating: false, markingId: null }); if (pendingChange) { pendingChange = false; await refreshAfterChange(); } else schedule(); }
     }
   }
   function start(isVisible = true) {
     if (alive) return;
     alive = true; ++generation; visible = isVisible; locked = false; failures = 0;
-    lastReturn = now(); publish(initialState());
+    pendingChange = false; lastReturn = now(); publish(initialState());
     if (visible) void loadCount();
     if (pageActive) void loadFeed("list");
   }
@@ -152,25 +160,28 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
     lastReturn = now(); void refresh();
   }
   function dispose() {
-    alive = false; ++generation; invalidateReads(); writeAbort?.abort(); locked = false; pageActive = false;
+    alive = false; ++generation; invalidateReads(); writeAbort?.abort(); locked = false; pageActive = false; pendingChange = false;
     state = initialState(); // No listener notifications after unmount.
   }
   return { subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); }, getSnapshot: () => state,
-    start, dispose, refresh, loadCount, loadRecent: () => loadFeed("recent"), loadList: () => loadFeed("list"),
+    start, dispose, refresh, refreshAfterChange, loadCount, loadRecent: () => loadFeed("recent"), loadList: () => loadFeed("list"),
     toggleDropdown, closeDropdown, setFilter, markRead, markAllRead: () => markRead(), setVisible, returnToTab,
     openInbox: () => { pageActive = true; void loadFeed("list"); },
     closeInbox: () => { pageActive = false; listAbort?.abort(); ++listVersion; publish({ list: null, listLoading: false, listError: "" }); } };
 }
 
 export function bindNotificationLifecycle(workflow, browserWindow, browserDocument) {
+  const changed = () => { if (!browserDocument.hidden) void workflow.refreshAfterChange(); };
   const visibility = () => workflow.setVisible(!browserDocument.hidden);
   const focus = () => { if (!browserDocument.hidden) workflow.returnToTab(); };
   workflow.start(!browserDocument.hidden);
   browserDocument.addEventListener("visibilitychange", visibility);
   browserWindow.addEventListener("focus", focus);
+  browserWindow.addEventListener(NOTIFICATION_CHANGE_EVENT, changed);
   return () => {
     browserDocument.removeEventListener("visibilitychange", visibility);
     browserWindow.removeEventListener("focus", focus);
+    browserWindow.removeEventListener(NOTIFICATION_CHANGE_EVENT, changed);
     workflow.dispose();
   };
 }

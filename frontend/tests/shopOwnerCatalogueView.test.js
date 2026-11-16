@@ -34,6 +34,20 @@ test('Shop & Products real views, existing routes and Axios catalogue contract',
       workflow.confirmArchive(productFixture());html=render();assert.ok(html.includes('Confirm product archive'));assert.ok(html.includes('Confirm Archive'));assert.ok(html.includes('Keep Product'));workflow.confirmArchive(null);
       const state=ready();state.products.data.products=[productFixture({publication_status:'archived'})];html=render(state);assert.ok(html.includes('Archived record'));assert.ok(!html.includes('>Edit Product<'));
     });
+    await t.test('category save errors appear beside the category submit control',async()=>{
+      workflow.openCategory();workflow.edit('category','name','<invalid>');await workflow.saveCategory();
+      const html=render(),form=html.slice(html.indexOf('id="category-editor-heading"'));
+      assert.ok(form.includes('role="alert"'));assert.ok(form.includes('HTML and control characters are unsupported'));
+      assert.ok(form.indexOf('role="alert"')<form.indexOf('Create Category'));
+      workflow.closeCategory();
+    });
+    await t.test('product save errors appear beside the product submit control',async()=>{
+      await workflow.openProduct();workflow.edit('product','name','Demo rice');workflow.edit('product','unit_price','invalid');
+      await workflow.saveProduct();const html=render(),form=html.slice(html.indexOf('id="product-editor-heading"'));
+      assert.ok(form.includes('role="alert"'));assert.ok(form.includes('Enter an LKR price'));
+      assert.ok(form.indexOf('role="alert"')<form.indexOf('Create Product'));
+      workflow.closeProduct();
+    });
     await t.test('busy, uncertain, pending, no-business and authorization states disable or conceal controls',()=>{
       const state=ready();state.busy=true;assert.ok(render(state).includes('disabled'));state.busy=false;state.uncertain=true;assert.ok(render(state).includes('A creation attempt is unconfirmed'));
       state.businessId=3;let html=render(state);assert.ok(html.includes('Business approval is required'));assert.ok(!html.includes('Product Catalogue'));

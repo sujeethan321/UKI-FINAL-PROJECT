@@ -1,0 +1,51 @@
+-- DBA REVIEW TEMPLATE ONLY. Not executed by the agent.
+-- Do not run this file wholesale. Mutations are commented out deliberately.
+-- No passwords, account creation, global grants or existing DB changes.
+-- Use an already approved local migration principal and its exact account host.
+
+-- 1. Authorized DBA: establish existence and object inventory independently.
+SELECT VERSION(), @@GLOBAL.partial_revokes, @@SESSION.sql_mode,
+       @@SESSION.time_zone, @@GLOBAL.lower_case_table_names;
+SELECT SCHEMA_NAME, DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME
+FROM information_schema.SCHEMATA
+WHERE SCHEMA_NAME = 'lankapex_migration_verify_20261107';
+SELECT TABLE_NAME, TABLE_TYPE
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'lankapex_migration_verify_20261107';
+SELECT ROUTINE_NAME, ROUTINE_TYPE
+FROM information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA = 'lankapex_migration_verify_20261107';
+SELECT EVENT_NAME
+FROM information_schema.EVENTS
+WHERE EVENT_SCHEMA = 'lankapex_migration_verify_20261107';
+
+-- 2. ONLY if authoritative DBA inspection confirms ABSENT, and DBA approval
+-- explicitly covers creation, review/uncomment this statement separately.
+-- No IF NOT EXISTS: an unknown existing schema must not be silently reused.
+-- CREATE DATABASE `lankapex_migration_verify_20261107`
+--   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 3. Confirm an existing approved principal and exact host locally; no root
+-- credentials or passwords belong in chat/repository. Inspect its existing
+-- privileges, including roles; prefer an identity without existing DB access.
+-- SHOW GRANTS FOR '<approved-migration-account>'@'<exact-account-host>';
+
+-- 4. Current observed server has partial_revokes=OFF. Escaping underscores
+-- is necessary for an EXACT database-level grant, even inside backticks.
+-- If server semantics differ, stop and have the DBA adapt/review the scope.
+-- Clean single-head forward chain needs these seven privileges. No DROP,
+-- GRANT OPTION, ALL PRIVILEGES, FILE, PROCESS, SUPER, CREATE USER or *.* grant.
+-- GRANT SELECT, INSERT, UPDATE, CREATE, ALTER, INDEX, REFERENCES
+--   ON `lankapex\_migration\_verify\_20261107`.*
+--   TO '<approved-migration-account>'@'<exact-account-host>';
+
+-- Optional, separately approved synthetic cleanup tests ONLY in this schema:
+-- GRANT DELETE ON `lankapex\_migration\_verify\_20261107`.*
+--   TO '<approved-migration-account>'@'<exact-account-host>';
+
+-- 5. Review resulting grants locally, verify the exact selected target with
+-- the migration identity and confirm no tables/views/routines/events.
+-- Reconnect with that identity; do not test access with CREATE/DROP probes.
+-- SELECT DATABASE(), CURRENT_USER(), CURRENT_ROLE();
+-- SHOW GRANTS FOR CURRENT_USER();
+-- No migration execution is authorized by this template.

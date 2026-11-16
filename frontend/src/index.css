@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+/* Local system fallbacks for the existing design; no remote font requests. */
+html:lang(ta) body, html:lang(si) body,
+html:lang(ta) .font-sans, html:lang(si) .font-sans,
+html:lang(ta) .customer-shell, html:lang(si) .customer-shell,
+html:lang(ta) .driver-shell, html:lang(si) .driver-shell {
+  font-family: Inter, "Nirmala UI", Latha, "Iskoola Pota", Arial, sans-serif;
+}

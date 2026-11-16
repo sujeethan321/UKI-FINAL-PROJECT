@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from app.core.config import settings
 
 from app.models import (
     CustomerProfile,
@@ -27,12 +29,15 @@ def list_business_customers(
         select(CustomerProfile)
         .where(CustomerProfile.business_id == business_id)
         .order_by(CustomerProfile.customer_id.desc())
+        .limit(settings.MAX_INTERACTIVE_CUSTOMERS + 1)
     ).all()
+    if len(customers) > settings.MAX_INTERACTIVE_CUSTOMERS:
+        raise HTTPException(422, 'Customer list exceeds the interactive limit. Contact support.')
 
     accounts = db.scalars(
         select(CreditAccount).where(
             CreditAccount.creditor_business_id == business_id,
-            CreditAccount.customer_id.is_not(None),
+            CreditAccount.customer_id.in_([customer.customer_id for customer in customers]),
         )
     ).all()
 
@@ -46,7 +51,8 @@ def list_business_customers(
         for account in accounts
     ]
 
-    balances = account_balances(load_ledger_entries(db, account_ids))
+    balances = account_balances(load_ledger_entries(db, account_ids,
+        max_entries=settings.MAX_READ_LEDGER_ENTRIES))
 
     result = []
 

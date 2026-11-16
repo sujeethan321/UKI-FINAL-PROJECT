@@ -148,7 +148,9 @@ def test_no_public_self_approval_and_only_supported_status_route(ctx):
     service.create_profile(ctx["db"],ctx["driver"].user_id,"van","TEST-123")
     with pytest.raises(HTTPException) as error:service.review_profile(ctx["db"],ctx["driver"].user_id,ctx["driver"].user_id,"approved")
     assert error.value.status_code==403
-    for path in PATHS:assert ctx["client"].post(ROOT+path,headers=ctx["headers"],json={"approval_status":"approved"}).status_code==405
+    for path in PATHS:
+        # First-time submission exists; privileged approval fields stay forbidden.
+        assert ctx["client"].post(ROOT+path,headers=ctx["headers"],json={"approval_status":"approved"}).status_code==(422 if path=='/profile' else 405)
     for path in ["/deliveries/1/accept","/profile/approve"]:
         assert ctx["client"].post(ROOT+path,headers=ctx["headers"],json={}).status_code==404
     assert ctx["client"].post(ROOT+"/deliveries/1/status",headers=ctx["headers"],json={}).status_code==422

@@ -1,17 +1,12 @@
 
-from fastapi import APIRouter
-from fastapi import Depends
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
-
-from app.core.database import get_db
+from fastapi import APIRouter, HTTPException, Response, status
 
 router = APIRouter(tags=["Health"])
 
 
 @router.get("/health")
-def health_check():
+def health_check(response: Response):
+    response.headers['Cache-Control'] = 'no-store'
     return {
         "status": "ok",
         "application": "LankaPex",
@@ -19,22 +14,15 @@ def health_check():
     }
 
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
-
-from app.core.database import get_db
-
-
 @router.get("/health/database", include_in_schema=False)
-def database_health(db: Session = Depends(get_db)):
-    try:
-        db.execute(text("SELECT 1")).scalar_one()
-    except SQLAlchemyError:
+async def database_health(response: Response):
+    response.headers['Cache-Control'] = 'no-store'
+    from app.services.readiness import probe
+    if not await probe.check():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database unavailable",
+            headers={'Cache-Control': 'no-store'},
         ) from None
 
     return {

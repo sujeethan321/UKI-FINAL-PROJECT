@@ -1,11 +1,12 @@
 
 import axios from "axios";
+import { validateApiUrl } from "../utils/apiConfig";
 
 const TOKEN_KEY = "lankapex_access_token";
 const SESSION_EXPIRED_EVENT = "lankapex:session-expired";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: validateApiUrl(import.meta.env.VITE_API_URL, import.meta.env.PROD),
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",

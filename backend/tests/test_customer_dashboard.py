@@ -97,18 +97,19 @@ def test_sales_partial_and_full_repayments_agree_with_existing_ledger(api, repay
 
 
 def test_multiple_shops_profiles_accounts_do_not_duplicate_or_net_away_debt(api):
-    first, second = make_business(api["db"]), make_business(api["db"])
-    _, a = api["profile"](first); _, b = api["profile"](first); _, c = api["profile"](second)
-    api["profile"](first, account=False)
+    first, second, advance_shop, empty_shop = (make_business(api["db"]) for _ in range(4))
+    _, a = api["profile"](first); _, b = api["profile"](second); _, c = api["profile"](advance_shop)
+    api["profile"](empty_shop, account=False)
     entry(api, a, "credit_sale", "100.00")
     entry(api, b, "credit_sale", "200.00")
     entry(api, c, "repayment", "50.00")  # legacy advance must not offset another account's debt
     summary = get(api, "/dashboard/summary").json()
-    assert summary["linked_shop_count"] == 2 and summary["credit_account_count"] == 3
+    assert summary["linked_shop_count"] == 4 and summary["credit_account_count"] == 3
     assert summary["total_outstanding_balance"] == "300.00"
     shops = get(api, "/shops").json()
-    assert shops["total"] == 2
-    assert {r["business_id"]: (r["credit_account_count"], r["outstanding_balance"]) for r in shops["shops"]} == {first: (2, "300.00"), second: (1, "0.00")}
+    assert shops["total"] == 4
+    assert {r["business_id"]: (r["credit_account_count"], r["outstanding_balance"]) for r in shops["shops"]} == {
+        first: (1, "100.00"), second: (1, "200.00"), advance_shop: (1, "0.00"), empty_shop: (0, "0.00")}
     accounts = get(api, "/credit-accounts").json()["credit_accounts"]
     advance = next(r for r in accounts if r["credit_account_id"] == c.credit_account_id)
     assert advance["advance_balance"] == "50.00" and advance["available_credit"] == "1000.00"
@@ -138,8 +139,8 @@ def test_cross_customer_unlinked_pending_and_malformed_business_accounts_remain_
     shop, foreign_shop, pending_shop = make_business(api["db"]), make_business(api["db"]), make_business(api["db"], "pending")
     _, own = api["profile"](shop); _, other = api["profile"](shop, api["other"])
     _, unlinked = api["profile"](shop, owner=None); _, pending = api["profile"](pending_shop)
-    _, malformed = api["profile"](shop)
-    malformed.creditor_business_id = foreign_shop
+    _, malformed = api["profile"](foreign_shop)
+    malformed.creditor_business_id = shop  # account and profile business disagree
     api["db"].flush()
     for account in [own, other, unlinked, pending, malformed]: entry(api, account, "credit_sale", "17.01")
     summary = get(api, "/dashboard/summary").json()
@@ -230,9 +231,9 @@ def test_only_read_methods_are_exposed(api):
 
 
 def test_large_decimal_totals_and_reversal_outside_current_page(api):
-    shop = make_business(api["db"])
-    _, a = api["profile"](shop, limit="999999999999.99")
-    _, b = api["profile"](shop, limit="999999999999.99")
+    first, second = make_business(api["db"]), make_business(api["db"])
+    _, a = api["profile"](first, limit="999999999999.99")
+    _, b = api["profile"](second, limit="999999999999.99")
     original = entry(api, a, "credit_sale", "999999999999.99")
     entry(api, b, "credit_sale", "999999999999.99")
     assert get(api, "/dashboard/summary").json()["total_outstanding_balance"] == "1999999999999.98"
@@ -264,8 +265,8 @@ def test_invalid_reversal_link_does_not_expose_foreign_original(api):
 
 
 def test_closed_and_suspended_credit_accounts_remain_readable_without_granting_credit(api):
-    shop = make_business(api["db"])
-    for status in ["closed", "suspended"]:
+    shops = [make_business(api["db"]) for _ in range(2)]
+    for shop, status in zip(shops, ["closed", "suspended"]):
         _, account = api["profile"](shop)
         account.account_status = status
         entry(api, account, "credit_sale", "12.34")
@@ -309,18 +310,23 @@ def test_owned_account_detail_is_exact_and_read_only(api):
 
 
 def test_shop_filter_chooses_all_owned_accounts_without_double_counting(api):
-    first, second = make_business(api["db"]), make_business(api["db"])
-    _, a = api["profile"](first); _, b = api["profile"](first); _, c = api["profile"](second)
+    first, second, third = (make_business(api["db"]) for _ in range(3))
+    _, a = api["profile"](first); _, b = api["profile"](second); _, c = api["profile"](third)
     _, other = api["profile"](first, api["other"])
     for account, amount in [(a, "1.01"), (b, "2.02"), (c, "9.99"), (other, "55.55")]: entry(api, account, "credit_sale", amount)
     response = get(api, "/credit-accounts", business_id=first, page=1, page_size=1).json()
     another = get(api, "/credit-accounts", business_id=first, page=2, page_size=1).json()
-    assert response["total"] == another["total"] == 2
+    assert response["total"] == another["total"] == 1
     rows = response["credit_accounts"] + another["credit_accounts"]
-    assert {row["credit_account_id"] for row in rows} == {a.credit_account_id, b.credit_account_id}
+    assert {row["credit_account_id"] for row in rows} == {a.credit_account_id}
     assert all(row["business_id"] == first for row in rows)
+    assert get(api, "/credit-accounts", business_id=second).json()["credit_accounts"][0]["credit_account_id"] == b.credit_account_id
+    pages = [get(api, "/credit-accounts", page=page, page_size=1).json() for page in (1, 2, 3)]
+    assert all(page["total"] == 3 and len(page["credit_accounts"]) == 1 for page in pages)
+    assert {page["credit_accounts"][0]["credit_account_id"] for page in pages} == {
+        a.credit_account_id, b.credit_account_id, c.credit_account_id}
     summary = get(api, "/dashboard/summary").json()
-    assert summary["linked_shop_count"] == 2 and summary["total_outstanding_balance"] == "13.02"
+    assert summary["linked_shop_count"] == 3 and summary["total_outstanding_balance"] == "13.02"
 
 
 def test_linked_shop_without_account_returns_empty_filtered_list(api):

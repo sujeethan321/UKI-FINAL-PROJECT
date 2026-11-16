@@ -14,6 +14,9 @@ export async function getCustomerTransactions({ signal } = {}) {
 }
 
 // Full pages use the same scoped APIs with explicit bounded pagination.
+export async function getMyCreditAccounts(page, { signal } = {}) {
+  return (await api.get('/customer/credit-accounts', { signal, params: { page, page_size: 10 } })).data;
+}
 export async function getMyShops(page, { signal } = {}) {
   return (await api.get("/customer/shops", { signal, params: { page, page_size: 10 } })).data;
 }

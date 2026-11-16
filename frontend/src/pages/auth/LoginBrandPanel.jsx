@@ -1,3 +1,5 @@
+import LanguageSelector from "../../components/LanguageSelector";
+import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import BrandLogo from "../../components/BrandLogo";
 
 import {
@@ -160,7 +162,8 @@ export function LankaPexLogo() {
   return <BrandLogo />;
 }
 
-export default function LoginBrandPanel({ role }) {
+export default function LoginBrandPanel({ role, registration = false }) {
+  const { tr } = useAppTranslation();
   const content =
     contentByRole[role] ?? {
       ...contentByRole["shop-owner"],
@@ -171,29 +174,29 @@ export default function LoginBrandPanel({ role }) {
     };
 
   return (
-    <section className="relative flex flex-col justify-between gap-10 px-6 py-8 sm:px-10 lg:min-h-screen lg:px-12 xl:px-20">
-      <div className="relative z-10">
-        <LankaPexLogo />
+    <section className={`relative flex flex-col px-6 py-8 sm:px-10 lg:min-h-screen lg:px-12 xl:px-20 ${registration ? "gap-6" : "justify-between gap-10"}`}>
+      <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
+        <LankaPexLogo /><LanguageSelector />
       </div>
 
       <div className="relative z-10 max-w-2xl">
-        <div className="mb-7 inline-flex items-center gap-2 rounded-full bg-teal-100/80 px-5 py-2 text-xs font-bold tracking-[0.2em] text-[#10243E]">
+        <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-teal-100/80 px-5 py-2 text-xs font-bold tracking-[0.2em] text-[#10243E]">
           <ShoppingBag size={17} className="text-[#12B8A6]" />
-          {content.label}
+          {tr(content.label)}
         </div>
 
-        <h1 className="text-4xl font-extrabold leading-[1.12] tracking-tight text-[#10243E] sm:text-5xl xl:text-6xl">
-          {content.title}
+        <h1 className="text-3xl font-extrabold leading-[1.12] tracking-tight text-[#10243E] sm:text-4xl xl:text-5xl">
+          {tr(content.title)}
           <span className="mt-2 block text-[#079D9D]">
-            {content.highlight}
+            {tr(content.highlight)}
           </span>
         </h1>
 
-        <p className="mt-6 max-w-xl text-base leading-7 text-[#566B8E] sm:text-lg">
-          {content.description}
+        <p className="mt-4 max-w-xl text-base leading-7 text-[#566B8E] sm:text-lg">
+          {tr(content.description)}
         </p>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        <div className="mt-7 grid gap-4 sm:grid-cols-2">
           {content.features.map((feature) => {
             const Icon = feature.icon;
 
@@ -210,10 +213,10 @@ export default function LoginBrandPanel({ role }) {
 
                 <div>
                   <h3 className="text-sm font-bold text-[#10243E]">
-                    {feature.title}
+                    {tr(feature.title)}
                   </h3>
                   <p className="mt-1 text-sm leading-5 text-[#566B8E]">
-                    {feature.description}
+                    {tr(feature.description)}
                   </p>
                 </div>
               </div>
@@ -222,9 +225,7 @@ export default function LoginBrandPanel({ role }) {
         </div>
       </div>
 
-      <p className="relative z-10 text-xs text-[#64748B]">
-        © LankaPex — Business Connects Everyone
-      </p>
+      <p className={`relative z-10 text-xs text-[#64748B] ${registration ? "mt-auto pt-6" : ""}`}>{tr("© LankaPex — Business Connects Everyone")}</p>
     </section>
   );
 }

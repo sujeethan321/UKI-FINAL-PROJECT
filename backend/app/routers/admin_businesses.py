@@ -3,15 +3,16 @@ from typing import Literal
 
 from app.services.notification_service import notify_event
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from app.schemas.admin_business import BusinessDecisionRequest, AdminBusinessDetail, AdminBusinesses, AdminBusinessDecision, BusinessHistory
+from app.services.admin_service import search, admin_actor
+from app.routers.admin import query_text
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.auth_dependencies import require_roles
+from app.core.auth_dependencies import require_admin
 from app.core.database import get_db
-from app.core.auth_dependencies import get_current_user
 from app.models import (
     Business,
     BusinessApprovalAudit,
@@ -23,16 +24,8 @@ from app.models import (
 router = APIRouter(
     prefix="/admin/businesses",
     tags=["Admin - Business Management"],
-    dependencies=[Depends(require_roles("admin"))],
+    dependencies=[Depends(require_admin)],
 )
-
-
-class BusinessDecisionRequest(BaseModel):
-    decision: Literal["approve", "reject"]
-    review_note: str | None = Field(
-        default=None,
-        max_length=500,
-    )
 
 
 def business_response(business: Business) -> dict:
@@ -48,36 +41,27 @@ def business_response(business: Business) -> dict:
     }
 
 
-@router.get("")
+@router.get("", response_model=AdminBusinesses)
 def list_businesses(
+    response: Response,
     status: Literal[
         "pending", "approved", "rejected", "all"
     ] | None = None,
     limit: int = Query(default=20, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=1000000),
+    q: str | None = Query(default=None,min_length=1,max_length=100),
     db: Session = Depends(get_db),
 ):
+    response.headers["Cache-Control"]="no-store"
+    q=query_text(q)
     filters = []
 
     if status is not None and status != "all":
         filters.append(Business.approval_status == status)
 
-    total = db.scalar(
-        select(func.count())
-        .select_from(Business)
-        .where(*filters)
-    ) or 0
-
-    statement = (
-        select(Business)
-        .where(*filters)
-        .order_by(
-            Business.created_at.desc(),
-            Business.business_id.desc(),
-        )
-        .limit(limit)
-        .offset(offset)
-    )
+    base=search(select(Business).where(*filters),[Business.business_name,Business.registration_number],q)
+    total=db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    statement=base.order_by(Business.created_at.desc(),Business.business_id.desc()).limit(limit).offset(offset)
 
     businesses = db.scalars(statement).all()
 
@@ -92,11 +76,13 @@ def list_businesses(
     }
 
 
-@router.get("/{business_id}")
+@router.get("/{business_id}", response_model=AdminBusinessDetail)
 def get_business_details(
     business_id: int,
+    response: Response,
     db: Session = Depends(get_db),
 ):
+    response.headers["Cache-Control"]="no-store"
     business = db.get(Business, business_id)
 
     if business is None:
@@ -136,21 +122,24 @@ def get_business_details(
         ],
     }
 
-@router.patch("/{business_id}/decision")
+@router.patch("/{business_id}/decision", response_model=AdminBusinessDecision)
 def decide_business(
     business_id: int,
     payload: BusinessDecisionRequest,
-    current_user: User = Depends(get_current_user),
+    response: Response,
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    response.headers["Cache-Control"]="no-store"
     try:
+        admin_actor(db,current_user)
         # Prevent concurrent decisions on the same business.
         business = db.scalar(
             select(Business)
             .where(
                 Business.business_id == business_id
             )
-            .with_for_update()
+            .with_for_update().execution_options(populate_existing=True)
         )
 
         if business is None:
@@ -180,7 +169,7 @@ def decide_business(
                     User.platform_role == "shop_owner",
                     User.account_status == "active",
                 )
-                .limit(1)
+                .limit(1).with_for_update(read=True)
             )
 
             if owner_id is None:
@@ -236,11 +225,15 @@ def decide_business(
         raise
 
 
-@router.get("/{business_id}/audit-history")
+@router.get("/{business_id}/audit-history", response_model=BusinessHistory)
 def get_business_audit_history(
     business_id: int,
+    response: Response,
+    limit: int = Query(default=20,ge=1,le=100),
+    offset: int = Query(default=0,ge=0,le=1000000),
     db: Session = Depends(get_db),
 ):
+    response.headers["Cache-Control"]="no-store"
     business = db.get(Business, business_id)
 
     if business is None:
@@ -266,10 +259,12 @@ def get_business_audit_history(
         )
     )
 
-    audits = db.execute(statement).all()
+    total=db.scalar(select(func.count()).select_from(statement.subquery()))
+    audits = db.execute(statement.limit(limit).offset(offset)).all()
 
     return {
         "business_id": business_id,
+        "total": total,"limit":limit,"offset":offset,
         "history": [
             {
                 "audit_id": audit.audit_id,

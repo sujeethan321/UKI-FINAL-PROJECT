@@ -72,6 +72,8 @@ test("credit-sale React view, navigation and Axios contract", async t => {
         outstanding_balance: "200.25", available_credit: "799.75", recorded_at: "2026-11-03T12:00:00", due_at: null, replayed: false };
       const html = render(state);
       assert.match(html, /Credit sale recorded successfully/);
+      assert.match(html, /Due: Not recorded/);
+      assert.doesNotMatch(html, / \? (Transaction ID|Outstanding|Available credit|Due):/);
       for (const text of ["CS-confirmed", "555", "LKR 100.25", "LKR 200.25", "LKR 799.75"]) assert.ok(html.includes(text));
       state.success.replayed = true;
       assert.match(render(state), /No duplicate entry was created/);
@@ -82,16 +84,17 @@ test("credit-sale React view, navigation and Axios contract", async t => {
       for (const path of ["dashboard", "customers", "credit-sales"]) assert.ok(html.includes(`href="/shop-owner/${path}"`));
       assert.ok(html.includes('href="/shop-owner/repayments"'));
     });
-    await t.test("dashboard quick action links to credit sales without enabling unrelated features", async () => {
+    await t.test("dashboard quick actions link to existing sales, repayments and products", async () => {
       const { default: QuickActions } = await server.ssrLoadModule("/src/components/shopOwner/QuickActions.jsx");
       const html = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(QuickActions, { businessId: 1 })));
       assert.match(html, /href="\/shop-owner\/credit-sales"/);
-      assert.match(html, /Record Credit Sale/);
+      assert.match(html, /New Credit Sale/);
       const link = html.match(/<a\b[^>]*href="\/shop-owner\/credit-sales"[^>]*>/)?.[0];
       assert.ok(link);
       assert.ok(!link.includes('aria-disabled="true"'));
       assert.ok(!link.includes("coming soon"));
-      assert.ok(!html.includes('href="/shop-owner/products"'));
+      assert.ok(html.includes('href="/shop-owner/products"'));
+      assert.ok(html.includes('href="/shop-owner/repayments"'));
     });
     await t.test("existing dashboard and customer management components still render", async () => {
       const { default: Dashboard } = await server.ssrLoadModule("/src/pages/shopOwner/ShopOwnerDashboard.jsx");

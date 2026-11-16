@@ -21,6 +21,7 @@ for(const type of ['assigned','picked_up','in_transit','delivered'])test(`delive
   const row={notification_id:1,business_id:7,notification_type:'delivery_'+type,title:'Delivery update',message:'Your delivery was updated.',related_entity_type:'delivery_request',related_entity_id:9,is_read:false,created_at:'2026-11-06T10:00:00Z',read_at:null};
   assert.equal(validNotification(row),true);
   assert.equal(notificationDestination(row,'shop_owner').to,'/shop-owner/deliveries?business_id=7&delivery_id=9');
-  for(const role of ['driver','customer','admin'])assert.equal(notificationDestination(row,role),null);
+  assert.equal(notificationDestination(row,'driver').to,'/driver/deliveries/9');
+  for(const role of ['customer','admin'])assert.equal(notificationDestination(row,role),null);
   assert.equal(notificationDestination({...row,related_entity_id:-1},'shop_owner'),null);
 });

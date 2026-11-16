@@ -1,4 +1,4 @@
-"""Minimal driver operations. No shopping, order, fee or settlement records."""
+"""Shared delivery operations. Financial posting is independent of delivery."""
 from datetime import datetime, timezone
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -28,6 +28,7 @@ class DriverProfile(Base):
 class DeliveryRequest(Base):
     __tablename__ = "delivery_requests"
     __table_args__ = (
+        UniqueConstraint("delivery_request_id", "business_id", name="uq_delivery_id_business"),
         CheckConstraint("status IN ('available','assigned','picked_up','in_transit','delivered','cancelled')", name="ck_delivery_status"),
         Index("ix_delivery_status_created", "status", "created_at", "delivery_request_id"),
         Index("ix_delivery_business", "business_id"),

@@ -1,6 +1,19 @@
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+
+class DriverProfileSubmission(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    vehicle_type: str = Field(min_length=1, max_length=50)
+    registration_reference: str = Field(min_length=1, max_length=50)
+
+    @field_validator('vehicle_type', 'registration_reference')
+    @classmethod
+    def single_line(cls, value):
+        if any(ord(c) < 32 or ord(c) == 127 for c in value):
+            raise ValueError('Use single-line vehicle information')
+        return value
 
 
 class DriverVehicle(BaseModel):

@@ -42,3 +42,28 @@ def owner_detail(response:Response,user:Owner,db:Database,business_id:BusinessId
 @owner_router.post('/{order_id}/decision',response_model=OrderResponse)
 def owner_decision(response:Response,user:Owner,db:Database,business_id:BusinessId,order_id:Id,payload:Decision):
     return operation(db,response,lambda:service.decide(db,user,order_id,payload.action,business_id),OrderResponse,True)
+
+
+# Dedicated projections keep existing Order DTOs and frontend contracts stable.
+from app.schemas.order_delivery import OrderDeliveryCreate, OwnerOrderDelivery, CustomerOrderDelivery
+from app.services import order_delivery_service as delivery_service
+
+
+@owner_router.post('/{order_id}/delivery', response_model=OwnerOrderDelivery, status_code=201)
+def request_order_delivery(response: Response, user: Owner, db: Database,
+                           order_id: Id, business_id: BusinessId, payload: OrderDeliveryCreate):
+    return operation(db, response, lambda: delivery_service.create(
+        db, user, order_id, business_id, payload), OwnerOrderDelivery, True)
+
+
+@owner_router.get('/{order_id}/delivery', response_model=OwnerOrderDelivery)
+def owner_order_delivery(response: Response, user: Owner, db: Database,
+                         order_id: Id, business_id: BusinessId):
+    return operation(db, response, lambda: delivery_service.owner_summary(
+        db, user, order_id, business_id), OwnerOrderDelivery)
+
+
+@customer_router.get('/{order_id}/delivery', response_model=CustomerOrderDelivery)
+def customer_order_delivery(response: Response, user: Customer, db: Database, order_id: Id):
+    return operation(db, response, lambda: delivery_service.customer_summary(
+        db, user, order_id), CustomerOrderDelivery)

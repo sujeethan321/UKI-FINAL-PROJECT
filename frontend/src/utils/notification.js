@@ -1,10 +1,14 @@
 export const NOTIFICATION_TYPES = [
+  ["driver_approved", "Driver application approved", "admin_audit"],
+  ["driver_rejected", "Driver application rejected", "admin_audit"],
   ["order_submitted", "Order submitted", "order"],
   ["order_approved", "Order approved", "order"],
   ["order_rejected", "Order rejected", "order"],
   ["order_processing", "Order processing", "order"],
   ["order_completed", "Order completed", "order"],
   ["order_cancelled", "Order cancelled", "order"],
+  ["delivery_requested", "Delivery requested", "delivery_request"],
+  ["delivery_cancelled", "Delivery cancelled", "delivery_request"],
   ["delivery_assigned", "Delivery assigned", "delivery_request"],
   ["delivery_picked_up", "Delivery picked up", "delivery_request"],
   ["delivery_in_transit", "Delivery in transit", "delivery_request"],
@@ -23,7 +27,7 @@ export function validNotification(row) {
   return !!type && validNotificationId(row.notification_id) && (row.business_id === null || validNotificationId(row.business_id)) &&
     typeof row.title === "string" && !!row.title.trim() && row.title.length <= 120 &&
     typeof row.message === "string" && row.message.length <= 300 &&
-    row.related_entity_type === type[2] && validNotificationId(row.related_entity_id) &&
+    (row.related_entity_type === type[2] || (type[2] === 'delivery_request' && row.related_entity_type === 'order')) && validNotificationId(row.related_entity_id) &&
     typeof row.is_read === "boolean" && validDate(row.created_at) &&
     (row.is_read ? validDate(row.read_at) : row.read_at === null);
 }
@@ -52,11 +56,14 @@ export function notificationInboxPath(role) {
 // Ignore URLs/text/metadata completely. Only existing role-appropriate routes.
 // Minimal events cannot safely resolve a financial customer: never guess an ID.
 export function notificationDestination(row, role) {
-  if (!validNotification(row) || !validNotificationId(row.business_id)) return null;
+  if (!validNotification(row)) return null;
+  if (role === "driver" && row.related_entity_type === "admin_audit" && ["driver_approved","driver_rejected"].includes(row.notification_type)) return {to:"/driver/dashboard",label:"View Driver application"};
+  if (!validNotificationId(row.business_id)) return null;
   if (row.related_entity_type === "order") {
     if(role === "customer") return {to: `/customer/orders/${row.related_entity_id}`, label: "View order"};
     if(role === "shop_owner") return {to: `/shop-owner/orders/${row.related_entity_id}?business_id=${row.business_id}`, label: "View order"};
   }
+  if (role === "driver" && row.related_entity_type === "delivery_request") return {to: `/driver/deliveries/${row.related_entity_id}`, label: "View my delivery"};
   if (role === "shop_owner") {
     if (row.related_entity_type === "delivery_request") return { to: `/shop-owner/deliveries?business_id=${row.business_id}&delivery_id=${row.related_entity_id}`, label: "View delivery tracking" };
     if (["business_approved", "business_rejected"].includes(row.notification_type)) return { to: "/shop-owner/dashboard", label: "View my businesses" };

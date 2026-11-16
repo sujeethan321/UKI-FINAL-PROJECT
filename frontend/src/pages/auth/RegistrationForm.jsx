@@ -1,6 +1,8 @@
+import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
 import { useState, useSyncExternalStore } from "react";
 import { Link } from "react-router-dom";
+import { validateJoinReturnPath } from "../../utils/joinReturn";
 import {
   UserRound,
   Store,
@@ -30,9 +32,11 @@ const roleConfigs = {
   },
 };
 
-export default function RegistrationForm({ controller }) {
+export default function RegistrationForm({ controller, joinReturnTo }) {
+  const { tr } = useAppTranslation();
   const { role, form, confirmPassword, loading, error } = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const config = roleConfigs[role];
+  const safeJoinReturnTo = role === "customer" ? validateJoinReturnPath(joinReturnTo) : null;
   const [showPassword, setShowPassword] = useState(false);
   function updateField(event) { controller.update(event.target.name, event.target.value); }
   function selectRole(value) {
@@ -47,15 +51,15 @@ export default function RegistrationForm({ controller }) {
     <div className="w-full max-w-[620px] rounded-[32px] border border-white/80 bg-white/75 px-6 py-9 shadow-[0_24px_90px_rgba(16,36,62,0.09)] backdrop-blur-xl sm:px-10 sm:py-12">
       <div className="mb-7 text-center">
         <h2 className="text-3xl font-extrabold text-[#10243E]">
-          {config.title}
+          {tr(config.title)}
         </h2>
         <p className="mt-3 text-[#526887]">
-          {config.subtitle}
+          {tr(config.subtitle)}
         </p>
       </div>
 
       <fieldset disabled={loading} className="mb-7 grid grid-cols-1 gap-3 min-[420px]:grid-cols-3">
-        <legend className="sr-only">Choose your account type</legend>
+        <legend className="sr-only">{tr("Choose your account type")}</legend>
         {[
           { value: "shop-owner", label: "Shop Owner", description: "Manage customers and credit.", Icon: Store },
           { value: "customer", label: "Customer", description: "Shop and manage credit.", Icon: UserRound },
@@ -67,8 +71,8 @@ export default function RegistrationForm({ controller }) {
               className="peer sr-only" />
             <span className="flex h-full min-h-36 flex-col items-center rounded-2xl border border-[#CBDCEC] bg-white px-2 py-5 text-center peer-checked:border-[#12B8A6] peer-checked:bg-[#F0FCF9] peer-focus-visible:ring-2 peer-focus-visible:ring-[#12B8A6] peer-focus-visible:ring-offset-2">
               <Icon size={29} className="mb-3 text-[#12B8A6]" aria-hidden="true" />
-              <span className="text-sm font-bold text-[#10243E]">{label}</span>
-              <span className="mt-1 text-xs leading-5 text-[#526887]">{description}</span>
+              <span className="text-sm font-bold text-[#10243E]">{tr(label)}</span>
+              <span className="mt-1 text-xs leading-5 text-[#526887]">{tr(description)}</span>
             </span>
             {role === value && <span className="pointer-events-none absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#12B8A6] text-white" aria-hidden="true"><Check size={13} strokeWidth={3} /></span>}
           </label>
@@ -80,9 +84,7 @@ export default function RegistrationForm({ controller }) {
           <label
             htmlFor="full_name"
             className="mb-2 block text-sm font-semibold text-[#10243E]"
-          >
-            Full Name *
-          </label>
+          >{tr("Full Name *")}</label>
 
           <div className="relative">
             <UserRound
@@ -99,7 +101,7 @@ export default function RegistrationForm({ controller }) {
               maxLength={150}
               required
               autoComplete="name"
-              placeholder="Enter your full name"
+              placeholder={tr("Enter your full name")}
               className={inputClass}
             />
           </div>
@@ -109,9 +111,7 @@ export default function RegistrationForm({ controller }) {
           <label
             htmlFor="email"
             className="mb-2 block text-sm font-semibold text-[#10243E]"
-          >
-            Email Address *
-          </label>
+          >{tr("Email Address *")}</label>
 
           <div className="relative">
             <Mail
@@ -128,7 +128,7 @@ export default function RegistrationForm({ controller }) {
               maxLength={254}
               required
               autoComplete="email"
-              placeholder="Enter your email address"
+              placeholder={tr("Enter your email address")}
               className={inputClass}
             />
           </div>
@@ -138,9 +138,7 @@ export default function RegistrationForm({ controller }) {
           <label
             htmlFor="phone"
             className="mb-2 block text-sm font-semibold text-[#10243E]"
-          >
-            Phone Number (Optional)
-          </label>
+          >{tr("Phone Number (Optional)")}</label>
 
           <div className="relative">
             <Phone
@@ -156,7 +154,7 @@ export default function RegistrationForm({ controller }) {
               onChange={updateField}
               maxLength={20}
               autoComplete="tel"
-              placeholder="e.g. +94 77 123 4567"
+              placeholder={tr("e.g. +94 77 123 4567")}
               className={inputClass}
             />
           </div>
@@ -166,9 +164,7 @@ export default function RegistrationForm({ controller }) {
           <label
             htmlFor="preferred_language"
             className="mb-2 block text-sm font-semibold text-[#10243E]"
-          >
-            Preferred Language (Optional)
-          </label>
+          >{tr("Preferred Language (Optional)")}</label>
 
           <select
             disabled={loading}
@@ -178,9 +174,9 @@ export default function RegistrationForm({ controller }) {
             onChange={updateField}
             className="w-full rounded-xl border border-[#CBDCEC] bg-white/85 px-4 py-3.5 text-[#10243E] outline-none focus:border-[#12B8A6]"
           >
-            <option value="en">English</option>
-            <option value="ta">தமிழ் (Tamil)</option>
-            <option value="si">සිංහල (Sinhala)</option>
+            <option value="en">{tr("English")}</option>
+            <option value="ta">{tr("தமிழ் (Tamil)")}</option>
+            <option value="si">{tr("සිංහල (Sinhala)")}</option>
           </select>
         </div>
 
@@ -188,9 +184,7 @@ export default function RegistrationForm({ controller }) {
           <label
             htmlFor="password"
             className="mb-2 block text-sm font-semibold text-[#10243E]"
-          >
-            Password *
-          </label>
+          >{tr("Password *")}</label>
 
           <div className="relative">
             <LockKeyhole
@@ -208,7 +202,8 @@ export default function RegistrationForm({ controller }) {
               maxLength={128}
               required
               autoComplete="new-password"
-              placeholder="At least 12 characters"
+              aria-describedby="registration-password-help"
+              placeholder={tr("At least 12 characters")}
               className={inputClass + " pr-12"}
             />
 
@@ -216,21 +211,20 @@ export default function RegistrationForm({ controller }) {
               type="button"
               disabled={loading}
               onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? tr("Hide password") : tr("Show password")}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-[#65809E]"
             >
               {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
             </button>
           </div>
+          <p id="registration-password-help" className="mt-2 text-xs text-[#65809E]">{tr("Use 12 to 128 characters.")}</p>
         </div>
 
         <div>
           <label
             htmlFor="confirm-password"
             className="mb-2 block text-sm font-semibold text-[#10243E]"
-          >
-            Confirm Password *
-          </label>
+          >{tr("Confirm Password *")}</label>
 
           <input
               disabled={loading}
@@ -240,7 +234,7 @@ export default function RegistrationForm({ controller }) {
             onChange={(event) => controller.update("confirmPassword", event.target.value)}
             required
             autoComplete="new-password"
-            placeholder="Re-enter your password"
+            placeholder={tr("Re-enter your password")}
             className="w-full rounded-xl border border-[#CBDCEC] bg-white/85 px-4 py-3.5 text-[#10243E] outline-none focus:border-[#12B8A6]"
           />
         </div>
@@ -250,7 +244,7 @@ export default function RegistrationForm({ controller }) {
             role="alert"
             className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
           >
-            {error}
+            {tr(error)}
           </div>
         )}
 
@@ -261,26 +255,20 @@ export default function RegistrationForm({ controller }) {
         >
           {loading ? (
             <>
-              <LoaderCircle size={19} className="animate-spin" />
-              Creating Account...
-            </>
+              <LoaderCircle size={19} className="animate-spin" />{tr("Creating Account...")}</>
           ) : (
-            <>
-              Create Account
-              <ArrowRight size={19} />
+            <>{tr("Create Account")}<ArrowRight size={19} />
             </>
           )}
         </button>
       </form>
 
-      <div className="mt-7 text-center text-sm text-[#526887]">
-        Already have an account?{" "}
+      <div className="mt-7 text-center text-sm text-[#526887]">{tr("Already have an account?")}{" "}
         <Link
           to="/login"
+          state={safeJoinReturnTo ? { joinReturnTo: safeJoinReturnTo } : undefined}
           className="font-semibold text-[#00AFA8] hover:underline"
-        >
-          Log In
-        </Link>
+        >{tr("Log In")}</Link>
       </div>
     </div>
   );

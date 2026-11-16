@@ -1,0 +1,20 @@
+.driver-shell {font-family:'Inter',ui-sans-serif,system-ui,sans-serif;color:#10243e;background:radial-gradient(ellipse at top,#effaff,#f5f8fc 75%);}
+.driver-shell > aside > div {background:radial-gradient(ellipse at bottom left,#123b56,transparent 65%),#10243e;}
+.driver-main h2 {font-size:clamp(26px,2.4vw,38px);font-weight:750;letter-spacing:-.035em;line-height:1.25;}
+.driver-main section h2 {font-size:21px;}
+.driver-main :where(section,article,div).bg-white:where(.rounded-xl,.rounded-2xl) {border-color:#dfedf7;border-radius:12px;box-shadow:0 3px 14px #17607906;}
+.driver-main :where(button,a,input,select,summary):focus-visible,.driver-shell header :where(button,a,input,summary):focus-visible {outline:2px solid #12b8a6;outline-offset:3px;}
+.driver-main :where(button,a)[class*='bg-[#12B8A6]'] {background:linear-gradient(110deg,#12b8a6,#009ba7);color:white;}
+.driver-main .driver-table-wrap {overflow-x:auto;margin-top:16px;}
+.driver-main table {border-collapse:separate;border-spacing:0;width:100%;min-width:760px;text-align:left;font-size:14px;}
+.driver-main thead {background:#edf5fb;color:#36517b;}
+.driver-main :where(th,td) {padding:14px 15px;border-bottom:1px solid #e8f0f7;}
+.driver-main th {font-weight:500;white-space:nowrap;}
+.driver-main tr:last-child td {border-bottom:0;}
+.driver-main .driver-unavailable {border:1px dashed #d6e4f2;border-radius:10px;padding:24px;color:#52698a;background:#f8fbfe;font-size:14px;}
+.driver-main .driver-inbox > li {position:relative;padding-left:80px;border-radius:10px;border:1px solid #e4eff6;}
+.driver-main .driver-inbox h4 {font-size:16px;}
+.driver-main .driver-jobs-embedded [aria-label='Available jobs list'] > .grid {grid-template-columns:1fr;gap:12px;}
+.driver-main .driver-jobs-embedded article {display:grid;gap:16px;}
+@media(min-width:768px) {.driver-main .driver-jobs-embedded article {grid-template-columns:minmax(0,1fr) auto;align-items:center;}}
+@media(min-width:1024px) {.driver-shell > aside {width:264px;}}

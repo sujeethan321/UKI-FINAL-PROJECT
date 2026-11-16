@@ -6,7 +6,7 @@ user/profile before the delivery; business checks use shared locks.
 from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy import exists, func, select
-from app.models import User, Business, BusinessMember, DriverProfile, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent
+from app.models import User, Business, BusinessMember, DriverProfile, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent, Order
 from app.models.delivery import utc_now
 
 ACTIVE = ("assigned", "picked_up", "in_transit")
@@ -16,10 +16,10 @@ TRANSITIONS = {
 }
 
 
-def actor(db, user_id, role, lock=False):
+def actor(db, user_id, role, lock=False, exclusive=False):
     query = select(User).where(User.user_id == user_id)
     if lock:
-        query = query.with_for_update(read=True).execution_options(populate_existing=True)
+        query = query.with_for_update(read=not exclusive).execution_options(populate_existing=True)
     user = db.scalar(query)
     if user is None or user.platform_role != role or user.account_status != "active":
         raise HTTPException(403, "This operation is not permitted for this account")
@@ -90,7 +90,9 @@ def assigned_deliveries(db, user, page, page_size, status=None, history=False):
 
 
 def create_profile(db, user_id, vehicle_type=None, registration_reference=None):
-    actor(db, user_id, "driver", lock=True)
+    # Serialize first-time submissions on an existing row, before probing the
+    # missing profile key. Shared locks permit competing insert/gap deadlocks.
+    actor(db, user_id, "driver", lock=True, exclusive=True)
     if profile_row(db, user_id, lock=True) is not None:
         raise HTTPException(409, "Driver profile already exists")
     if (vehicle_type is None) != (registration_reference is None):
@@ -147,7 +149,13 @@ def eligible_driver(db, driver_id):
         raise HTTPException(403, "Driver is not eligible to accept or update deliveries")
 
 
+def lock_linked_order(db, request_id):
+    return db.scalar(select(Order).where(Order.delivery_request_id == request_id)
+        .with_for_update(read=True).execution_options(populate_existing=True))
+
+
 def locked_delivery(db, request_id):
+    lock_linked_order(db, request_id)
     row = db.scalar(select(DeliveryRequest).where(DeliveryRequest.delivery_request_id == request_id).with_for_update().execution_options(populate_existing=True))
     if row is None:
         raise HTTPException(404, "Delivery not found")
@@ -190,7 +198,7 @@ def transition_delivery(db, driver_id, request_id, next_status, expected_status=
                               status=next_status, occurred_at=row.updated_at))
     db.flush()
     from app.services.notification_service import notify_event
-    if next_status in {"picked_up", "in_transit", "delivered"}:
+    if next_status in {"picked_up", "in_transit", "delivered", "cancelled"}:
         notify_event(db, "delivery_" + next_status, request_id)
     return row
 
@@ -198,6 +206,7 @@ def transition_delivery(db, driver_id, request_id, next_status, expected_status=
 def cancel_business_delivery(db, owner_id, business_id, request_id):
     # Validate membership first, then lock the exact business-owned request.
     requesting_business(db, owner_id, business_id)
+    lock_linked_order(db, request_id)
     row = db.scalar(select(DeliveryRequest).where(DeliveryRequest.delivery_request_id == request_id,
         DeliveryRequest.business_id == business_id).with_for_update().execution_options(populate_existing=True))
     if row is None:
@@ -208,6 +217,8 @@ def cancel_business_delivery(db, owner_id, business_id, request_id):
     db.add(DeliveryStatusEvent(delivery_request_id=request_id, actor_user_id=owner_id,
                               status="cancelled", occurred_at=row.updated_at))
     db.flush()
+    from app.services.notification_service import notify_event
+    notify_event(db, "delivery_cancelled", request_id)
     return row
 
 

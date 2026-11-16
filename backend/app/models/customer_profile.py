@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     String,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -15,6 +16,7 @@ from app.core.database import Base
 
 class CustomerProfile(Base):
     __tablename__ = "customer_profiles"
+    __table_args__ = (UniqueConstraint("business_id", "user_id", name="uq_customer_profile_business_user"),)
 
     customer_id: Mapped[int] = mapped_column(
         BigInteger,

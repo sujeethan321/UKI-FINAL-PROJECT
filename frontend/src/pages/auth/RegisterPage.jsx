@@ -1,9 +1,10 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { registerShopOwner, registerCustomer, registerDriver } from "../../services/authService";
 import { createRegistrationController, publicRegistrationRoles } from "../../utils/registration";
 import { getApiErrorMessage } from "../../utils/apiError";
+import { registrationLoginState, validateJoinReturnPath } from "../../utils/joinReturn";
 
 import RegistrationForm from "./RegistrationForm";
 import LoginBrandPanel from "./LoginBrandPanel";
@@ -13,11 +14,17 @@ import LoginBrandPanel from "./LoginBrandPanel";
 export default function RegisterPage() {
   const { role = "shop-owner" } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const joinReturnTo = validateJoinReturnPath(location.state?.joinReturnTo);
   const [controller] = useState(() => createRegistrationController({
     role,
     services: { "shop-owner": registerShopOwner, customer: registerCustomer, driver: registerDriver },
     errorMessage: getApiErrorMessage,
-    onSuccess: () => navigate("/login", { replace: true, state: { registrationSuccess: true } }),
+    onSuccess: () => {
+      const state = registrationLoginState(role, joinReturnTo);
+      if (state.joinReturnTo) navigate("/login", { replace: true, state });
+      else navigate("/login", { replace: true, state: { registrationSuccess: true } });
+    },
   }));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   useEffect(() => {
@@ -39,10 +46,10 @@ export default function RegisterPage() {
       />
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
-        <LoginBrandPanel role={state.role} />
+        <LoginBrandPanel role={state.role} registration />
 
         <section className="flex items-center justify-center px-5 py-10 sm:px-10 lg:px-8 xl:px-12">
-          <RegistrationForm controller={controller} />
+          <RegistrationForm controller={controller} joinReturnTo={joinReturnTo} />
         </section>
       </div>
     </main>

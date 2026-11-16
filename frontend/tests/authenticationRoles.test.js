@@ -26,6 +26,8 @@ test("registration cards and unified login", async t => {
         assert.ok(html.indexOf("registration-role") < html.indexOf('id="full_name"'));
         assert.ok(!html.includes('value="admin"'));
         assert.match(html, /minLength="12"/);
+        assert.match(html, /id="password"[^>]*aria-describedby="registration-password-help"/);
+        assert.match(html, /id="registration-password-help"[^>]*>Use 12 to 128 characters\./);
         assert.match(html, /name="preferred_language"/);
         assert.match(html, /href="\/login"/);
       });
@@ -120,6 +122,24 @@ test("registration cards and unified login", async t => {
           assert.equal(stored.has("lankapex_access_token"), false); assert.deepEqual(events, ["lankapex:session-expired"]);
         } finally { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; }
       });
+      await t.test("throttling, other HTTP errors and timeouts preserve the active session", async () => {
+        const previousWindow = globalThis.window;
+        const stored = new Map([["lankapex_access_token", "current-fixture-token"]]);
+        const events = [];
+        globalThis.sessionStorage = { setItem: (k,v) => stored.set(k,v), removeItem: k => stored.delete(k), getItem: k => stored.get(k) };
+        globalThis.window = { dispatchEvent: event => events.push(event.type) };
+        try {
+          for (const status of [403, 409, 413, 422, 429, 500]) {
+            api.defaults.adapter = async config => { throw { config, response: { status } }; };
+            await assert.rejects(api.get("/auth/me"));
+            assert.equal(stored.get("lankapex_access_token"), "current-fixture-token");
+          }
+          api.defaults.adapter = async config => { throw { config, code: "ECONNABORTED", message: "timeout" }; };
+          await assert.rejects(api.get("/auth/me"));
+          assert.deepEqual(events, []);
+          assert.equal(stored.get("lankapex_access_token"), "current-fixture-token");
+        } finally { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; }
+      });
       await t.test("registration keeps the three existing public API contracts", async () => {
         const service = await server.ssrLoadModule("/src/services/authService.js");
         const calls = [];
@@ -139,7 +159,7 @@ test("registration cards and unified login", async t => {
     await t.test("login submits no role and redirects from returned identity", async () => {
       const source = await readFile(new URL("../src/pages/auth/LoginForm.jsx", import.meta.url), "utf8");
       const page = await readFile(new URL("../src/pages/auth/LoginPage.jsx", import.meta.url), "utf8");
-      assert.ok(page.includes("getDashboardPath(user.platform_role)"));
+      assert.ok(page.includes("loginDestination(user, joinReturnTo)"));
       assert.ok(page.includes("<Navigate to={destination} replace />"));
       assert.ok(!source.includes("backendRole"));
       const app = await readFile(new URL("../src/App.jsx", import.meta.url), "utf8");

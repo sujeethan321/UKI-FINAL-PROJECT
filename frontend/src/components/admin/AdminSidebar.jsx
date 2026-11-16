@@ -1,7 +1,8 @@
+import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import BrandLogo from "../BrandLogo";
 
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   Bell,
   LayoutDashboard,
@@ -10,6 +11,8 @@ import {
   Truck,
   Menu,
   X,
+  History,
+  ChartNoAxesCombined,
 } from "lucide-react";
 
 const navigation = [
@@ -28,36 +31,44 @@ const navigation = [
   },
   {
     label: "Shop Owners",
+    path: "/admin/shop-owners",
     icon: Users,
-    enabled: false,
+    enabled: true,
   },
   {
     label: "Customers",
+    path: "/admin/customers",
     icon: Users,
-    enabled: false,
+    enabled: true,
   },
   {
-    label: "Drivers",
+    label: "Delivery Drivers",
+    path: "/admin/drivers",
     icon: Truck,
-    enabled: false,
+    enabled: true,
   },
+  { label: "Activity Logs", path: "/admin/dashboard#recent-admin-activity", icon: History, enabled: true },
+  { label: "Platform Reports", icon: ChartNoAxesCombined, enabled: false },
 ];
 
 export default function AdminSidebar() {
+  const { tr } = useAppTranslation();
   const [open, setOpen] = useState(false);
+  const dialog = useRef(null);
+  const { pathname, hash } = useLocation();
+  useEffect(() => { if (open && !dialog.current.open) dialog.current.showModal(); }, [open]);
+  function close() { dialog.current?.close(); setOpen(false); }
 
   const menu = (
     <div className="flex h-full flex-col bg-[#10243E] text-white">
       <div className="border-b border-white/10 px-7 py-7">
         <div className="p-2"><BrandLogo /></div>
-        <p className="mt-1 text-xs font-semibold tracking-widest text-[#12B8A6]">
-          PLATFORM ADMIN
-        </p>
+        <p className="mt-1 text-xs font-semibold tracking-widest text-[#12B8A6]">{tr("PLATFORM ADMIN")}</p>
       </div>
 
       <nav
-        aria-label="Admin navigation"
-        className="space-y-2 px-4 py-6"
+        aria-label={tr("Admin navigation")}
+        className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-6"
       >
         {navigation.map((item) => {
           const Icon = item.icon;
@@ -69,11 +80,9 @@ export default function AdminSidebar() {
                 className="flex cursor-not-allowed items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/40"
                 aria-disabled="true"
               >
-                <Icon size={19} />
-                {item.label}
-                <span className="ml-auto text-[10px]">
-                  Soon
-                </span>
+                <Icon size={19} aria-hidden="true" />
+                {tr(item.label)}
+                <span className="ml-auto text-[10px]">{tr("Soon")}</span>
               </div>
             );
           }
@@ -82,17 +91,18 @@ export default function AdminSidebar() {
             <NavLink
               key={item.path}
               to={item.path}
-              onClick={() => setOpen(false)}
+              onClick={close}
+              aria-current={(item.path.includes('#') ? pathname + hash === item.path : pathname === item.path && !hash) ? 'page' : false}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition ${
-                  isActive
+                `flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-[#12B8A6] ${
+                  (item.path.includes('#') ? pathname + hash === item.path : isActive && !hash)
                     ? "bg-[#176079] text-white"
                     : "text-[#D3E1EB] hover:bg-white/10"
                 }`
               }
             >
-              <Icon size={19} />
-              {item.label}
+              <Icon size={19} aria-hidden="true" />
+              {tr(item.label)}
             </NavLink>
           );
         })}
@@ -105,8 +115,10 @@ export default function AdminSidebar() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Open admin menu"
-        className="fixed left-4 top-5 z-40 rounded-lg bg-[#10243E] p-2 text-white lg:hidden"
+        aria-label={tr("Open admin menu")}
+        aria-expanded={open}
+        aria-controls="admin-mobile-sidebar"
+        className="fixed left-4 top-5 z-40 flex h-11 w-11 items-center justify-center rounded-lg bg-[#10243E] text-white focus-visible:outline-2 focus-visible:outline-[#12B8A6] lg:hidden"
       >
         <Menu size={22} />
       </button>
@@ -115,29 +127,18 @@ export default function AdminSidebar() {
         {menu}
       </aside>
 
-      {open && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            type="button"
-            aria-label="Close admin menu"
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setOpen(false)}
-          />
-
-          <aside className="absolute inset-y-0 left-0 w-[286px] max-w-[85vw]">
+      <dialog ref={dialog} id="admin-mobile-sidebar" aria-label={tr("Admin menu")} onClose={() => setOpen(false)} className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-[min(286px,85vw)] max-w-none border-0 p-0 text-white backdrop:bg-[#10243E]/60">
             {menu}
 
             <button
               type="button"
-              aria-label="Close admin menu"
-              onClick={() => setOpen(false)}
-              className="absolute right-3 top-4 rounded-lg p-2 text-white"
+              aria-label={tr("Close admin menu")}
+              onClick={close}
+              className="absolute right-3 top-2 flex h-11 w-11 items-center justify-center rounded-lg text-white focus-visible:outline-2 focus-visible:outline-[#12B8A6]"
             >
               <X size={20} />
             </button>
-          </aside>
-        </div>
-      )}
+      </dialog>
     </>
   );
 }

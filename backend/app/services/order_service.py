@@ -82,12 +82,16 @@ def quote(db,user,payload):
         items=[line_data(i) for i in lines],subtotal=f'{total:.2f}',total=f'{total:.2f}',
         credit_available=eligible,credit_guidance=guidance)
 
+def order_data(row,business_name,customer_name,items):
+    return dict(**{key:getattr(row,key) for key in ('order_id','reference','business_id','payment_method','payment_status','status','credit_sale_id','created_at','updated_at')},
+        business_name=business_name,customer_name=customer_name,
+        subtotal=f'{row.subtotal:.2f}',total=f'{row.total:.2f}',
+        items=[line_data(i) for i in items])
+
 def response(db,row):
     business=db.get(Business,row.business_id);customer=db.get(User,row.customer_user_id)
-    return dict(**{key:getattr(row,key) for key in ('order_id','reference','business_id','payment_method','payment_status','status','credit_sale_id','created_at','updated_at')},
-        business_name=business.business_name,customer_name=customer.full_name,
-        subtotal=f'{row.subtotal:.2f}',total=f'{row.total:.2f}',
-        items=[line_data(i) for i in db.scalars(select(OrderItem).where(OrderItem.order_id==row.order_id).order_by(OrderItem.order_item_id))])
+    return order_data(row,business.business_name,customer.full_name,
+        db.scalars(select(OrderItem).where(OrderItem.order_id==row.order_id).order_by(OrderItem.order_item_id)))
 
 def create(db,user,payload):
     shop(db,payload.business_id)
@@ -127,8 +131,15 @@ def listing(db,user,page,size,status=None,business_id=None):
     query=select(Order).where(Order.business_id==business_id) if business_id is not None else select(Order).where(Order.customer_user_id==user.user_id)
     if status is not None:query=query.where(Order.status==status)
     count=db.scalar(select(func.count()).select_from(query.subquery()))
-    rows=db.scalars(query.order_by(Order.order_id.desc()).offset((page-1)*size).limit(size))
-    return dict(page=page,page_size=size,total=count,orders=[response(db,r) for r in rows])
+    rows=db.execute(query.add_columns(Business.business_name,User.full_name).join(
+        Business,Business.business_id==Order.business_id).join(User,User.user_id==Order.customer_user_id
+        ).order_by(Order.order_id.desc()).offset((page-1)*size).limit(size)).all()
+    items={row.order_id:[] for row,_,_ in rows}
+    if items:
+        for item in db.scalars(select(OrderItem).where(OrderItem.order_id.in_(items)).order_by(OrderItem.order_item_id)):
+            items[item.order_id].append(item)
+    return dict(page=page,page_size=size,total=count,orders=[
+        order_data(row,business_name,customer_name,items[row.order_id]) for row,business_name,customer_name in rows])
 
 def decide(db,user,order_id,action,business_id=None):
     preview=scoped(db,user,order_id,business_id)

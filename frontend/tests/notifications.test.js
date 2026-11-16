@@ -137,3 +137,13 @@ test("popover supports Escape, outside pointer, focus and listener cleanup", () 
   const doc = new EventTarget(), container = new EventTarget(); const inside = {}; container.contains = target => target === inside; let closed = 0, focused = 0, firstFocused = 0; const cleanup = bindNotificationPopover({ browserDocument: doc, container, trigger: { focus: () => focused++ }, panel: { querySelector: () => ({ focus: () => firstFocused++ }) }, close: () => closed++ }); assert.equal(firstFocused, 1); const key = new Event("keydown", { cancelable: true }); Object.defineProperty(key, "key", { value: "Escape" }); container.dispatchEvent(key); assert.equal(key.defaultPrevented, true); assert.equal(closed, 1); assert.equal(focused, 1); doc.dispatchEvent(new Event("pointerdown")); assert.equal(closed, 2); cleanup(); doc.dispatchEvent(new Event("pointerdown")); assert.equal(closed, 2);
 });
 test("HTTP error messages never expose raw backend diagnostics", () => { for (const status of [401, 403, 404, 422, 429, 500]) { const text = notificationError({ response: { status, data: { detail: "SECRET" } } }); assert.ok(text); assert.doesNotMatch(text, /SECRET/); } });
+
+test("Driver review alerts accept a null business and use only the Driver dashboard", () => {
+  for (const type of ["driver_approved", "driver_rejected"]) {
+    const value = row(1, { notification_type: type, related_entity_type: "admin_audit", business_id: null, url: "https://evil.example" });
+    assert.equal(validNotification(value), true);
+    assert.deepEqual(notificationDestination(value, "driver"), { to: "/driver/dashboard", label: "View Driver application" });
+    for (const role of ["customer", "shop_owner", "admin"]) assert.equal(notificationDestination(value, role), null);
+    assert.equal(validNotification({ ...value, related_entity_type: "order" }), false);
+  }
+});

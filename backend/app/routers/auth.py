@@ -13,8 +13,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
 from app.core.auth_dependencies import get_current_user
+from app.core.rate_limit import login_limit, registration_limit
 from app.core.security import (
     create_access_token,
+    dummy_password_hash,
     verify_password,
 )
 from app.models import User
@@ -50,6 +52,7 @@ def _register(db: Session, data, role: str):
 
 @router.post(
     "/register/customer",
+    dependencies=[Depends(registration_limit)],
     response_model=RegistrationResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -62,6 +65,7 @@ def register_customer(
 
 @router.post(
     "/register/shop-owner",
+    dependencies=[Depends(registration_limit)],
     response_model=RegistrationResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -74,6 +78,7 @@ def register_shop_owner(
 
 @router.post(
     "/register/driver",
+    dependencies=[Depends(registration_limit)],
     response_model=RegistrationResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -86,6 +91,7 @@ def register_driver(
 
 @router.post(
     "/login",
+    dependencies=[Depends(login_limit)],
     response_model=TokenResponse,
 )
 def login(
@@ -106,6 +112,8 @@ def login(
     )
 
     if user is None:
+        # Match the password-verification work performed for existing accounts.
+        verify_password(form_data.password, dummy_password_hash)
         raise invalid_credentials
 
     if not verify_password(

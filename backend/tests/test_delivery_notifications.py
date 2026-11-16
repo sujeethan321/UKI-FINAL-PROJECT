@@ -19,7 +19,7 @@ def test_delivery_notifications_follow_persisted_transitions_and_retries(ctx):
     accept = f'/driver/jobs/{ident}/accept'
     for _ in range(2):
         assert call(ctx, ctx['driver'], accept, 'post').status_code == 200
-    assert len(rows(ctx)) == 1
+    assert len(rows(ctx)) == 2
     for old, new in [('assigned','picked_up'),('picked_up','in_transit'),('in_transit','delivered')]:
         payload = {'expected_status': old, 'status': new}
         path = f'/driver/deliveries/{ident}/status'
@@ -28,8 +28,8 @@ def test_delivery_notifications_follow_persisted_transitions_and_retries(ctx):
         # Internal notification replay preserves original read state and timestamp.
         notify_event(ctx['db'], 'delivery_' + new, ident)
     notifications = rows(ctx)
-    assert len(notifications) == 4
-    assert {n.recipient_user_id for n in notifications} == {ctx['owner'].user_id}
+    assert len(notifications) == 5
+    assert {n.recipient_user_id for n in notifications} == {ctx['owner'].user_id, ctx['driver'].user_id}
     assert {n.notification_type for n in notifications} == {'delivery_assigned','delivery_picked_up','delivery_in_transit','delivery_delivered'}
     assert all(n.related_entity_type == 'delivery_request' and n.related_entity_id == ident for n in notifications)
     assert all('077' not in n.message and 'balance' not in n.message for n in notifications)

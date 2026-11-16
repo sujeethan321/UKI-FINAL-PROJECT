@@ -1,4 +1,7 @@
 import api from './api';
+export async function submitDriverProfile(payload) {
+  return (await api.post('/driver/profile', payload)).data;
+}
 export async function getDriverProfile({signal}={}) {
   return (await api.get('/driver/profile',{signal})).data;
 }

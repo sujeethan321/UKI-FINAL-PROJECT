@@ -18,20 +18,30 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import DriverDeliveries from "./pages/driver/DriverDeliveries";
 import AvailableJobs from "./pages/driver/AvailableJobs";
 import DriverDashboard from "./pages/driver/DriverDashboard";
+import DriverEarnings from "./pages/driver/DriverEarnings";
+import DriverVehicle from "./pages/driver/DriverVehicle";
+import DriverProfile from "./pages/driver/DriverProfile";
+import DriverSettings from "./pages/driver/DriverSettings";
 import DriverNotifications from "./pages/driver/DriverNotifications";
 import DriverLayout from "./layouts/DriverLayout";
 import TransactionHistory from "./pages/customer/TransactionHistory";
 import CreditStatement from "./pages/customer/CreditStatement";
 import MyShops from "./pages/customer/MyShops";
+import JoinShop from "./pages/customer/JoinShop";
 import CreditAccountDetails from "./pages/customer/CreditAccountDetails";
 import CustomerLayout from "./layouts/CustomerLayout";
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
+import CustomerCreditAccounts from "./pages/customer/CustomerCreditAccounts";
+import CustomerDeliveries from "./pages/customer/CustomerDeliveries";
+import CustomerProfile from "./pages/customer/CustomerProfile";
+import CustomerSettings from "./pages/customer/CustomerSettings";
 import CustomerNotifications from "./pages/customer/CustomerNotifications";
 import ShopOwnerLayout from "./layouts/ShopOwnerLayout";
 import ShopOwnerDashboard from "./pages/shopOwner/ShopOwnerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminBusinesses from "./pages/admin/AdminBusinesses";
+import AdminManagement from "./pages/admin/AdminManagement";
 import BusinessOnboarding from "./pages/shopOwner/BusinessOnboarding";
 import ShopOwnerCustomers from "./pages/shopOwner/ShopOwnerCustomers";
 import ShopOwnerCreditSales from "./pages/shopOwner/ShopOwnerCreditSales";
@@ -39,6 +49,8 @@ import ShopOwnerCreditSales from "./pages/shopOwner/ShopOwnerCreditSales";
 import ShopOwnerRepayments from "./pages/shopOwner/ShopOwnerRepayments";
 import ShopOwnerDeliveries from "./pages/shopOwner/ShopOwnerDeliveries";
 import ShopOwnerProducts from "./pages/shopOwner/ShopOwnerProducts";
+import ShopOwnerReports from "./pages/shopOwner/ShopOwnerReports";
+import ShopOwnerSettings from "./pages/shopOwner/ShopOwnerSettings";
 import CustomerCatalogue from "./pages/customer/CustomerCatalogue";
 
 import NotificationProvider from "./context/NotificationProvider";
@@ -56,6 +68,7 @@ export default function App() {
             path="/"
             element={<LandingPage />}
           />
+          <Route path="/join/:publicCode" element={<JoinShop />} />
 
           <Route
             path="/select-role"
@@ -79,6 +92,10 @@ export default function App() {
           <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
             <Route path="/customer" element={<CustomerLayout />}>
               <Route path="dashboard" element={<CustomerDashboard />} />
+              <Route path="credit-accounts" element={<CustomerCreditAccounts />} />
+              <Route path="deliveries" element={<CustomerDeliveries />} />
+              <Route path="profile" element={<CustomerProfile />} />
+              <Route path="settings" element={<CustomerSettings />} />
               <Route path="shops" element={<MyShops />} />
 <Route path="cart" element={<ShoppingCart />} />
 <Route path="checkout" element={<ShoppingCart checkout />} />
@@ -118,6 +135,8 @@ export default function App() {
               <Route path="repayments" element={<ShopOwnerRepayments />} />
               <Route path="deliveries" element={<ShopOwnerDeliveries />} />
               <Route path="products" element={<ShopOwnerProducts />} />
+              <Route path="reports" element={<ShopOwnerReports />} />
+              <Route path="settings" element={<ShopOwnerSettings />} />
 <Route path="orders" element={<OrderHistory owner />} />
 <Route path="orders/:orderId" element={<OrderHistory owner />} />
 <Route path="credit-orders" element={<Navigate to="/shop-owner/orders" replace />} />
@@ -130,6 +149,10 @@ export default function App() {
           <Route element={<ProtectedRoute allowedRoles={["driver"]} />}>
             <Route element={<DriverLayout />}>
               <Route path="/driver/dashboard" element={<DriverDashboard />} />
+              <Route path="/driver/earnings" element={<DriverEarnings />} />
+              <Route path="/driver/vehicle" element={<DriverVehicle />} />
+              <Route path="/driver/profile" element={<DriverProfile />} />
+              <Route path="/driver/settings" element={<DriverSettings />} />
               <Route path="/driver/deliveries" element={<DriverDeliveries />} />
               <Route path="/driver/deliveries/:deliveryId" element={<DriverDeliveries detail />} />
               <Route path="/driver/history" element={<DriverDeliveries history />} />
@@ -141,6 +164,9 @@ export default function App() {
           {/* Administrator-only pages */}
           <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
             <Route path="/admin" element={<AdminLayout />}>
+              <Route path="shop-owners" element={<AdminManagement kind="shop_owner" />} />
+              <Route path="customers" element={<AdminManagement kind="customer" />} />
+              <Route path="drivers" element={<AdminManagement kind="driver" />} />
               <Route path="notifications" element={<AdminNotifications />} />
               <Route
                 path="dashboard"

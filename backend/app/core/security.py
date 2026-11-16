@@ -7,6 +7,7 @@ from app.core.config import settings
 
 
 password_hasher = PasswordHash.recommended()
+dummy_password_hash = password_hasher.hash('Non-account authentication timing comparison')
 
 
 def hash_password(plain_password: str) -> str:

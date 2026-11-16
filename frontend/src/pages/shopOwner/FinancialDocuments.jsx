@@ -1,3 +1,4 @@
+import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import BrandLogo from "../../components/BrandLogo";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
@@ -22,6 +23,7 @@ function useReader(api, validate) {
 }
 
 function DocumentModal({ title, onClose, printable, children }) {
+  const { tr } = useAppTranslation();
   const modal = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
@@ -40,29 +42,32 @@ function DocumentModal({ title, onClose, printable, children }) {
     return () => { document.removeEventListener("keydown", close); previous?.focus?.(); };
   }, [onClose]);
   return createPortal(<div className="lpx-document-overlay fixed inset-0 z-[80] overflow-y-auto bg-[#10243E]/60 p-4 sm:p-8">
-    <section ref={modal} role="dialog" aria-modal="true" aria-label={title} className="lpx-document-print mx-auto w-full max-w-4xl rounded-xl border border-[#E1EAF4] bg-white p-5 text-[#0D1D47] shadow-xl sm:p-8">
-      <div className="lpx-no-print mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{title}</h2><div className="flex gap-2"><button type="button" className={button} disabled={!printable} onClick={() => window.print()}>Print / Save PDF</button><button type="button" autoFocus className={button} onClick={onClose}>Close</button></div></div>
+    <section ref={modal} role="dialog" aria-modal="true" aria-label={tr(title)} className="lpx-document-print mx-auto w-full max-w-4xl rounded-xl border border-[#E1EAF4] bg-white p-5 text-[#0D1D47] shadow-xl sm:p-8">
+      <div className="lpx-no-print mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{tr(title)}</h2><div className="flex gap-2"><button type="button" className={button} disabled={!printable} onClick={() => window.print()}>{tr("Print / Save PDF")}</button><button type="button" autoFocus className={button} onClick={onClose}>{tr("Close")}</button></div></div>
       {children}
     </section>
   </div>, document.body);
 }
 
 function DocumentIdentity({ business, customer, title }) {
-  return <header className="mb-6 space-y-1 border-b border-[#DAE5F3] pb-5"><BrandLogo /><h2 className="pt-3 text-xl font-bold">{title}</h2><p className="font-semibold">{business.business_name}</p>{business.address && <p>{business.address}</p>}{business.phone && <p>Shop phone: {business.phone}</p>}<p className="pt-3">Customer: <strong>{customer.customer_name}</strong> (ID {customer.customer_id})</p>{customer.phone && <p>Customer phone: {customer.phone}</p>}</header>;
+  const { tr } = useAppTranslation();
+  return <header className="mb-6 space-y-1 border-b border-[#DAE5F3] pb-5"><BrandLogo /><h2 className="pt-3 text-xl font-bold">{tr(title)}</h2><p className="font-semibold">{business.business_name}</p>{business.address && <p>{business.address}</p>}{business.phone && <p>{tr("Shop phone:")} {business.phone}</p>}<p className="pt-3">{tr("Customer:")} <strong>{customer.customer_name}</strong> {tr("(ID")} {customer.customer_id})</p>{customer.phone && <p>{tr("Customer phone:")} {customer.phone}</p>}</header>;
 }
 
 export function ReceiptContent({ receipt }) {
+  const { tr } = useAppTranslation();
   return <article>
-    <DocumentIdentity business={receipt.business} customer={receipt.customer} title="Repayment Receipt" />
-    {receipt.status === "reversed" && <p role="alert" className="mb-5 rounded-lg border-2 border-red-600 p-4 text-lg font-extrabold text-red-700">REVERSED / VOID — This repayment no longer settles debt.</p>}
-    <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm"><dt>Status</dt><dd className="font-bold capitalize">{receipt.status}</dd><dt>Receipt / reference</dt><dd className="break-all font-semibold">{receipt.reference}</dd><dt>Stable receipt ID</dt><dd>{receipt.receipt_identifier}</dd><dt>Transaction ID</dt><dd>{receipt.entry_id}</dd><dt>Amount recorded</dt><dd className="text-xl font-bold">{formatDocumentMoney(receipt.amount)}</dd><dt>Method</dt><dd>{methodLabel(receipt.payment_method)}</dd><dt>Recorded</dt><dd>{recordedDate(receipt.recorded_at)}</dd></dl>
-    {receipt.status === "reversed" && <p className="mt-4 text-sm text-red-700">Reversal transaction {receipt.reversal_entry_id}, recorded {recordedDate(receipt.reversed_at)}.</p>}
-    {receipt.notes && <p className="mt-5 whitespace-pre-wrap break-words text-sm">Notes: {receipt.notes}</p>}
-    <p className="mt-6 border-t border-[#DAE5F3] pt-4 text-xs text-[#587098]">Manual payment record. This receipt does not verify a bank transfer or card settlement. Dates use the shop ledger&apos;s recorded clock.</p>
+    <DocumentIdentity business={receipt.business} customer={receipt.customer} title={tr("Repayment Receipt")} />
+    {receipt.status === "reversed" && <p role="alert" className="mb-5 rounded-lg border-2 border-red-600 p-4 text-lg font-extrabold text-red-700">{tr("REVERSED / VOID — This repayment no longer settles debt.")}</p>}
+    <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm"><dt>{tr("Status")}</dt><dd className="font-bold capitalize">{tr(receipt.status)}</dd><dt>{tr("Receipt / reference")}</dt><dd className="break-all font-semibold">{receipt.reference}</dd><dt>{tr("Stable receipt ID")}</dt><dd>{receipt.receipt_identifier}</dd><dt>{tr("Transaction ID")}</dt><dd>{receipt.entry_id}</dd><dt>{tr("Amount recorded")}</dt><dd className="text-xl font-bold">{formatDocumentMoney(receipt.amount)}</dd><dt>{tr("Method")}</dt><dd>{tr(methodLabel(receipt.payment_method))}</dd><dt>{tr("Recorded")}</dt><dd>{recordedDate(receipt.recorded_at)}</dd></dl>
+    {receipt.status === "reversed" && <p className="mt-4 text-sm text-red-700">{tr("Reversal transaction")} {receipt.reversal_entry_id}{tr(", recorded")} {recordedDate(receipt.reversed_at)}.</p>}
+    {receipt.notes && <p className="mt-5 whitespace-pre-wrap break-words text-sm">{tr("Notes:")} {receipt.notes}</p>}
+    <p className="mt-6 border-t border-[#DAE5F3] pt-4 text-xs text-[#587098]">{tr("Manual payment record. This receipt does not verify a bank transfer or card settlement. Dates use the shop ledger's recorded clock.")}</p>
   </article>;
 }
 
 export function ReceiptActions({ businessId, entryId }) {
+  const { tr } = useAppTranslation();
   const [reader, state] = useReader(getRepaymentReceipt, validateReceipt);
   const [open, setOpen] = useState(false);
   const [printRequested, setPrintRequested] = useState(false);
@@ -74,41 +79,44 @@ export function ReceiptActions({ businessId, entryId }) {
     return () => cancelAnimationFrame(handle);
   }, [open, state.data, printRequested]);
   return <>
-    <span className="inline-flex flex-wrap gap-2"><button type="button" className={button} disabled={state.loading} onClick={() => show(false)}>View Receipt</button><button type="button" className={button} disabled={state.loading} onClick={() => show(true)}>Print Receipt</button></span>
-    {open && <DocumentModal title="Repayment Receipt" onClose={close} printable={!!state.data}>
-      {state.loading && <p role="status">Loading recorded receipt...</p>}
-      {state.error && <div role="alert" className="text-sm text-red-700">{state.error}<button type="button" className={`${button} ml-3`} onClick={() => show(false)}>Retry</button></div>}
+    <span className="inline-flex flex-wrap gap-2"><button type="button" className={button} disabled={state.loading} onClick={() => show(false)}>{tr("View Receipt")}</button><button type="button" className={button} disabled={state.loading} onClick={() => show(true)}>{tr("Print Receipt")}</button></span>
+    {open && <DocumentModal title={tr("Repayment Receipt")} onClose={close} printable={!!state.data}>
+      {state.loading && <p role="status">{tr("Loading recorded receipt...")}</p>}
+      {state.error && <div role="alert" className="text-sm text-red-700">{tr(state.error)}<button type="button" className={`${button} ml-3`} onClick={() => show(false)}>{tr("Retry")}</button></div>}
       {state.data && <ReceiptContent receipt={state.data} />}
     </DocumentModal>}
   </>;
 }
 
 export function StatementContent({ statement }) {
+  const { tr } = useAppTranslation();
   return <article>
-    <DocumentIdentity business={statement.business} customer={statement.customer} title="Customer Credit Statement" />
-    <p className="mb-4 text-sm">Period: {statement.start_date} to {statement.end_date} (inclusive)</p>
-    <dl className="mb-5 grid gap-2 text-sm sm:grid-cols-2">{[["Opening balance", statement.opening_balance], ["Credit sales", statement.total_credit_sales], ["Repayments", statement.total_repayments], ["Reversal impact", statement.reversal_impact], ["Closing balance", statement.closing_balance], ["Outstanding at period end", statement.outstanding_balance]].map(([label, value]) => <div key={label} className="flex justify-between gap-4"><dt>{label}</dt><dd className="font-semibold">{formatDocumentMoney(value)}</dd></div>)}</dl>
-    <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-[#EAF2F9]"><tr>{["Date", "Transaction / status", "Reference", "Debit", "Credit", "Balance", "Receipt"].map(label => <th key={label} className={`${label === "Receipt" ? "lpx-no-print " : ""}px-2 py-3`}>{label}</th>)}</tr></thead><tbody>
-      {statement.transactions.map(row => <tr key={row.entry_id} className="border-b border-[#E8EEF5]"><td className="px-2 py-3">{recordedDate(row.recorded_at)}</td><td className="px-2 py-3">{row.entry_type.replaceAll("_", " ")} / <strong>{row.status}</strong>{row.reverses_entry_id && <span> (reverses #{row.reverses_entry_id})</span>}</td><td className="px-2 py-3">{row.reference}</td><td className="px-2 py-3">{formatDocumentMoney(row.debit)}</td><td className="px-2 py-3">{formatDocumentMoney(row.credit)}</td><td className="px-2 py-3">{formatDocumentMoney(row.running_balance)}</td><td className="lpx-no-print px-2 py-3">{row.entry_type === "repayment" && <ReceiptActions businessId={statement.business.business_id} entryId={row.entry_id} />}</td></tr>)}
-      {!statement.transactions.length && <tr><td colSpan={7} className="p-5 text-center">No activity in this period.</td></tr>}
+    <DocumentIdentity business={statement.business} customer={statement.customer} title={tr("Customer Credit Statement")} />
+    <p className="mb-4 text-sm">{tr("Period:")} {statement.start_date} {tr("to")} {statement.end_date} {tr("(inclusive)")}</p>
+    <dl className="mb-5 grid gap-2 text-sm sm:grid-cols-2">{[["Opening balance", statement.opening_balance], ["Credit sales", statement.total_credit_sales], ["Repayments", statement.total_repayments], ["Reversal impact", statement.reversal_impact], ["Closing balance", statement.closing_balance], ["Outstanding at period end", statement.outstanding_balance]].map(([label, value]) => <div key={label} className="flex justify-between gap-4"><dt>{tr(label)}</dt><dd className="font-semibold">{formatDocumentMoney(value)}</dd></div>)}</dl>
+    <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-[#EAF2F9]"><tr>{["Date", "Transaction / status", "Reference", "Debit", "Credit", "Balance", "Receipt"].map(label => <th key={label} className={`${label === "Receipt" ? "lpx-no-print " : ""}px-2 py-3`}>{tr(label)}</th>)}</tr></thead><tbody>
+      {statement.transactions.map(row => <tr key={row.entry_id} className="border-b border-[#E8EEF5]"><td className="px-2 py-3">{recordedDate(row.recorded_at)}</td><td className="px-2 py-3">{tr(row.entry_type)} / <strong>{tr(row.status)}</strong>{row.reverses_entry_id && <span> {tr("(reverses #")}{row.reverses_entry_id})</span>}</td><td className="px-2 py-3">{row.reference}</td><td className="px-2 py-3">{formatDocumentMoney(row.debit)}</td><td className="px-2 py-3">{formatDocumentMoney(row.credit)}</td><td className="px-2 py-3">{formatDocumentMoney(row.running_balance)}</td><td className="lpx-no-print px-2 py-3">{row.entry_type === "repayment" && <ReceiptActions businessId={statement.business.business_id} entryId={row.entry_id} />}</td></tr>)}
+      {!statement.transactions.length && <tr><td colSpan={7} className="p-5 text-center">{tr("No activity in this period.")}</td></tr>}
     </tbody></table></div>
-    <p className="mt-5 text-xs text-[#587098]">{statement.reversal_policy}</p><p className="mt-2 text-xs text-[#587098]">{statement.time_basis}</p><p className="mt-2 text-xs text-[#587098]">{statement.historical_limitations}</p>
+    <p className="mt-5 text-xs text-[#587098]">{tr(statement.reversal_policy)}</p><p className="mt-2 text-xs text-[#587098]">{tr(statement.time_basis)}</p><p className="mt-2 text-xs text-[#587098]">{tr(statement.historical_limitations)}</p>
   </article>;
 }
 
 export function OutstandingView({ state, onSelectCustomer }) {
-  if (state.loading) return <p role="status" className="text-sm text-[#587098]">Loading outstanding payments...</p>;
-  if (state.error) return <p role="alert" className="text-sm text-red-700">{state.error}</p>;
+  const { tr } = useAppTranslation();
+  if (state.loading) return <p role="status" className="text-sm text-[#587098]">{tr("Loading outstanding payments...")}</p>;
+  if (state.error) return <p role="alert" className="text-sm text-red-700">{tr(state.error)}</p>;
   const data = state.data;
   if (!data) return null;
   return <>
-    <div className="my-4 grid gap-3 sm:grid-cols-3">{[["Total Outstanding", formatDocumentMoney(data.total_outstanding)], ["Customers with Outstanding", data.customers_with_outstanding], ["Overdue", "Unavailable"]].map(([label, value]) => <div key={label} className="rounded-xl border border-[#E1EAF4] bg-white p-4"><p className="text-xs font-semibold text-[#587098]">{label}</p><p className="mt-1 text-xl font-extrabold text-[#0D1D47]">{value}</p></div>)}</div>
-    <p className="mb-4 text-xs text-[#587098]">{data.overdue_unavailable_reason} Totals cover the whole selected business.</p>
-    <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-[#EAF2F9]"><tr>{["Customer", "Account", "Outstanding", "Credit Limit", "Available Credit", "Action"].map(label => <th className="px-3 py-3" key={label}>{label}</th>)}</tr></thead><tbody>{data.customers.map(row => <tr key={row.customer_id} className="border-b border-[#E8EEF5]"><td className="px-3 py-3">{row.customer_name}{row.phone && <p className="text-xs">{row.phone}</p>}</td><td className="px-3 py-3 capitalize">{row.account_status.replaceAll("_", " ")}</td><td className="px-3 py-3">{formatDocumentMoney(row.outstanding_balance)}</td><td className="px-3 py-3">{row.credit_limit == null ? "Not set" : formatDocumentMoney(row.credit_limit)}</td><td className="px-3 py-3">{row.available_credit == null ? "Not set" : formatDocumentMoney(row.available_credit)}</td><td className="px-3 py-3"><button type="button" className={button} onClick={() => onSelectCustomer(String(row.customer_id))}>Select Customer</button></td></tr>)}{!data.customers.length && <tr><td colSpan={6} className="p-6 text-center text-[#587098]">No customers match these filters.</td></tr>}</tbody></table></div>
+    <div className="my-4 grid gap-3 sm:grid-cols-3">{[["Total Outstanding", formatDocumentMoney(data.total_outstanding)], ["Customers with Outstanding", data.customers_with_outstanding], ["Overdue", "Unavailable"]].map(([label, value]) => <div key={label} className="rounded-xl border border-[#E1EAF4] bg-white p-4"><p className="text-xs font-semibold text-[#587098]">{tr(label)}</p><p className="mt-1 text-xl font-extrabold text-[#0D1D47]">{value}</p></div>)}</div>
+    <p className="mb-4 text-xs text-[#587098]">{tr(data.overdue_unavailable_reason)} {tr("Totals cover the whole selected business.")}</p>
+    <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-[#EAF2F9]"><tr>{["Customer", "Account", "Outstanding", "Credit Limit", "Available Credit", "Action"].map(label => <th className="px-3 py-3" key={label}>{tr(label)}</th>)}</tr></thead><tbody>{data.customers.map(row => <tr key={row.customer_id} className="border-b border-[#E8EEF5]"><td className="px-3 py-3">{row.customer_name}{row.phone && <p className="text-xs">{row.phone}</p>}</td><td className="px-3 py-3 capitalize">{tr(row.account_status)}</td><td className="px-3 py-3">{formatDocumentMoney(row.outstanding_balance)}</td><td className="px-3 py-3">{row.credit_limit == null ? tr("Not set") : formatDocumentMoney(row.credit_limit)}</td><td className="px-3 py-3">{row.available_credit == null ? tr("Not set") : formatDocumentMoney(row.available_credit)}</td><td className="px-3 py-3"><button type="button" className={button} onClick={() => onSelectCustomer(String(row.customer_id))}>{tr("Select Customer")}</button></td></tr>)}{!data.customers.length && <tr><td colSpan={6} className="p-6 text-center text-[#587098]">{tr("No customers match these filters.")}</td></tr>}</tbody></table></div>
   </>;
 }
 
 export default function FinancialDocuments({ businessId, customerId, refreshToken, onSelectCustomer }) {
+  const { tr } = useAppTranslation();
   const [outstandingReader, outstanding] = useReader(getOutstandingPayments, validateOutstanding);
   const [statementReader, statement] = useReader(getCustomerStatement, validateStatement);
   const [search, setSearch] = useState("");
@@ -127,12 +135,12 @@ export default function FinancialDocuments({ businessId, customerId, refreshToke
   const loadStatement = () => { setStatementScope({ businessId, customerId, refreshToken }); void statementReader.load(businessId, customerId, { start_date: start, end_date: end }); };
   const invalidRange = !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || start > end;
   return <section className="space-y-4 rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5">
-    <h3 className="text-lg font-bold text-[#0D1D47]">Outstanding Payments &amp; Statements</h3>
-    <div className="flex flex-wrap items-center gap-3"><label className="text-sm text-[#36517B]">Search customers <input type="search" maxLength={150} value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} className={field} /></label><label className="flex items-center gap-2 text-sm text-[#36517B]"><input type="checkbox" checked={outstandingOnly} onChange={event => { setOutstandingOnly(event.target.checked); setPage(1); }} />Outstanding only</label><button type="button" className={button} onClick={() => setRevision(value => value + 1)}>Refresh balances</button></div>
+    <h3 className="text-lg font-bold text-[#0D1D47]">{tr("Outstanding Payments & Statements")}</h3>
+    <div className="flex flex-wrap items-center gap-3"><label className="text-sm text-[#36517B]">{tr("Search customers")} <input type="search" maxLength={150} value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} className={field} /></label><label className="flex items-center gap-2 text-sm text-[#36517B]"><input type="checkbox" checked={outstandingOnly} onChange={event => { setOutstandingOnly(event.target.checked); setPage(1); }} />{tr("Outstanding only")}</label><button type="button" className={button} onClick={() => setRevision(value => value + 1)}>{tr("Refresh balances")}</button></div>
     <OutstandingView state={outstanding} onSelectCustomer={onSelectCustomer} />
-    {outstanding.data && <div className="flex items-center justify-end gap-3 text-sm"><button type="button" className={button} disabled={outstanding.loading || page <= 1} onClick={() => setPage(value => value - 1)}>Previous</button><span>Page {page} · {outstanding.data.filtered_customers} matching customers</span><button type="button" className={button} disabled={outstanding.loading || page * 10 >= outstanding.data.filtered_customers} onClick={() => setPage(value => value + 1)}>Next</button></div>}
-    <div className="flex flex-wrap items-end gap-3 border-t border-[#E1EAF4] pt-4"><label className="text-sm text-[#36517B]">Statement from<input type="date" value={start} onChange={event => setStart(event.target.value)} className={`${field} ml-2`} /></label><label className="text-sm text-[#36517B]">To<input type="date" value={end} onChange={event => setEnd(event.target.value)} className={`${field} ml-2`} /></label><button type="button" className={button} disabled={!customerId || invalidRange || statement.loading} onClick={loadStatement}>View Customer Statement</button></div>
-    {!customerId && <p className="text-xs text-[#587098]">Select a customer above to view a statement, including reversed repayments and their receipts.</p>}{invalidRange && <p role="alert" className="text-sm text-red-700">Choose a valid start and end date.</p>}
-    {showStatement && <DocumentModal title="Customer Credit Statement" onClose={closeStatement} printable={!!statement.data}>{statement.loading && <p role="status">Loading customer statement...</p>}{statement.error && <div role="alert" className="text-sm text-red-700">{statement.error}<button type="button" className={`${button} ml-3`} onClick={loadStatement}>Retry</button></div>}{statement.data && <StatementContent statement={statement.data} />}</DocumentModal>}
+    {outstanding.data && <div className="flex items-center justify-end gap-3 text-sm"><button type="button" className={button} disabled={outstanding.loading || page <= 1} onClick={() => setPage(value => value - 1)}>{tr("Previous")}</button><span>{tr("Page")} {page} · {outstanding.data.filtered_customers} {tr("matching customers")}</span><button type="button" className={button} disabled={outstanding.loading || page * 10 >= outstanding.data.filtered_customers} onClick={() => setPage(value => value + 1)}>{tr("Next")}</button></div>}
+    <div className="flex flex-wrap items-end gap-3 border-t border-[#E1EAF4] pt-4"><label className="text-sm text-[#36517B]">{tr("Statement from")}<input type="date" value={start} onChange={event => setStart(event.target.value)} className={`${field} ml-2`} /></label><label className="text-sm text-[#36517B]">{tr("To")}<input type="date" value={end} onChange={event => setEnd(event.target.value)} className={`${field} ml-2`} /></label><button type="button" className={button} disabled={!customerId || invalidRange || statement.loading} onClick={loadStatement}>{tr("View Customer Statement")}</button></div>
+    {!customerId && <p className="text-xs text-[#587098]">{tr("Select a customer above to view a statement, including reversed repayments and their receipts.")}</p>}{invalidRange && <p role="alert" className="text-sm text-red-700">{tr("Choose a valid start and end date.")}</p>}
+    {showStatement && <DocumentModal title={tr("Customer Credit Statement")} onClose={closeStatement} printable={!!statement.data}>{statement.loading && <p role="status">{tr("Loading customer statement...")}</p>}{statement.error && <div role="alert" className="text-sm text-red-700">{tr(statement.error)}<button type="button" className={`${button} ml-3`} onClick={loadStatement}>{tr("Retry")}</button></div>}{statement.data && <StatementContent statement={statement.data} />}</DocumentModal>}
   </section>;
 }

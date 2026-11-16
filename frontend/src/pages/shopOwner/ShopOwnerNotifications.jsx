@@ -7,7 +7,7 @@ import { getShopOwnerCustomers, getShopOwnerCustomerDetails } from "../../servic
 import { createShopOwnerReminder, getShopOwnerReminders } from "../../services/shopOwnerReminderService";
 import { CHANNELS, LANGUAGES, draftReminder, reminderMoney, reminderValidation, sessionReminderStore } from "../../utils/reminder";
 import ReminderCommunication from "./ReminderCommunication";
-import NotificationInbox from "../../components/notifications/NotificationInbox";
+import NotificationInbox from "../../components/shopOwner/ShopOwnerInbox";
 import { createReminderWorkflow } from "./reminderWorkflow";
 
 const api = { businesses: getShopOwnerBusinessContext, customers: getShopOwnerCustomers, details: getShopOwnerCustomerDetails, record: createShopOwnerReminder, history: getShopOwnerReminders };
@@ -24,7 +24,7 @@ export function NotificationsView({ state, actions, inbox, onReviewReminder, com
   const validation = reminderValidation(state);
   const blocked = busy || !approved || state.customersLoading || state.detailsLoading || !!state.contextError || !!state.customersError || !!state.detailsError || !!state.storageError || !!validation || !!state.success;
   return <div className="space-y-5 pb-8 text-[#10243E]">
-    <div><h2 className="text-[26px] font-extrabold">Notifications</h2><p className="text-sm text-[#587098]">Prepare payment reminders and review recorded reminder history.</p></div>
+    <div><h2 className="text-[26px] font-extrabold">Notifications</h2><p className="text-sm text-[#587098]">Stay updated with your shop&apos;s important activities.</p></div>
     {inbox}
     <div className="flex flex-wrap items-center gap-3">
       <label className="text-sm font-semibold" htmlFor="reminder-business">Business</label>

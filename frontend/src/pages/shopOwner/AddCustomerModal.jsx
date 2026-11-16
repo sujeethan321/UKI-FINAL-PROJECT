@@ -1,3 +1,4 @@
+import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
 import { useRef, useState } from "react";
 import { AlertCircle, Plus, UserRoundPlus, X } from "lucide-react";
@@ -19,6 +20,7 @@ export default function AddCustomerModal({
   onClose,
   onCreated,
 }) {
+  const { tr } = useAppTranslation();
   const [form, setForm] = useState(initialForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -119,13 +121,9 @@ export default function AddCustomerModal({
               <h2
                 id="add-customer-title"
                 className="text-xl font-extrabold text-[#0D1D47]"
-              >
-                Add Customer
-              </h2>
+              >{tr("Add Customer")}</h2>
 
-              <p className="text-xs text-[#587098]">
-                Add a customer to your selected business.
-              </p>
+              <p className="text-xs text-[#587098]">{tr("Add a customer to your selected business.")}</p>
             </div>
           </div>
 
@@ -133,7 +131,7 @@ export default function AddCustomerModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            aria-label="Close Add Customer"
+            aria-label={tr("Close Add Customer")}
             className="rounded-lg p-2 text-[#587098] hover:bg-[#EAF2F9] disabled:opacity-40"
           >
             <X size={19} />
@@ -153,7 +151,7 @@ export default function AddCustomerModal({
                 size={18}
                 className="mt-0.5 shrink-0"
               />
-              {error}
+              {tr(error)}
             </p>
           )}
 
@@ -161,8 +159,7 @@ export default function AddCustomerModal({
             <label
               htmlFor="new-customer-name"
               className="text-sm font-semibold text-[#0D1D47]"
-            >
-              Customer Name <span className="text-red-500">*</span>
+            >{tr("Customer Name")} <span className="text-red-500">*</span>
             </label>
 
             <input
@@ -175,7 +172,7 @@ export default function AddCustomerModal({
               value={form.customer_name}
               onChange={update}
               disabled={saving || requiresVerification}
-              placeholder="e.g. Kumar Raj"
+              placeholder={tr("e.g. Kumar Raj")}
               className={fieldClass}
             />
           </div>
@@ -184,11 +181,8 @@ export default function AddCustomerModal({
             <label
               htmlFor="new-customer-phone"
               className="text-sm font-semibold text-[#0D1D47]"
-            >
-              Mobile Number{" "}
-              <span className="font-normal text-[#587098]">
-                (optional)
-              </span>
+            >{tr("Mobile Number")}{" "}
+              <span className="font-normal text-[#587098]">{tr("(optional)")}</span>
             </label>
 
             <input
@@ -199,24 +193,19 @@ export default function AddCustomerModal({
               value={form.phone}
               onChange={update}
               disabled={saving || requiresVerification}
-              placeholder="0771234567 or +94771234567"
+              placeholder={tr("0771234567 or +94771234567")}
               className={fieldClass}
             />
 
-            <p className="mt-1 text-xs text-[#587098]">
-              A phone number can be linked to only one customer per business.
-            </p>
+            <p className="mt-1 text-xs text-[#587098]">{tr("A phone number can be linked to only one customer per business.")}</p>
           </div>
 
           <div>
             <label
               htmlFor="new-customer-address"
               className="text-sm font-semibold text-[#0D1D47]"
-            >
-              Address{" "}
-              <span className="font-normal text-[#587098]">
-                (optional)
-              </span>
+            >{tr("Address")}{" "}
+              <span className="font-normal text-[#587098]">{tr("(optional)")}</span>
             </label>
 
             <textarea
@@ -227,14 +216,12 @@ export default function AddCustomerModal({
               value={form.address}
               onChange={update}
               disabled={saving || requiresVerification}
-              placeholder="e.g. Nallur, Jaffna"
+              placeholder={tr("e.g. Nallur, Jaffna")}
               className={`${fieldClass} resize-y`}
             />
           </div>
 
-          <p className="rounded-lg bg-[#F0FBF9] px-3 py-2 text-xs text-[#087D78]">
-            Creating a customer does not automatically open a credit account or authorize credit purchases.
-          </p>
+          <p className="rounded-lg bg-[#F0FBF9] px-3 py-2 text-xs text-[#087D78]">{tr("Creating a customer does not automatically open a credit account or authorize credit purchases.")}</p>
 
           <div className="flex justify-end gap-3 border-t border-[#E1EAF4] pt-4">
             <button
@@ -244,8 +231,8 @@ export default function AddCustomerModal({
               className="rounded-lg border border-[#DAE5F3] px-4 py-2.5 text-sm font-semibold text-[#36517B] disabled:opacity-50"
             >
               {requiresVerification
-                ? "Close & Check List"
-                : "Cancel"}
+                ? tr("Close & Check List")
+                : tr("Cancel")}
             </button>
 
             <button
@@ -258,7 +245,7 @@ export default function AddCustomerModal({
               className="inline-flex items-center gap-2 rounded-lg bg-[#0BAAB4] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0997A0] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Plus size={17} />
-              {saving ? "Saving..." : "Add Customer"}
+              {saving ? tr("Saving...") : tr("Add Customer")}
             </button>
           </div>
         </form>

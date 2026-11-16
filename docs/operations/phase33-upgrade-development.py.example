@@ -1,0 +1,167 @@
+"""Reviewed command template only. NOT executed; requires new explicit approval.
+
+No backup/restore/reset/seeding. Uses normal development Alembic path, protected
+by an exact-target connection gate; the isolated supplied-connection hook is NOT
+bypassed or changed to allow development.
+"""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[2]
+SOURCE = 'c9d5e8f7a237'
+TARGET = '14c0d3e2f782'
+
+
+def require(value, message):
+    if not value:
+        raise RuntimeError(message)
+
+
+def fingerprints(conn, tables):
+    from sqlalchemy import inspect
+    inspector = inspect(conn)
+    quote = conn.dialect.identifier_preparer.quote
+    output = {}
+    for table in tables:
+        pk = inspector.get_pk_constraint(table)['constrained_columns']
+        require(pk, 'Primary key missing')
+        rows = conn.exec_driver_sql('SELECT * FROM ' + quote(table) + ' ORDER BY ' +
+                                   ','.join(quote(k) for k in pk)).all()
+        output[table] = hashlib.sha256(json.dumps([list(r) for r in rows],
+            default=str, separators=(',', ':')).encode()).hexdigest()
+    return output
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--database', required=True, choices=['lankapex_db'])
+    parser.add_argument('--baseline', required=True, type=Path)
+    parser.add_argument('--backup', required=True, type=Path)
+    parser.add_argument('--backup-manifest', required=True, type=Path)
+    parser.add_argument('--backup-validation', required=True, type=Path)
+    parser.add_argument('--restore-evidence', required=True, type=Path)
+    parser.add_argument('--execute', action='store_true')
+    parser.add_argument('--confirm-writes-paused', action='store_true')
+    parser.add_argument('--confirm-target')
+    args = parser.parse_args()
+    require(args.execute and args.confirm_writes_paused and args.confirm_target == 'lankapex_db',
+            'Separate approval, execution confirmation and paused writers required')
+    sys.path.insert(0, str(ROOT / 'backend'))
+    from app.core.config import settings
+    from app.core.database import engine, Base
+    import app.models  # noqa: F401
+    from app.services.backup_manifest import read_manifest
+    from app.core.db_maintenance import validate_target
+    from sqlalchemy import event, inspect
+    from sqlalchemy.engine import Engine
+    from alembic import command
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    require(settings.APP_ENV == 'development' and settings.MYSQL_DATABASE == 'lankapex_db'
+            and engine.url.database == 'lankapex_db', 'Exact development settings required')
+    require(engine.url.host in ('localhost', '127.0.0.1', '::1'), 'Local server required')
+    baseline = json.loads(args.baseline.read_text(encoding='utf-8'))
+    require(baseline['database'] == 'lankapex_db' and baseline['revision'] == [SOURCE],
+            'Reviewed baseline revision/identity differs')
+    manifest = read_manifest(args.backup_manifest, args.backup)
+    require(manifest['source_database'] == 'lankapex_db' and manifest['source_environment'] == 'development'
+            and manifest['schema_revision'] == SOURCE, 'Backup source/revision differs')
+    validation = json.loads(args.backup_validation.read_text(encoding='utf-8'))
+    backup_baseline = validation['source_baseline']
+    require(validation['status'] == 'BACKUP_FILE_VALIDATED_NOT_RESTORED'
+            and validation['dump_exit_status'] == 0
+            and validation['source_before_after_equal'] is True
+            and validation['dump_path'] == str(args.backup.resolve())
+            and validation['manifest_path'] == str(args.backup_manifest.resolve())
+            and backup_baseline['revision'] == [SOURCE]
+            and {name: item['rows'] for name, item in baseline['schema'].items()}
+                == backup_baseline['row_counts']
+            and baseline['table_fingerprints'] == {
+                name: value for name, value in backup_baseline['table_fingerprints'].items()
+                if name != 'alembic_version'},
+            'Backup validation differs from the paused source baseline')
+    evidence = json.loads(args.restore_evidence.read_text(encoding='utf-8'))
+    # The reviewed populated rehearsal uses a migration_verify name so the
+    # existing supplied-connection Alembic hook can enforce its actual target.
+    validate_target('testing', evidence['restore_database'], 'migration')
+    require(evidence['status'] == 'PASS' and evidence['backup_sha256'] == manifest['sha256']
+            and evidence['source_revision'] == SOURCE and evidence['target_revision'] == TARGET
+            and evidence['table_fingerprints'] == baseline['table_fingerprints'],
+            'Reviewed populated restore-and-upgrade evidence is missing/mismatched')
+    # This file is an operator-reviewed attestation, not cryptographic proof of
+    # restore execution. Approval must independently inspect its provenance.
+    cfg = Config(str(ROOT / 'backend/alembic.ini'))
+    cfg.set_main_option('script_location', str(ROOT / 'backend/alembic'))
+    graph = ScriptDirectory.from_config(cfg)
+    require(graph.get_heads() == [TARGET], 'Reviewed head changed')
+    chain = [r.revision for r in reversed(list(graph.iterate_revisions(TARGET, SOURCE)))]
+    require(chain == baseline['pending'], 'Reviewed pending chain changed')
+    def gate(dialect, record, positional, keyword):
+        require(keyword.get('database', keyword.get('db')) == 'lankapex_db',
+                'Connection to a different database refused')
+    event.listen(Engine, 'do_connect', gate)
+    def sql_gate(conn, cursor, statement, parameters, context, executemany):
+        import re
+        require(conn.engine is engine and conn.engine.url.database == 'lankapex_db',
+                'Unexpected engine/target refused')
+        require(not any(n in statement.lower() for n in ('lankapex_test_db', 'lankapex_migration_verify_')),
+                'Reference to a protected non-development database refused')
+        require(not re.search(r'\b(CREATE|ALTER|DROP)\s+DATABASE\b|\b(USE|TRUNCATE|GRANT|REVOKE)\b', statement, re.I),
+                'Database/reset/privilege statement refused')
+    event.listen(engine, 'before_cursor_execute', sql_gate)
+    try:
+        with engine.connect() as conn:
+            require(conn.exec_driver_sql('SELECT DATABASE()').scalar_one() == 'lankapex_db', 'Identity mismatch')
+            require(list(conn.exec_driver_sql('SELECT version_num FROM alembic_version').scalars()) == [SOURCE],
+                    'Current revision differs; stop, no retry')
+            require(set(inspect(conn).get_table_names()) == set(baseline['schema']), 'Table inventory drift')
+            require(fingerprints(conn, baseline['table_fingerprints']) == baseline['table_fingerprints'],
+                    'Existing rows differ from backup/restore baseline')
+            conn.commit()
+            require(conn.exec_driver_sql('SELECT GET_LOCK(%s,0)', ('lankapex_db_reviewed_upgrade',)).scalar_one() == 1,
+                    'Another cooperating upgrade holds lock')
+            try:
+                # Pause all writers/DDL externally. An advisory lock alone is not a freeze.
+                conn.exec_driver_sql("SET SESSION time_zone = '+00:00'")
+                conn.commit()
+                @event.listens_for(engine, 'connect')
+                def utc(dbapi_connection, record):
+                    with dbapi_connection.cursor() as cursor:
+                        cursor.execute("SET SESSION time_zone = '+00:00'")
+                # Normal env.py must open its own development connection. Do NOT
+                # set cfg.attributes['connection']: that hook forbids this target.
+                for revision in chain:
+                    command.upgrade(cfg, revision)
+                    require(conn.exec_driver_sql('SELECT DATABASE()').scalar_one() == 'lankapex_db', 'Identity drift')
+                    require(list(conn.exec_driver_sql('SELECT version_num FROM alembic_version').scalars()) == [revision],
+                            'Recorded stage differs')
+                    conn.commit()
+                    print('Completed development stage: ' + revision)
+                require(set(inspect(conn).get_table_names()) == set(Base.metadata.tables) | {'alembic_version'},
+                        'Final inventory differs')
+                require(not compare_metadata(MigrationContext.configure(conn, opts={'compare_type': True}), Base.metadata),
+                        'Model comparison failed')
+                require(fingerprints(conn, baseline['table_fingerprints']) == baseline['table_fingerprints'],
+                        'Existing row fingerprints changed; keep writers paused')
+                print('PASS: target revision and metadata; existing application row fingerprints preserved')
+            finally:
+                conn.exec_driver_sql('SELECT RELEASE_LOCK(%s)', ('lankapex_db_reviewed_upgrade',))
+                conn.commit()
+    finally:
+        engine.dispose()
+        event.remove(Engine, 'do_connect', gate)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as exc:
+        # Never echo SQL, data, URLs or credential-bearing driver exceptions.
+        print('STOP: ' + type(exc).__name__ + '; preserve partial state; no automatic retry', file=sys.stderr)
+        sys.exit(1)

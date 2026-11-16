@@ -1,3 +1,4 @@
+import {notificationChanged} from '../utils/notificationChange';
 import api from './api';
 export async function getDeliveryBusinesses({signal}={}) {
   return (await api.get('/shop-owner/business-context',{signal})).data;
@@ -12,8 +13,8 @@ export async function getShopDelivery(businessId,id,{signal}={}) {
   return (await api.get('/shop-owner/deliveries/'+id,{signal,params:{business_id:businessId}})).data;
 }
 export async function createShopDelivery(businessId,payload,{signal}={}) {
-  return (await api.post('/shop-owner/deliveries',payload,{signal,params:{business_id:businessId}})).data;
+  return notificationChanged((await api.post('/shop-owner/deliveries',payload,{signal,params:{business_id:businessId}})).data);
 }
 export async function cancelShopDelivery(businessId,id,{signal}={}) {
-  return (await api.post('/shop-owner/deliveries/'+id+'/cancel',{}, {signal,params:{business_id:businessId}})).data;
+  return notificationChanged((await api.post('/shop-owner/deliveries/'+id+'/cancel',{}, {signal,params:{business_id:businessId}})).data);
 }

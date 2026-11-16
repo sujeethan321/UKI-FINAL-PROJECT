@@ -1,90 +1,16 @@
+import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { Link } from "react-router-dom";
-
-import {
-  CreditCard,
-  UserRoundPlus,
-  PackagePlus,
-  Truck,
-  LockKeyhole,
-} from "lucide-react";
+import { CreditCard, Wallet, Package, ArrowRight } from "lucide-react";
 
 const actions = [
-  {
-    id: "credit-sale",
-    label: "Record Credit Sale",
-    icon: CreditCard,
-  },
-  {
-    id: "add-customer",
-    label: "Add Credit Customer",
-    icon: UserRoundPlus,
-  },
-  {
-    id: "add-product",
-    label: "Add Product",
-    icon: PackagePlus,
-  },
-  {
-    id: "book-delivery",
-    label: "Book Delivery",
-    icon: Truck,
-  },
+  {label:"New Credit Sale", path:"credit-sales", icon:CreditCard},
+  {label:"Record Repayment", path:"repayments", icon:Wallet},
+  {label:"Manage Products", path:"products", icon:Package},
 ];
-
-export default function QuickActions({ businessId }) {
-  return (
-    <section
-      aria-labelledby="quick-actions-title"
-      className="min-h-[320px] rounded-2xl border border-[#D4E2EE] bg-white p-6"
-    >
-      <h2
-        id="quick-actions-title"
-        className="text-lg font-semibold text-[#10243E]"
-      >
-        Quick Actions
-      </h2>
-
-      <p className="mt-2 text-sm text-[#64748B]">
-        Frequently used shop operations.
-      </p>
-
-      <div className="mt-6 space-y-3">
-        {actions.map((action) => {
-          const Icon = action.icon;
-          const enabled = action.id === "credit-sale";
-          const Action = enabled ? Link : "div";
-
-          return (
-            <Action
-              to={enabled ? "/shop-owner/credit-sales" : undefined}
-              state={enabled ? { businessId } : undefined}
-              key={action.id}
-              className="flex items-center gap-3 rounded-xl border border-[#E5EDF4] bg-[#F8FAFC] px-4 py-3"
-              aria-disabled={!enabled}
-              title={enabled ? action.label : `${action.label} (coming soon)`}
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#E8F8F6] text-[#0AAE9F]">
-                <Icon size={18} aria-hidden="true" />
-              </span>
-
-              <span className="flex-1 text-sm font-medium text-[#64748B]">
-                {action.label}
-              </span>
-
-              {!enabled && <LockKeyhole
-                size={15}
-                className="text-[#94A3B8]"
-                aria-hidden="true"
-              />}
-            </Action>
-          );
-        })}
-      </div>
-
-      <p className="mt-5 text-xs text-[#64748B]">
-        Other actions will be enabled as their features
-        and backend services are completed.
-      </p>
-    </section>
-  );
+export default function QuickActions({businessId}) {
+  const { tr } = useAppTranslation();
+  return <section aria-labelledby="quick-actions-title" className="rounded-xl border border-[#E1EAF4] bg-white p-5">
+    <h2 id="quick-actions-title" className="text-xl font-bold">{tr("Quick Actions")}</h2>
+    <div className="mt-4 grid gap-3 md:grid-cols-3">{actions.map(({label,path,icon:Icon},index)=><Link key={path} to={'/shop-owner/'+path} state={{businessId}} className={'flex min-h-14 items-center gap-3 rounded-lg border border-[#12B8A6] px-4 py-3 text-sm font-semibold '+(index===0?'bg-gradient-to-r from-[#12B8A6] to-[#009BA7] text-white':'text-[#10243E] hover:bg-[#E7F9F6]')}><Icon size={23} aria-hidden="true"/><span className="flex-1">{tr(label)}</span><ArrowRight size={19} aria-hidden="true"/></Link>)}</div>
+  </section>;
 }

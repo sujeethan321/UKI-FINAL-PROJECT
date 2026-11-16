@@ -62,8 +62,10 @@ def test_delivery_lifecycle_preserves_statements_reminders_and_financial_notific
     assert customer.statement(ctx['db'], ctx['user'].user_id, account.credit_account_id, *period) == statement_before
     assert writes and not any(table in sql for sql in writes for table in before if table != 'notifications')
     delivery_notifications=list(ctx['db'].scalars(select(Notification).where(Notification.related_entity_type=='delivery_request',Notification.related_entity_id==row.delivery_request_id)))
-    assert len(delivery_notifications)==4
-    assert all(n.recipient_user_id==ctx['owner'].user_id for n in delivery_notifications)
+    assert len(delivery_notifications)==5
+    driver_alerts=[n for n in delivery_notifications if n.recipient_user_id==ctx['driver'].user_id]
+    assert len(driver_alerts)==1 and driver_alerts[0].notification_type=='delivery_assigned'
+    assert {n.recipient_user_id for n in delivery_notifications}=={ctx['owner'].user_id,ctx['driver'].user_id}
     assert get(ctx, '/history').json()['deliveries'][0]['status'] == 'delivered'
 
 

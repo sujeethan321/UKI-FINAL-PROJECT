@@ -1,6 +1,6 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
-import { getDashboardPath } from "../../utils/roleRoutes";
+import { loginDestination, validateJoinReturnPath } from "../../utils/joinReturn";
 
 
 import LoginBrandPanel from "./LoginBrandPanel";
@@ -8,8 +8,10 @@ import LoginForm from "./LoginForm";
 
 export default function LoginPage() {
   const { user, loading, isAuthenticated } = useAuth();
+  const location = useLocation();
+  const joinReturnTo = validateJoinReturnPath(location.state?.joinReturnTo);
   if (!loading && isAuthenticated && user) {
-    const destination = getDashboardPath(user.platform_role);
+    const destination = loginDestination(user, joinReturnTo);
     if (destination !== "/login") return <Navigate to={destination} replace />;
   }
   return (
@@ -33,8 +35,8 @@ export default function LoginPage() {
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
         <LoginBrandPanel />
 
-        <section className="flex items-center justify-center px-5 py-10 sm:px-10 lg:px-8 xl:px-12">
-          <LoginForm />
+        <section className="flex items-center justify-center px-5 py-10 sm:px-10 lg:items-start lg:px-8 lg:py-8 xl:px-12">
+          <LoginForm joinReturnTo={joinReturnTo} />
         </section>
       </div>
     </main>

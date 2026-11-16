@@ -1,0 +1,48 @@
+.shop-owner-shell {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  color: #10243e;
+  background: radial-gradient(ellipse at top, #f0fbff, #f5f8fc 75%);
+}
+.shop-owner-shell .owner-sidebar {
+  background: radial-gradient(ellipse at bottom left, #123b56, transparent 65%), #10243e;
+}
+.shop-owner-shell .owner-page-heading { margin-bottom: 20px; }
+.shop-owner-shell .owner-page-heading h2,
+.shop-owner-main > div > div:first-child h2 { font-size: clamp(26px, 2.4vw, 38px); font-weight: 750; letter-spacing: -.04em; line-height: 1.2; }
+.shop-owner-shell .owner-page-heading p { margin-top: 5px; color: #52698a; }
+.shop-owner-main :where(section,article,div).bg-white:where(.rounded-xl,.rounded-2xl) {
+  border-color: #e0edf7;
+  box-shadow: 0 3px 14px #17607906;
+  border-radius: 12px;
+}
+.shop-owner-main :where(section) > h3,
+.shop-owner-main :where(section) > div > h3 { letter-spacing: -.025em; }
+.shop-owner-main table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.shop-owner-main thead { background: #edf4f9; }
+.shop-owner-main th { color: #10243e; font-weight: 600; white-space: nowrap; }
+.shop-owner-main td { border-bottom: 1px solid #eaf1f8; }
+.shop-owner-main tbody tr:last-child td { border-bottom: 0; }
+.shop-owner-main tbody tr:has(button:focus-visible) { background: #edfaf9; }
+.shop-owner-main :where(input:not([type=checkbox]),select,textarea) { border-color: #d6e4f2; border-radius: 7px; }
+.shop-owner-main :where(input,select,textarea,button,a):focus-visible { outline: 2px solid #12b8a6; outline-offset: 3px; }
+.shop-owner-main :where(button,a)[class*='bg-[#0BAAB4]'] { background: linear-gradient(110deg,#12b8a6,#009ba7); }
+.shop-owner-main .owner-table-wrap { overflow-x: auto; margin-top: 16px; }
+.shop-owner-main .owner-table { min-width: 720px; font-size: 14px; text-align: left; }
+.shop-owner-main .owner-table :where(th,td) { padding: 13px 16px; }
+.shop-owner-main .owner-table tr[aria-selected=true] { background: #edfaf9; }
+.shop-owner-main .owner-table tr[aria-selected=true] td:first-child { border-left: 3px solid #12b8a6; }
+.shop-owner-main .owner-unavailable { border: 1px dashed #d6e4f2; border-radius: 10px; padding: 24px; color: #52698a; background: #f8fbfe; font-size: 14px; }
+.shop-owner-main .owner-inbox-list > li { border-radius: 10px; border: 1px solid #e4eff6; }
+.shop-owner-main .owner-inbox-list h4 { font-size: 16px; }
+@media (min-width: 1024px) { .shop-owner-shell > aside { width: 264px; } }
+@media (max-width: 639px) { .shop-owner-main .owner-table { min-width: 620px; } }
+
+.shop-owner-main .owner-transaction > section { padding: 0; border: 0; box-shadow: none; }
+.shop-owner-main .owner-transaction > section > h3 { font-size: 16px; }
+.shop-owner-main .owner-transaction fieldset { display: grid; gap: 16px; }
+@media(min-width:768px) {
+ .shop-owner-main .owner-transaction fieldset { grid-template-columns: 1fr 1fr; align-items: start; }
+ .shop-owner-main .owner-transaction fieldset > p,
+ .shop-owner-main .owner-transaction fieldset > button,
+ .shop-owner-main .owner-transaction fieldset > label:has(textarea) { grid-column: 1 / -1; }
+}

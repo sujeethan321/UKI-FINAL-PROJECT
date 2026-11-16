@@ -4,13 +4,15 @@ import api from "./api";
 // List businesses with an optional status filter and page window.
 export async function getAdminBusinesses(
   status = "pending",
-  { limit = 20, offset = 0 } = {}
+  { limit = 20, offset = 0, q, signal } = {}
 ) {
   const response = await api.get("/admin/businesses", {
+    signal,
     params: {
       ...(status === "all" ? {} : { status }),
       limit,
       offset,
+      ...(q ? { q } : {}),
     },
   });
 
@@ -18,9 +20,9 @@ export async function getAdminBusinesses(
 }
 
 // Get business details and its linked owners.
-export async function getAdminBusinessDetails(businessId) {
+export async function getAdminBusinessDetails(businessId, { signal } = {}) {
   const response = await api.get(
-    `/admin/businesses/${businessId}`
+    `/admin/businesses/${businessId}`, { signal }
   );
 
   return response.data;
@@ -30,7 +32,8 @@ export async function getAdminBusinessDetails(businessId) {
 export async function decideAdminBusiness(
   businessId,
   decision,
-  reviewNote = null
+  reviewNote = null,
+  { signal } = {}
 ) {
   if (!["approve", "reject"].includes(decision)) {
     throw new Error("Invalid business decision");
@@ -41,7 +44,7 @@ export async function decideAdminBusiness(
     {
       decision,
       review_note: reviewNote,
-    }
+    }, { signal }
   );
 
   return response.data;
@@ -49,10 +52,11 @@ export async function decideAdminBusiness(
 
 // Retrieve the history of Admin approval decisions.
 export async function getAdminBusinessAuditHistory(
-  businessId
+  businessId,
+  { signal, limit = 20, offset = 0 } = {}
 ) {
   const response = await api.get(
-    `/admin/businesses/${businessId}/audit-history`
+    `/admin/businesses/${businessId}/audit-history`, { signal, params: { limit, offset } }
   );
 
   return response.data;

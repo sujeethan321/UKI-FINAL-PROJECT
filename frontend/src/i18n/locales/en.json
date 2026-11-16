@@ -1,0 +1,250 @@
+{
+  "language": "Language",
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "businesses": "For Businesses",
+    "how": "How It Works",
+    "about": "About Us",
+    "login": "Log In",
+    "getStarted": "Get Started",
+    "register": "Register"
+  },
+  "aria": {
+    "home": "LankaPex home",
+    "logo": "LankaPex — Business Connects Everyone",
+    "openMenu": "Open navigation",
+    "closeMenu": "Close navigation",
+    "navigation": "Main navigation",
+    "accountTypes": "Account types",
+    "footer": "Contact and footer",
+    "quickLinks": "Footer quick links",
+    "accountLinks": "Footer account links",
+    "features": "Planned platform features",
+    "heroImage": "Sri Lankan shop owner using a tablet, customer using a smartphone, and motorcycle delivery partner beside a town lake"
+  },
+  "hero": {
+    "eyebrow": "WELCOME TO LANKAPEX",
+    "credit": "Digital Credit",
+    "management": "Management",
+    "and": "&",
+    "delivery": "Delivery Platform",
+    "description": "Connects Sri Lankan businesses, customers and delivery partners with a simple and powerful digital platform.",
+    "shopOwner": "Shop Owner",
+    "customer": "Customer",
+    "driver": "Delivery Driver",
+    "ownerBadge": "Manage Credit & Orders",
+    "customerBadge": "Shop on Credit",
+    "driverBadge": "Earn with Deliveries",
+    "business": "Business",
+    "connects": "Connects",
+    "everyone": "Everyone",
+    "registerOwner": "Register as Shop Owner",
+    "registerCustomer": "Register as Customer",
+    "registerDriver": "Register as Delivery Driver"
+  },
+  "features": [
+    {
+      "title": "Digital Credit Management",
+      "description": "Replace handwritten Nayam with a secure, digital credit system. Manage customer accounts, credit limits and outstanding balances easily."
+    },
+    {
+      "title": "Credit Purchases",
+      "description": "Allow customers to shop on credit from your business with owner approval, clear records and real-time balance updates."
+    },
+    {
+      "title": "Delivery Management",
+      "description": "Book deliveries, track orders in real time and ensure reliable, on-time service for your customers."
+    },
+    {
+      "title": "Reports & Insights",
+      "description": "Get clear statements, transaction history and business insights to make better, faster decisions."
+    }
+  ],
+  "steps": [
+    [
+      "Create Your Account",
+      "Choose Shop Owner, Customer or Delivery Driver when registering."
+    ],
+    [
+      "Set Up Your Profile",
+      "Complete the information required for your account."
+    ],
+    [
+      "Use LankaPex",
+      "Shop owners manage credit, customers shop and drivers handle available delivery work as supported. Shopping and delivery workflows are under development."
+    ],
+    [
+      "Track Your Activity",
+      "View supported records, updates and account information from your dashboard."
+    ]
+  ],
+  "roles": [
+    {
+      "title": "Shop Owner",
+      "description": "Manage customer accounts, record credit sales and repayments, and keep business records organized.",
+      "items": [
+        "Customer credit management",
+        "Repayment records",
+        "Statements and reminders",
+        "Shop and order management (planned)"
+      ]
+    },
+    {
+      "title": "Customer",
+      "description": "Connect with local shops, manage credit purchases and view account activity as the customer workflow develops.",
+      "items": [
+        "Browse local shops (planned)",
+        "Request credit purchases (planned)",
+        "View account and repayment details (planned)",
+        "Follow customer orders (planned)"
+      ],
+      "note": "Customer registration and sign-in are available. The customer dashboard currently shows account identity; credit details and commerce tools are planned."
+    },
+    {
+      "title": "Delivery Driver",
+      "description": "Connect with businesses that need delivery services and manage delivery work as these tools become available.",
+      "items": [
+        "View available delivery requests (planned)",
+        "Accept suitable delivery jobs (planned)",
+        "Update delivery progress (planned)",
+        "View delivery history (planned)"
+      ],
+      "note": "Driver registration and sign-in are available. Delivery workflows are planned."
+    }
+  ],
+  "benefits": [
+    {
+      "title": "Easy Credit Tracking",
+      "description": "Keep credit sales, repayments and outstanding amounts organized."
+    },
+    {
+      "title": "Less Manual Work",
+      "description": "Reduce dependence on handwritten records and scattered messages."
+    },
+    {
+      "title": "Connected Services",
+      "description": "Bring customer shopping and delivery coordination together as the platform grows."
+    },
+    {
+      "title": "Secure Business Records",
+      "description": "Protect customer information using authenticated, business-specific access."
+    }
+  ],
+  "details": [
+    {
+      "title": "Digital Credit Ledger",
+      "items": [
+        "Record credit sales",
+        "Track customer balances",
+        "Record partial and full repayments",
+        "Maintain ledger history"
+      ]
+    },
+    {
+      "title": "Customer Management",
+      "items": [
+        "Add and update customers",
+        "Manage credit limits",
+        "View customer account details",
+        "Track outstanding balances"
+      ]
+    },
+    {
+      "title": "Payment Reminders",
+      "items": [
+        "Prepare payment reminders",
+        "View reminder history",
+        "Use supported English and Tamil messages",
+        "Open WhatsApp with a prepared reminder"
+      ],
+      "note": "WhatsApp click-to-chat does not confirm message delivery. Review and send the message manually; handoff depends on recorded customer permission and eligibility."
+    },
+    {
+      "title": "Notifications",
+      "items": [
+        "Receive in-app activity updates",
+        "View notification history",
+        "Track read and unread notifications"
+      ]
+    },
+    {
+      "title": "Shopping and Orders",
+      "items": [
+        "Browse local shop products",
+        "Place customer orders",
+        "Request credit purchases with shop approval",
+        "Follow order progress"
+      ]
+    },
+    {
+      "title": "Delivery Management",
+      "items": [
+        "Request delivery services",
+        "Connect with available drivers",
+        "Manage deliveries",
+        "Track delivery progress"
+      ]
+    }
+  ],
+  "faqs": [
+    [
+      "What is LankaPex?",
+      "LankaPex is a platform designed to help Sri Lankan shops manage digital credit and connect with customers and delivery partners."
+    ],
+    [
+      "Who can register?",
+      "Shop Owners, Customers and Delivery Drivers can register. Platform Administrators are managed separately."
+    ],
+    [
+      "Can a Shop Owner manage customer credit?",
+      "Yes. LankaPex supports customer credit accounts, credit sales, repayments and outstanding-balance records."
+    ],
+    [
+      "Can customers buy products on credit?",
+      "Credit purchasing and customer ordering are part of the planned commerce workflow. Availability depends on the development stage and shop approval."
+    ],
+    [
+      "Does LankaPex send payment reminders through WhatsApp?",
+      "LankaPex can prepare a reminder and open WhatsApp with a prefilled message. The shop owner must review and send it manually."
+    ],
+    [
+      "Is LankaPex free?",
+      "Proposed subscription plans include a free starter tier and paid business tiers. Final pricing is not yet confirmed."
+    ]
+  ],
+  "sections": {
+    "how": {
+      "title": "How LankaPex Works",
+      "subtitle": "Simple steps to connect shops, customers and delivery partners."
+    },
+    "roles": {
+      "title": "Who Can Use LankaPex?",
+      "subtitle": "One platform designed for different everyday needs."
+    },
+    "why": {
+      "title": "Why Choose LankaPex?",
+      "subtitle": "Built to simplify everyday business activities."
+    },
+    "explore": {
+      "prefix": "Explore LankaPex",
+      "accent": "Features",
+      "subtitle": "Tools for managing credit today and connecting more business activities in the future.",
+      "suffix": ""
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "subtitle": "Answers to common questions about LankaPex."
+    },
+    "vision": "Platform vision · capabilities are being developed",
+    "planned": "Planned"
+  },
+  "footer": {
+    "description": "Connecting Sri Lankan businesses, customers and delivery partners through digital credit and connected services.",
+    "quickLinks": "Quick Links",
+    "accountLinks": "Account Links",
+    "contact": "Contact",
+    "contactDetails": "Contact details coming soon",
+    "copyright": "© {{year}} LankaPex — Business Connects Everyone"
+  }
+}

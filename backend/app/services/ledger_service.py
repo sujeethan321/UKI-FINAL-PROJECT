@@ -12,7 +12,7 @@ from app.models import CreditAccount, CustomerProfile, LedgerEntry
 ZERO = Decimal("0.00")
 
 
-def load_ledger_entries(db: Session, account_ids: list[int], *, lock=False):
+def load_ledger_entries(db: Session, account_ids: list[int], *, lock=False, max_entries=None):
     if not account_ids:
         return []
     statement = select(LedgerEntry).where(
@@ -22,7 +22,12 @@ def load_ledger_entries(db: Session, account_ids: list[int], *, lock=False):
         # Read originals AND reversals as current rows, not from an older
         # REPEATABLE READ snapshot established by authorization queries.
         statement = statement.with_for_update().execution_options(populate_existing=True)
-    return list(db.scalars(statement))
+    if max_entries is not None:
+        statement = statement.limit(max_entries + 1)
+    entries = list(db.scalars(statement))
+    if max_entries is not None and len(entries) > max_entries:
+        raise HTTPException(422, 'This data set exceeds the interactive report limit. Contact support.')
+    return entries
 
 
 def effective_entries(entries):
