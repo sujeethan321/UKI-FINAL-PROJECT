@@ -12,7 +12,7 @@ export function registrationPayload(form, confirmation) {
 }
 
 export function createRegistrationController({ role = "shop-owner", services, onSuccess, errorMessage }) {
-  const fresh = selected => ({ role: selected, form: emptyForm(), confirmPassword: "", loading: false, error: "" });
+  const fresh = selected => ({ role: selected, form: emptyForm(), confirmPassword: "", loading: false, uncertain: false, error: "" });
   let state = fresh(publicRegistrationRoles.includes(role) ? role : "shop-owner");
   let generation = 0;
   let pending = null;
@@ -30,6 +30,7 @@ export function createRegistrationController({ role = "shop-owner", services, on
   };
   const submit = () => {
     if (pending) return pending;
+    if (state.uncertain) return Promise.resolve(false);
     let payload;
     try { payload = registrationPayload(state.form, state.confirmPassword); }
     catch (error) { publish({ ...state, error: error.message }); return Promise.resolve(false); }
@@ -44,7 +45,10 @@ export function createRegistrationController({ role = "shop-owner", services, on
       onSuccess(response);
       return true;
     }).catch(error => {
-      if (attempt === generation) publish({ ...state, loading: false, error: errorMessage(error) });
+      if (attempt === generation) {
+        const uncertain = selected === 'driver' && (!error.response || error.response.status >= 500);
+        publish({ ...state, loading: false, uncertain, error: uncertain ? 'Driver registration outcome is uncertain. Check sign-in or contact the operator before resubmitting.' : errorMessage(error) });
+      }
       return false;
     }).finally(() => { if (pending === operation) pending = null; });
     pending = operation;

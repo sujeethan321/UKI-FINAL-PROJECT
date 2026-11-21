@@ -1,9 +1,9 @@
+import AccountMenu from "../components/ui/AccountMenu";
 import LanguageSelector from "../components/LanguageSelector";
 import { useAppTranslation } from "../i18n/useAppTranslation.js";
 
 import { Outlet, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import { LogOut, ShieldCheck } from "lucide-react";
 
 import NotificationBell from "../components/notifications/NotificationBell";
 
@@ -35,27 +35,7 @@ export default function AdminLayout() {
 
                     <div className="flex max-w-full flex-wrap items-center gap-3">
                         <LanguageSelector /><NotificationBell />
-                        <ShieldCheck
-                            size={22}
-                            className="hidden text-[#12B8A6] sm:block"
-                        />
-
-                        <div className="hidden min-w-0 max-w-40 sm:block">
-                            <p className="truncate text-sm font-semibold text-[#10243E]">
-                                {user?.full_name || tr("Administrator")}
-                            </p>
-                            <p className="text-xs text-[#64748B]">{tr("Platform Admin")}</p>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={logout}
-                            aria-label={tr("Log out")}
-                            title={tr("Log out")}
-                            className="rounded-lg p-2 text-[#64748B] hover:bg-red-50 hover:text-red-600"
-                        >
-                            <LogOut size={20} />
-                        </button>
+                        <AccountMenu user={user} roleLabel="Platform Admin" onLogout={logout} />
                     </div>
                 </header>
 

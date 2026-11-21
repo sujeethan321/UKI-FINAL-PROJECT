@@ -1,9 +1,13 @@
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
+from app.schemas.report_ai import ReportAIRequest
+from app.services.report_ai_service import get_report_ai_client
+from fastapi import Request
 
 from app.services.shop_owner_customer_details_service import get_customer_details
 from app.services.shop_owner_customer_manage_service import (
@@ -50,6 +54,57 @@ router = APIRouter(
     prefix="/shop-owner",
     tags=["Shop Owner"],
 )
+
+
+@router.get('/reports/financial')
+def read_financial_report(response: Response, business_id: int = Query(gt=0),
+    start_date: date | None = None, end_date: date | None = None,
+    current_user: User = Depends(require_roles('shop_owner')), db: Session = Depends(get_db)):
+    from app.services.shop_owner_reports_service import report
+    response.headers['Cache-Control'] = 'no-store'
+    try:
+        if current_user.account_status != 'active':
+            raise HTTPException(403, 'Active Shop Owner required')
+        get_approved_owned_business(db, current_user, business_id)
+        from app.services.subscription_service import require_business_feature
+        require_business_feature(db,business_id,'reports')
+        return report(db, business_id, start_date, end_date)
+    except HTTPException as error:
+        error.headers = {**(error.headers or {}), 'Cache-Control': 'no-store'}
+        raise
+    except SQLAlchemyError:
+        raise HTTPException(500, 'Financial report unavailable', headers={'Cache-Control': 'no-store'}) from None
+
+
+@router.get('/reports/financial.csv')
+def export_financial_report(response: Response, business_id: int = Query(gt=0),
+    start_date: date = Query(), end_date: date = Query(),
+    current_user: User = Depends(require_roles('shop_owner')), db: Session = Depends(get_db)):
+    from app.services.shop_owner_reports_csv import render_report_csv
+    # Reuse the same authorization, bounds, SQL limits, clock and calculations.
+    data = read_financial_report(response, business_id, start_date, end_date, current_user, db)
+    filename = f'LankaPex-financial-{business_id}-{start_date.isoformat()}-{end_date.isoformat()}.csv'
+    return Response(content=render_report_csv(data), media_type='text/csv; charset=utf-8', headers={
+        'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+        'Content-Disposition': f'attachment; filename="{filename}"',
+    })
+
+
+@router.get('/reports/financial.pdf')
+def export_financial_report_pdf(response: Response, business_id: int = Query(gt=0),
+    start_date: date = Query(), end_date: date = Query(), language: Literal['en','ta','si'] = 'en',
+    current_user: User = Depends(require_roles('shop_owner')), db: Session = Depends(get_db)):
+    data = read_financial_report(response, business_id, start_date, end_date, current_user, db)
+    from app.services.shop_owner_reports_pdf import render_report_pdf, ReportPDFUnavailable
+    try:
+        content = render_report_pdf(data, language)
+    except ReportPDFUnavailable:
+        raise HTTPException(503, 'PDF export unavailable; required font or renderer is not ready',
+            headers={'Cache-Control':'no-store'}) from None
+    return Response(content=content, media_type='application/pdf', headers={
+        'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff',
+        'Content-Disposition': f'attachment; filename="LankaPex-financial-{business_id}-{start_date.isoformat()}-{end_date.isoformat()}-{language}.pdf"',
+    })
 
 
 # ---------------------------------------------------
@@ -289,12 +344,32 @@ def get_business_context(
 # ---------------------------------------------------
 
 
+@router.post('/businesses/{business_id}/reports/ai-summary')
+async def report_ai_summary(business_id: int, payload: ReportAIRequest, request: Request, response: Response,
+    current_user: User = Depends(require_roles('shop_owner')), db: Session = Depends(get_db),
+    ai_client = Depends(get_report_ai_client)):
+    from app.core.rate_limit import ai_generation_limit
+    from app.services.report_ai_service import build_context, generate
+    from starlette.concurrency import run_in_threadpool
+    response.headers['Cache-Control']='no-store'
+    get_approved_owned_business(db,current_user,business_id)
+    from app.services.subscription_service import require_business_feature
+    plan=require_business_feature(db,business_id,'ai_summaries')
+    ai_generation_limit(request,current_user.user_id,business_id,plan['ai_limit_multiplier'])
+    context=await run_in_threadpool(build_context,db,business_id,payload)
+    text=await generate(context,payload,ai_client)
+    return dict(business_id=business_id,language=payload.language,start_date=payload.start_date,
+        end_date=payload.end_date,summary=text,model='openai/gpt-oss-120b',source='generated')
+
+
 @router.get("/dashboard/summary")
 def read_dashboard_summary(
+    response: Response,
     business_id: int,
     current_user: User = Depends(require_roles("shop_owner")),
     db: Session = Depends(get_db),
 ):
+    response.headers['Cache-Control'] = 'no-store'
     get_approved_owned_business(
         db=db,
         current_user=current_user,
@@ -574,6 +649,8 @@ def read_shop_owner_customer_statement(
     current_user: User = Depends(require_roles("shop_owner")),
     db: Session = Depends(get_db),
 ):
+    from app.services.subscription_service import require_entitlement
+    require_entitlement(db,current_user,business_id,'statement_exports')
     return read_financial_document(db, current_user, business_id, response,
         lambda business: customer_statement(db, business, customer_id, start_date, end_date))
 

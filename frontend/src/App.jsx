@@ -51,6 +51,7 @@ import ShopOwnerDeliveries from "./pages/shopOwner/ShopOwnerDeliveries";
 import ShopOwnerProducts from "./pages/shopOwner/ShopOwnerProducts";
 import ShopOwnerReports from "./pages/shopOwner/ShopOwnerReports";
 import ShopOwnerSettings from "./pages/shopOwner/ShopOwnerSettings";
+import SubscriptionBilling from "./pages/shopOwner/SubscriptionBilling";
 import CustomerCatalogue from "./pages/customer/CustomerCatalogue";
 
 import NotificationProvider from "./context/NotificationProvider";
@@ -91,6 +92,7 @@ export default function App() {
           {/* Customer-only pages */}
           <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
             <Route path="/customer" element={<CustomerLayout />}>
+              <Route index element={<Navigate to="/customer/dashboard" replace />} />
               <Route path="dashboard" element={<CustomerDashboard />} />
               <Route path="credit-accounts" element={<CustomerCreditAccounts />} />
               <Route path="deliveries" element={<CustomerDeliveries />} />
@@ -117,6 +119,7 @@ export default function App() {
           {/* Shop Owner protected pages */}
           <Route element={<ProtectedRoute allowedRoles={["shop_owner"]} />}>
             <Route path="/shop-owner" element={<ShopOwnerLayout />}>
+              <Route index element={<Navigate to="/shop-owner/dashboard" replace />} />
               <Route
                 path="dashboard"
                 element={<ShopOwnerDashboard />}
@@ -137,6 +140,7 @@ export default function App() {
               <Route path="products" element={<ShopOwnerProducts />} />
               <Route path="reports" element={<ShopOwnerReports />} />
               <Route path="settings" element={<ShopOwnerSettings />} />
+              <Route path="subscription" element={<SubscriptionBilling />} />
 <Route path="orders" element={<OrderHistory owner />} />
 <Route path="orders/:orderId" element={<OrderHistory owner />} />
 <Route path="credit-orders" element={<Navigate to="/shop-owner/orders" replace />} />
@@ -148,6 +152,7 @@ export default function App() {
           {/* Delivery Driver-only pages */}
           <Route element={<ProtectedRoute allowedRoles={["driver"]} />}>
             <Route element={<DriverLayout />}>
+              <Route path="/driver" element={<Navigate to="/driver/dashboard" replace />} />
               <Route path="/driver/dashboard" element={<DriverDashboard />} />
               <Route path="/driver/earnings" element={<DriverEarnings />} />
               <Route path="/driver/vehicle" element={<DriverVehicle />} />
@@ -164,6 +169,7 @@ export default function App() {
           {/* Administrator-only pages */}
           <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
             <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="shop-owners" element={<AdminManagement kind="shop_owner" />} />
               <Route path="customers" element={<AdminManagement kind="customer" />} />
               <Route path="drivers" element={<AdminManagement kind="driver" />} />
@@ -179,6 +185,7 @@ export default function App() {
             </Route>
           </Route>
 
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </NotificationProvider>
       </AuthProvider>

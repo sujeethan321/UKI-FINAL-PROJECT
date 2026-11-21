@@ -1,3 +1,4 @@
+import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -42,10 +43,10 @@ export function CreditSalesView({ state, actions }) {
     <div><h2 className="text-[26px] font-extrabold text-[#0D1D47]">{tr("Credit Sales")}</h2><p className="text-sm text-[#587098]">{tr("Record customer credit sales and review their credit accounts.")}</p></div>
     <div className="flex flex-wrap items-center gap-3">
       <label htmlFor="sale-business" className="text-sm font-semibold text-[#0D1D47]">{tr("Business")}</label>
-      <select id="sale-business" className="max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm" value={state.businessId} disabled={busy || !state.businesses.length} onChange={event => actions.selectBusiness(event.target.value)}>
+      <Select id="sale-business" className="max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm" value={state.businessId} disabled={busy || !state.businesses.length} onChange={event => actions.selectBusiness(event.target.value)}>
         {!state.businesses.length && <option value="">{tr("No linked businesses")}</option>}
         {state.businesses.map(item => <option key={item.business_id} value={item.business_id}>{item.business_name} ({tr(item.approval_status)})</option>)}
-      </select>
+      </Select>
       <button type="button" disabled={state.saving || state.contextLoading || state.customersLoading || state.detailsLoading} onClick={() => state.contextError ? actions.loadBusinesses() : actions.refresh()} className="rounded-lg border border-[#DAE5F3] bg-white p-2 text-[#36517B] disabled:opacity-50" aria-label={tr("Refresh credit sale data")} title={tr("Refresh credit sale data")}><RefreshCw size={18} /></button>
     </div>
     {state.contextLoading && <p role="status" className="text-sm text-[#587098]">{tr("Loading business information...")}</p>}
@@ -67,10 +68,10 @@ export function CreditSalesView({ state, actions }) {
       <section className="owner-transaction rounded-xl border border-[#E1EAF4] bg-white p-5 space-y-4"><h3 className="text-xl font-bold">{tr("New Credit Sale")}</h3>
       <section className="rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5">
         <label htmlFor="sale-customer" className="text-sm font-semibold text-[#0D1D47]">{tr("Customer")}</label>
-        <select id="sale-customer" value={state.customerId} disabled={busy || state.customersLoading || !!state.customersError || !state.customers.length} onChange={event => actions.selectCustomer(event.target.value)} className={fieldClass}>
+        <Select id="sale-customer" value={state.customerId} disabled={busy || state.customersLoading || !!state.customersError || !state.customers.length} onChange={event => actions.selectCustomer(event.target.value)} className={fieldClass}>
           <option value="">{tr("Select a customer")}</option>
           {state.customers.map(customer => <option key={customer.customer_id} value={customer.customer_id}>{customer.customer_name}{customer.phone ? ` | ${customer.phone}` : ""}</option>)}
-        </select>
+        </Select>
         {state.customersLoading && <p role="status" className="mt-2 text-sm text-[#587098]">{tr("Loading customers...")}</p>}
         {state.customersError && <p role="alert" className="mt-2 text-sm text-red-700">{tr(state.customersError)}</p>}
         {!state.customersLoading && !state.customersError && !state.customers.length && <p className="mt-2 text-sm text-[#587098]">{tr("No customers in this business.")} <Link to="/shop-owner/customers" className="text-[#1265D6] underline">{tr("Add a customer")}</Link> {tr("first.")}</p>}

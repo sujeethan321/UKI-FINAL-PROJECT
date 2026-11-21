@@ -177,10 +177,25 @@ def dashboard_summary(db, user_id):
     count, outstanding = db.execute(select(
         func.count(), func.coalesce(func.sum(positions.c.outstanding_balance), ZERO),
     ).select_from(positions)).one()
+    from app.core.config import settings
+    from app.services.ledger_service import load_ledger_entries
+    from app.services.dashboard_due_service import due_totals
+    accounts = scoped_accounts(user_id)
+    ids = list(db.scalars(select(accounts.c.credit_account_id).limit(settings.MAX_INTERACTIVE_CUSTOMERS + 1)))
+    due = dict(due_soon_amount=None, overdue_amount=None, due_totals_status='unavailable',
+               due_date_policy='fifo_database_wall_clock_today_through_7_days')
+    if len(ids) <= settings.MAX_INTERACTIVE_CUSTOMERS:
+        try:
+            entries = load_ledger_entries(db, ids, max_entries=settings.MAX_READ_LEDGER_ENTRIES)
+            due = due_totals(entries, db.scalar(select(func.now())), outstanding)
+        except HTTPException as error:
+            if error.status_code not in (409, 422):
+                raise
     return dict(
         linked_shop_count=db.scalar(select(func.count()).select_from(linked_shops(user_id).subquery())),
         credit_account_count=count, total_outstanding_balance=money(outstanding),
         recent_activity=transactions(db, user_id, 1, 5)["transactions"],
+        **due,
     )
 
 

@@ -1,7 +1,7 @@
 """Explicit minimal Administrator projections; no credentials or ledger fields."""
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ManagedRole = Literal['shop_owner','customer','driver']
 AccountStatus = Literal['active','suspended']
@@ -43,6 +43,45 @@ class AdminDriverProfile(BaseModel):
 
 class AdminDriver(AdminUser):
     profile: AdminDriverProfile | None
+    verification: 'DriverVerification | None' = None
+
+
+class DocumentMetadata(BaseModel):
+    document_type: Literal['DRIVING_LICENCE','VEHICLE_OWNERSHIP_PROOF']
+    document_id: str | None
+    version: int | None
+    review_status: Literal['MISSING','PENDING','APPROVED','REJECTED']
+    integrity_valid: bool
+    media_type: str | None
+    reviewed_by: int | None
+    reviewed_at: datetime | None
+
+
+class DriverVerification(BaseModel):
+    driver_user_id: int
+    legacy_exempt: bool
+    approval_ready: bool
+    documents: list[DocumentMetadata]
+
+
+class DocumentDecision(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    decision: Literal['approve','reject']
+    rejection_code: Literal['UNREADABLE','WRONG_DOCUMENT','EXPIRED','OTHER'] | None = None
+
+    @model_validator(mode='after')
+    def rejection_required(self):
+        if self.decision=='reject' and self.rejection_code is None: raise ValueError('Rejection requires a fixed reason code')
+        return self
+
+    @field_validator('rejection_code')
+    @classmethod
+    def code(cls,value,info):
+        if (info.data.get('decision')=='approve' and value is not None): raise ValueError('Approval cannot include a rejection code')
+        return value
+
+
+AdminDriver.model_rebuild()
 
 
 class AdminDrivers(BaseModel):

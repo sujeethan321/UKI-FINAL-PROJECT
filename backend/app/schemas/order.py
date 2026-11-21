@@ -35,6 +35,8 @@ class Quote(BaseModel):
     items: list[Line]
     subtotal: str
     total: str
+    estimated_delivery_fee: str
+    estimated_total_with_delivery: str
     credit_available: bool
     credit_guidance: str
 class OrderResponse(BaseModel):

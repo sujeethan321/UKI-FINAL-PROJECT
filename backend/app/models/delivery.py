@@ -1,6 +1,6 @@
 """Shared delivery operations. Financial posting is independent of delivery."""
 from datetime import datetime, timezone
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
@@ -17,6 +17,7 @@ class DriverProfile(Base):
         CheckConstraint("(vehicle_type IS NULL AND registration_reference IS NULL) OR (vehicle_type IS NOT NULL AND registration_reference IS NOT NULL)", name="ck_driver_vehicle_pair"),
     )
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.user_id", ondelete="RESTRICT"), primary_key=True)
+    legacy_document_exempt: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text('0'))
     approval_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
     vehicle_type: Mapped[str | None] = mapped_column(String(50))
     registration_reference: Mapped[str | None] = mapped_column(String(50))

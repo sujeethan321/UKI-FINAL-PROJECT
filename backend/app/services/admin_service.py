@@ -56,7 +56,9 @@ def profile_data(row):
 
 def driver_detail(db,ident):
     user=managed_user(db,ident,'driver')
-    return dict(**user_data(user),profile=profile_data(db.get(DriverProfile,ident)))
+    from app.services.admin_driver_documents import verification
+    profile=current(db,select(DriverProfile).where(DriverProfile.user_id==ident),False)
+    return dict(**user_data(user),profile=profile_data(profile),verification=verification(db,ident,profile))
 
 
 def drivers(db,limit,offset,status=None,approval=None,q=None):
@@ -108,13 +110,16 @@ def active_assignments(db,ident):
 def decide_driver(db,actor,ident,payload):
     admin_actor(db,actor)
     managed_user(db,ident,'driver')
-    driver_service.actor(db,ident,'driver',lock=True)
+    driver_service.actor(db,ident,'driver',lock=True,exclusive=True)
     profile=current(db,select(DriverProfile).where(DriverProfile.user_id==ident),False)
     if profile is None: raise HTTPException(409,'Driver application has not been submitted')
     if profile.approval_status!='pending': raise HTTPException(409,'Only pending Driver applications can be reviewed')
     if active_assignments(db,ident): raise HTTPException(409,'Active assignments require an operational review')
     if payload.decision=='approve' and (not profile.vehicle_type or not profile.vehicle_type.strip() or not profile.registration_reference or not profile.registration_reference.strip()):
         raise HTTPException(409,'Stored vehicle type and registration reference are required')
+    if payload.decision=='approve':
+        from app.services.admin_driver_documents import require_approved
+        require_approved(db,ident,profile)
     state='approved' if payload.decision=='approve' else 'rejected'
     driver_service.review_profile(db,actor.user_id,ident,state)
     event=audit(db,actor,'driver',ident,'driver_'+state,'pending',state,payload.review_note)

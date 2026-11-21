@@ -26,6 +26,13 @@ Search = Annotated[str | None, Query(max_length=200)]
 CategoryId = Annotated[int | None, Query(gt=0, le=9223372036854775807)]
 
 
+def catalogue_entitlement(user: Owner,db: Database,business_id: BusinessId):
+    from app.services.subscription_service import require_entitlement
+    require_entitlement(db,user,business_id,'catalogue')
+
+owner_router.dependencies.append(Depends(catalogue_entitlement))
+
+
 def operation(db, response, action, schema, write=False):
     response.headers['Cache-Control'] = 'no-store'
     try:

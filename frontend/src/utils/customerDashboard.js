@@ -22,7 +22,13 @@ export function parseCustomerResponse(section, data) {
   if (section === "summary") {
     if (!count(data.linked_shop_count) || !count(data.credit_account_count) || !money(data.total_outstanding_balance) ||
         !Array.isArray(data.recent_activity) || data.recent_activity.length > 5 || !data.recent_activity.every(transaction) || !unique(data.recent_activity, "entry_id")) throw Error("Invalid summary");
-    return { ...pick(data, ["linked_shop_count", "credit_account_count", "total_outstanding_balance"]), recent_activity: data.recent_activity.map(row => pick(row, transactionFields)) };
+    const dueStatus=data.due_totals_status ?? 'unavailable';
+    if(!['complete','incomplete','unavailable'].includes(dueStatus))throw Error('Invalid due totals status');
+    if(dueStatus==='complete'&&(!money(data.due_soon_amount)||!money(data.overdue_amount)||data.due_date_policy!=='fifo_database_wall_clock_today_through_7_days'))throw Error('Unconfirmed due totals');
+    return { ...pick(data, ["linked_shop_count", "credit_account_count", "total_outstanding_balance"]),
+      due_totals_status:dueStatus,due_soon_amount:dueStatus==='complete'?data.due_soon_amount:null,
+      overdue_amount:dueStatus==='complete'?data.overdue_amount:null,
+      recent_activity: data.recent_activity.map(row => pick(row, transactionFields)) };
   }
   const key = { shops: "shops", accounts: "credit_accounts", transactions: "transactions" }[section];
   if (!key || data.page !== 1 || data.page_size !== 5 || !count(data.total) || !Array.isArray(data[key]) || data[key].length > 5 || data[key].length > data.total) throw Error("Invalid preview");

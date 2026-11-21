@@ -1,4 +1,5 @@
 import { adminTimestamp, parseAdminOverview } from './adminDashboard.js';
+import { parseDriverVerification } from './adminDriverDocuments.js';
 export const managementAreas = {
   shop_owner: { title: 'Shop Owner Management', singular: 'Shop Owner', collection: 'users', path: '/admin/shop-owners' },
   customer: { title: 'Customer Management', singular: 'Customer', collection: 'users', path: '/admin/customers' },
@@ -22,7 +23,8 @@ function driverRow(row) {
   const result = userRow('driver', row), profile = row.profile;
   if (profile === null) return { ...result, profile: null };
   if (!profile || !driverStatuses.slice(0, -1).includes(profile.approval_status) || !nullableText(profile.vehicle_type) || !nullableText(profile.registration_reference) || !(profile.reviewed_by === null || id(profile.reviewed_by)) || !(profile.reviewed_at === null || adminTimestamp(profile.reviewed_at))) invalid();
-  return { ...result, profile: pick(profile, ['approval_status', 'vehicle_type', 'registration_reference', 'reviewed_at']) };
+  return { ...result, profile: pick(profile, ['approval_status', 'vehicle_type', 'registration_reference', 'reviewed_at']),
+    verification: row.verification ? parseDriverVerification(row.verification, row.user_id) : null };
 }
 function businessRow(row) {
   if (!row || !id(row.business_id) || !text(row.business_name) || !text(row.business_type) || !statuses.includes(row.approval_status) || !['registration_number', 'phone', 'address'].every(key => nullableText(row[key])) || !adminTimestamp(row.created_at)) invalid();
@@ -80,7 +82,7 @@ export function allowedManagementActions(kind, row) {
     if (row.account_status === 'active') result.push('suspend');
     if (row.account_status === 'suspended') result.push('reactivate');
     if (kind === 'driver' && row.account_status === 'active' && row.profile?.approval_status === 'pending') {
-      if (text(row.profile.vehicle_type) && text(row.profile.registration_reference)) result.push('approve');
+      if (text(row.profile.vehicle_type) && text(row.profile.registration_reference) && row.verification?.approval_ready === true) result.push('approve');
       result.push('reject');
     }
   }

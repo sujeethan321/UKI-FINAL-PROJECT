@@ -1,3 +1,4 @@
+import {driverRegistrationPayload} from './driverRegistration.js';
 import {parseDriverResponse} from './driverDashboard.js';
 export function createDriverProfileSubmission(api,userId,onSubmitted) {
  let active=true,state={saving:false,error:'',uncertain:false};const listeners=new Set();
@@ -5,8 +6,9 @@ export function createDriverProfileSubmission(api,userId,onSubmitted) {
  return {activate(){active=true;},getSnapshot:()=>state,subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},
  async submit(fields){
   if(!active||state.saving||state.uncertain)return;
-  const payload={vehicle_type:String(fields.vehicle_type||'').trim(),registration_reference:String(fields.registration_reference||'').trim()};
-  if(Object.values(payload).some(value=>!value||value.length>50||Array.from(value).some(c=>c.charCodeAt(0)<32||c.charCodeAt(0)===127))){publish({saving:false,error:'Enter single-line vehicle type and registration reference, up to 50 characters each.',uncertain:false});return;}
+  let payload;
+  try {payload=driverRegistrationPayload(fields);}
+  catch(error){publish({saving:false,error:error.message,uncertain:false});return;}
   publish({saving:true,error:'',uncertain:false});
   try{
    const result=parseDriverResponse('profile',await api(payload),userId);

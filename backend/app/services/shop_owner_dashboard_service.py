@@ -1,5 +1,6 @@
 
 from decimal import Decimal
+from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -30,8 +31,9 @@ def get_dashboard_summary(
     ).limit(settings.MAX_INTERACTIVE_CUSTOMERS + 1)))
     if len(account_ids) > settings.MAX_INTERACTIVE_CUSTOMERS:
         raise HTTPException(422, 'Dashboard exceeds the interactive account limit. Contact support.')
-    balances = account_balances(load_ledger_entries(db, account_ids,
-        max_entries=settings.MAX_READ_LEDGER_ENTRIES))
+    entries = load_ledger_entries(db, account_ids,
+        max_entries=settings.MAX_READ_LEDGER_ENTRIES)
+    balances = account_balances(entries)
 
     total_outstanding = sum(
         (
@@ -52,12 +54,28 @@ def get_dashboard_summary(
         )
     ) or 0
 
+    # Use the same stored database wall clock and reversal-date calculations
+    # as Reports. Import lazily because Reports also reuses this summary.
+    from app.services.shop_owner_reports_service import trends
+    from app.services.dashboard_due_service import due_totals
+    now = db.scalar(select(func.now()))
+    collected = None
+    if isinstance(now, datetime) and now.tzinfo is None:
+        try:
+            _, collected = trends(entries, now.date(), now.date(), now.date())
+        except HTTPException as error:
+            if error.status_code != 409:
+                raise
+    due = due_totals(entries, now, total_outstanding)
+
     return {
         "business_id": business_id,
         "currency": "LKR",
         "total_outstanding": total_outstanding,
-        "collected_today": None,
-        "overdue_amount": None,
+        "collected_today": collected,
+        "overdue_amount": due['overdue_amount'],
+        "due_totals_status": due['due_totals_status'],
+        "due_date_policy": due['due_date_policy'],
         "credit_customers": customer_count,
         "pending_credit_requests": None,
         "active_deliveries": None,

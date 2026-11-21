@@ -2,6 +2,7 @@
 from typing import Literal
 
 from app.services.notification_service import notify_event
+from app.services.subscription_service import grant_first_approval_trial, utc_now
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from app.schemas.admin_business import BusinessDecisionRequest, AdminBusinessDetail, AdminBusinesses, AdminBusinessDecision, BusinessHistory
@@ -179,6 +180,9 @@ def decide_business(
                 )
 
         previous_status = business.approval_status
+        decision_at = utc_now()
+        if payload.decision == "approve":
+            grant_first_approval_trial(db, business, decision_at)
 
         new_status = (
             "approved"
@@ -197,6 +201,7 @@ def decide_business(
             previous_status=previous_status,
             new_status=new_status,
             review_note=payload.review_note,
+            created_at=decision_at,
         )
 
         db.add(audit)

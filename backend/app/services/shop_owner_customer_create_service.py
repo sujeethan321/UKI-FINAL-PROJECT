@@ -24,7 +24,8 @@ def create_business_customer(
     business_id: int,
     payload: CustomerCreate,
 ) -> CustomerProfile:
-
+    from app.services.subscription_service import enforce_customer_capacity
+    enforce_customer_capacity(db,business_id)
     normalized_phone = normalize_phone(payload.phone)
 
     if normalized_phone:

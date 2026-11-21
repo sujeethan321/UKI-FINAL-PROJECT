@@ -1,3 +1,4 @@
+import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -45,10 +46,10 @@ export function RepaymentsView({ state, actions }) {
     <div><h2 className="text-[26px] font-extrabold text-[#0D1D47]">{tr("Repayments")}</h2><p className="text-sm text-[#587098]">{tr("Record customer repayments and review their credit accounts.")}</p></div>
     <div className="flex flex-wrap items-center gap-3">
       <label htmlFor="repayment-business" className="text-sm font-semibold text-[#0D1D47]">{tr("Business")}</label>
-      <select id="repayment-business" className="max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm" value={state.businessId} disabled={busy || !state.businesses.length} onChange={event => actions.selectBusiness(event.target.value)}>
+      <Select id="repayment-business" className="max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm" value={state.businessId} disabled={busy || !state.businesses.length} onChange={event => actions.selectBusiness(event.target.value)}>
         {!state.businesses.length && <option value="">{tr("No linked businesses")}</option>}
         {state.businesses.map(item => <option key={item.business_id} value={item.business_id}>{item.business_name} ({tr(item.approval_status)})</option>)}
-      </select>
+      </Select>
       <button type="button" disabled={state.saving || state.contextLoading || state.customersLoading || state.detailsLoading} onClick={() => state.contextError ? actions.loadBusinesses() : actions.refresh()} className="rounded-lg border border-[#DAE5F3] bg-white p-2 text-[#36517B] disabled:opacity-50" aria-label={tr("Refresh repayment data")} title={tr("Refresh repayment data")}><RefreshCw size={18} /></button>
     </div>
     {state.contextLoading && <p role="status" className="text-sm text-[#587098]">{tr("Loading business information...")}</p>}
@@ -72,10 +73,10 @@ export function RepaymentsView({ state, actions }) {
       <section className="owner-transaction rounded-xl border border-[#E1EAF4] bg-white p-5 space-y-4"><h3 className="text-xl font-bold">{tr("Record Repayment")}</h3>
       <section className="rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5">
         <label htmlFor="repayment-customer" className="text-sm font-semibold text-[#0D1D47]">{tr("Customer")}</label>
-        <select id="repayment-customer" value={state.customerId} disabled={busy || state.customersLoading || !!state.customersError || !state.customers.length} onChange={event => actions.selectCustomer(event.target.value)} className={fieldClass}>
+        <Select id="repayment-customer" value={state.customerId} disabled={busy || state.customersLoading || !!state.customersError || !state.customers.length} onChange={event => actions.selectCustomer(event.target.value)} className={fieldClass}>
           <option value="">{tr("Select a customer")}</option>
           {state.customers.map(customer => <option key={customer.customer_id} value={customer.customer_id}>{customer.customer_name}{customer.phone ? ` | ${customer.phone}` : ""}</option>)}
-        </select>
+        </Select>
         {state.customersLoading && <p role="status" className="mt-2 text-sm text-[#587098]">{tr("Loading customers...")}</p>}
         {state.customersError && <p role="alert" className="mt-2 text-sm text-red-700">{tr(state.customersError)}</p>}
         {!state.customersLoading && !state.customersError && !state.customers.length && <p className="mt-2 text-sm text-[#587098]">{tr("No customers in this business.")} <Link to="/shop-owner/customers" className="text-[#1265D6] underline">{tr("Add a customer")}</Link> {tr("first.")}</p>}
@@ -100,7 +101,7 @@ export function RepaymentsView({ state, actions }) {
             <label className="block text-sm font-semibold text-[#36517B]" htmlFor="repayment-amount">{tr("Repayment amount (LKR)")}<input id="repayment-amount" name="amount" type="text" inputMode="decimal" autoComplete="off" required maxLength={20} value={state.amount} onChange={event => actions.edit("amount", event.target.value)} placeholder="0.00" aria-describedby="repayment-amount-help" className={fieldClass} /></label>
             <p id="repayment-amount-help" className="text-xs text-[#587098]">{tr("Enter a positive amount with at most two decimal places. The server checks the outstanding balance before recording.")}</p>
             <button type="button" onClick={() => actions.fullPayment()} className="text-sm font-semibold text-[#1265D6] underline">{tr("Full Payment")}</button>
-            <label className="block text-sm font-semibold text-[#36517B]" htmlFor="repayment-method">{tr("Payment method")}<select id="repayment-method" value={state.payment_method} onChange={event => actions.edit("payment_method", event.target.value)} className={fieldClass}>{PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{tr(label)}</option>)}</select></label>
+            <label className="block text-sm font-semibold text-[#36517B]" htmlFor="repayment-method">{tr("Payment method")}<Select id="repayment-method" value={state.payment_method} onChange={event => actions.edit("payment_method", event.target.value)} className={fieldClass}>{PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{tr(label)}</option>)}</Select></label>
             <label className="block text-sm font-semibold text-[#36517B]" htmlFor="repayment-reference">{tr("Reference (optional)")}<input id="repayment-reference" value={state.receipt_number} maxLength={60} onChange={event => actions.edit("receipt_number", event.target.value)} className={fieldClass} /><span className="text-xs font-normal">{tr("Leave blank to assign a receipt reference. CS- and RP- prefixes are reserved.")}</span></label>
             <label className="block text-sm font-semibold text-[#36517B]" htmlFor="repayment-notes">{tr("Notes (optional)")}<textarea id="repayment-notes" name="notes" rows={3} maxLength={2000} value={state.notes} onChange={event => actions.edit("notes", event.target.value)} className={fieldClass} /></label>
             <p className="text-xs text-[#587098]">{tr("Payments are recorded manually; bank transfers and cards are not electronically verified.")}</p>

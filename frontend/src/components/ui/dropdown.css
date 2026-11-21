@@ -1,0 +1,97 @@
+/* Shared dropdown language. Native controls retain their form/a11y contract. */
+.lp-select {
+  appearance:none; min-height:44px; max-width:100%; min-width:0;
+  border:1px solid #d4e2ee !important; border-radius:12px !important;
+  background-color:#fff !important; color:#10243e !important;
+  padding:10px 38px 10px 12px !important; font-family:inherit; font-size:14px !important;
+  font-weight:500; line-height:1.5; cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2352698a' stroke-width='1.7' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 12px center;
+  box-shadow:0 1px 2px #10243e08; transition:border-color 160ms,box-shadow 160ms,background-color 160ms;
+}
+.lp-select:hover:not(:disabled) { border-color:#5acbbd !important; background-color:#f6fcfb !important }
+.lp-select:focus-visible,.lp-dropdown-trigger:focus-visible,.lp-notification-trigger:focus-visible,.lp-popover :is(button,a,input):focus-visible {
+  outline:3px solid #12b8a6; outline-offset:3px;
+}
+.lp-select:focus-visible { border-color:#087d78 !important; box-shadow:0 0 0 4px #12b8a61a }
+.lp-select:disabled,.lp-dropdown-trigger:disabled { opacity:.55; cursor:not-allowed; background-color:#f5f8fc !important; box-shadow:none }
+.lp-select[aria-invalid="true"] { border-color:#dc4545 !important }
+.lp-select:user-invalid { border-color:#dc4545 !important }
+.lp-select[aria-busy="true"] { cursor:progress }
+.lp-select option { color:#10243e; background:#fff; font-size:14px }
+/* Supporting browsers provide a styled top-layer native picker with native
+   flipping, outside/Escape dismissal, typeahead, touch and keyboard selection.
+   Other browsers retain their accessible OS picker, not a simulated listbox. */
+@supports (appearance:base-select) {
+  .lp-select,.lp-select::picker(select) { appearance:base-select }
+  .lp-select { background-image:none; padding-right:12px !important; align-items:center; gap:12px }
+  .lp-select::picker-icon { color:#52698a; transition:rotate 160ms; margin-left:auto }
+  .lp-select:open::picker-icon { rotate:180deg; color:#087d78 }
+  .lp-select::picker(select) { border:1px solid #d4e2ee; border-radius:14px; padding:6px; margin-block:6px;
+    background:#fff; box-shadow:0 14px 40px #10243e26,0 2px 6px #10243e0d;
+    max-height:min(320px,70dvh); overflow:auto; color:#10243e; }
+  .lp-select option { display:flex; align-items:center; gap:10px; min-height:40px; padding:9px 12px;
+    border-radius:9px; font-family:inherit; font-size:14px; font-weight:500; line-height:1.5;
+    cursor:pointer; white-space:normal; overflow-wrap:anywhere; }
+  .lp-select option:hover,.lp-select option:focus { background:#e9faf6; color:#087d78; outline:none }
+  .lp-select option:checked { background:#e2f8f4; color:#075e5a; font-weight:600 }
+  .lp-select option::checkmark { color:#087d78; order:2; margin-left:auto }
+  .lp-select option:disabled { opacity:.5; cursor:not-allowed }
+}
+.lp-dropdown-trigger { display:inline-flex; align-items:center; justify-content:space-between; gap:10px;
+  min-height:44px; padding:10px 12px; border:1px solid #d4e2ee; border-radius:12px;
+  background:#fff; color:#10243e; font:600 14px/1.4 Inter,system-ui,sans-serif; cursor:pointer;
+  transition:background-color 160ms,border-color 160ms,box-shadow 160ms; }
+.lp-dropdown-trigger:hover,.lp-dropdown-trigger[aria-expanded="true"] { border-color:#8eddd2; background:#f0fbf8 }
+.lp-chevron { flex-shrink:0; color:#52698a; transition:transform 160ms }
+[aria-expanded="true"] > .lp-chevron { transform:rotate(180deg); color:#087d78 }
+.lp-popover { position:fixed; inset:auto; margin:0; width:260px; max-width:calc(100vw - 24px);
+  z-index:1000; overflow:auto; overscroll-behavior:contain; box-sizing:border-box;
+  border:1px solid #d4e2ee; border-radius:16px; background:#fff; color:#10243e;
+  box-shadow:0 16px 48px #10243e26,0 3px 8px #10243e0d;
+  animation:lp-menu-in 160ms ease-out; transform-origin:top right; font-family:Inter,system-ui,sans-serif; }
+.lp-popover[data-placement="top"] { transform-origin:bottom right }
+.lp-popover::backdrop { background:transparent }
+.lp-menu { padding:6px; width:260px }
+.lp-menu-heading { padding:12px 12px 14px; display:grid; gap:4px; overflow-wrap:anywhere }
+.lp-menu-heading strong { font-size:14px; font-weight:700 }
+.lp-menu-heading span,.lp-menu-heading small { font-size:12px; line-height:1.5; color:#64748b }
+.lp-menu-item,.lp-menu > button,.lp-menu > a { display:flex; align-items:center; gap:10px; width:100%; min-height:42px;
+  border:0; border-radius:10px; background:transparent; padding:10px 12px; text-align:left;
+  color:#10243e; font-size:14px; font-weight:500; line-height:1.5; text-decoration:none; cursor:pointer;
+  overflow-wrap:anywhere; white-space:normal; }
+.lp-menu-item > svg { flex-shrink:0 }
+.lp-menu-item:hover,.lp-menu-item:focus-visible,.lp-menu > :is(button,a):hover { background:#e9faf6; color:#087d78 }
+.lp-menu-item:disabled,.lp-menu > button:disabled { opacity:.5; cursor:not-allowed }
+.lp-menu .lp-menu-danger { color:#b42d2d }
+.lp-menu .lp-menu-danger:hover { background:#fff0f0; color:#a52323 }
+.lp-menu-separator { height:1px; margin:6px; background:#e5edf5 }
+.lp-account-trigger { border-color:transparent; padding:4px 8px; background:transparent; max-width:100% }
+.lp-avatar { display:flex; flex-shrink:0; align-items:center; justify-content:center; width:40px; height:40px;
+  border-radius:50%; background:linear-gradient(135deg,#e2f8f4,#d5f0ef); color:#087d78; font-size:14px; font-weight:700 }
+.lp-account-caption { display:grid; text-align:left; min-width:0 }
+.lp-account-caption > span { max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.lp-account-caption small { font-size:12px; font-weight:400; color:#64748b }
+.lp-notification-panel { width:384px; padding:0 }
+.lp-notification-trigger { width:44px !important; height:44px !important; border:1px solid #d4e2ee;
+  background:#fff; transition:background-color 160ms,border-color 160ms; }
+.lp-notification-trigger:hover,.lp-notification-trigger[aria-expanded="true"] { background:#e9faf6; border-color:#8eddd2 }
+.lp-notification-panel ul { padding:6px; margin:0; list-style:none }
+.lp-notification-panel li { border:1px solid #e5edf5; border-radius:12px; margin-bottom:6px }
+.lp-notification-panel li:last-child { border-bottom:1px solid #e5edf5 }
+.lp-mobile-navigation { position:fixed; inset:0 auto 0 0; margin:0; padding:0; border:0;
+  width:min(286px,85vw); max-width:none; height:100dvh; max-height:100dvh;
+  border-radius:0 16px 16px 0; background:#10243e; color:#fff; overflow:auto;
+  box-shadow:12px 0 50px #10243e38; animation:lp-menu-in 160ms ease-out; }
+.lp-mobile-navigation::backdrop { background:#10243e88; backdrop-filter:blur(3px) }
+.lp-mobile-navigation :is(button,a):focus-visible { outline:3px solid #12b8a6; outline-offset:3px }
+.lp-disclosure { border-radius:12px }
+.lp-disclosure > summary { border-radius:10px; padding:8px 10px; color:#10243e; transition:background-color 160ms }
+.lp-disclosure > summary:hover,.lp-disclosure[open] > summary { background:#e9faf6; color:#087d78 }
+.lp-disclosure > summary:focus-visible { outline:3px solid #12b8a6; outline-offset:3px }
+@keyframes lp-menu-in { from { opacity:0; transform:translateY(-4px) scale(.985) } to { opacity:1; transform:none } }
+@media(max-width:639px) { .lp-account-caption { display:none } .lp-menu-item { min-height:44px } }
+@media(prefers-reduced-motion:reduce) {
+  .lp-select,.lp-dropdown-trigger,.lp-notification-trigger,.lp-chevron,.lp-popover,.lp-mobile-navigation,.lp-disclosure > summary,.lp-select::picker-icon { animation:none; transition:none }
+}
+@media(forced-colors:active) { .lp-select,.lp-popover,.lp-dropdown-trigger { border:1px solid ButtonText !important } }

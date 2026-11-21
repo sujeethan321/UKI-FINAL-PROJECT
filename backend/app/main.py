@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from app.core.config import settings
 from app.core.http_security import configure_http_security
+from app.routers.subscriptions import router as subscription_router
 
 from app.routers.notifications import router as notification_router
 from app.routers.catalogue import owner_router as owner_catalogue_router, customer_router as customer_catalogue_router
@@ -29,6 +30,7 @@ app = FastAPI(
     version="1.0.0",
     debug=settings.APP_DEBUG,
 )
+app.include_router(subscription_router, prefix="/api/v1")
 app.include_router(driver_router, prefix="/api/v1")
 app.include_router(owner_catalogue_router, prefix="/api/v1")
 app.include_router(customer_catalogue_router, prefix="/api/v1")

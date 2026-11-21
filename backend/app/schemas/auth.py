@@ -40,7 +40,13 @@ class CustomerRegister(RegistrationBase):
 
 # Delivery Driver registration
 class DriverRegister(RegistrationBase):
-    pass
+    @field_validator('full_name')
+    @classmethod
+    def driver_name(cls, value):
+        value = value.strip()
+        if not 2 <= len(value) <= 150:
+            raise ValueError('Enter a valid full name')
+        return value
 
 
 # Shop Owner registration

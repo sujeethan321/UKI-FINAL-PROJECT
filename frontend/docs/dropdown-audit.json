@@ -1,0 +1,341 @@
+[
+  {
+    "file": "frontend/src/components/LanguageSelector.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option value=\"en\" lang=\"en\">",
+      "<option value=\"ta\" lang=\"ta\">",
+      "<option value=\"si\" lang=\"si\">"
+    ],
+    "originalHandlers": [
+      "<select value={i18n.resolvedLanguage || \"en\"} onChange={event ="
+    ]
+  },
+  {
+    "file": "frontend/src/components/RegistrationForm.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option value=\"en\">",
+      "<option value=\"ta\">",
+      "<option value=\"si\">"
+    ],
+    "originalHandlers": [
+      "<select\n            id=\"preferred_language\"\n            name=\"preferred_language\"\n            value={form.preferred_language}\n            onChange={updateField}\n            className=\"w-full rounded-xl border border-[#CBDCEC] bg-white/85 px-4 py-3.5 text-[#10243E] outline-none focus:border-[#12B8A6]\"\n          "
+    ]
+  },
+  {
+    "file": "frontend/src/pages/admin/AdminManagement.jsx",
+    "controls": 2,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={value} value={value}>",
+      "<option value=\"\">",
+      "<option key={value} value={value}>"
+    ],
+    "originalHandlers": [
+      "<select className={input + ' mt-2'} value={filters.status} disabled={locked} onChange={event =",
+      "<select className={input + ' mt-2'} value={filters.approval_status} disabled={locked} onChange={event ="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/auth/RegistrationForm.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option value=\"en\">",
+      "<option value=\"ta\">",
+      "<option value=\"si\">"
+    ],
+    "originalHandlers": [
+      "<select\n            disabled={loading}\n            id=\"preferred_language\"\n            name=\"preferred_language\"\n            value={form.preferred_language}\n            onChange={updateField}\n            className=\"w-full rounded-xl border border-[#CBDCEC] bg-white/85 px-4 py-3.5 text-[#10243E] outline-none focus:border-[#12B8A6]\"\n          "
+    ]
+  },
+  {
+    "file": "frontend/src/pages/customer/CustomerCatalogue.jsx",
+    "controls": 2,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={row.category_id} value={row.category_id}>",
+      "<option value=\"\">",
+      "<option value=\"available\">",
+      "<option value=\"unavailable\">"
+    ],
+    "originalHandlers": [
+      "<select id=\"browse-category\" className={field} value={state.filters.category_id} disabled={state.categories.loading} onChange={event=",
+      "<select id=\"browse-availability\" className={field} value={state.filters.availability_status} onChange={event="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/customer/OrderHistory.jsx",
+    "controls": 3,
+    "originalOptions": [
+      "<option value=\"newest\">",
+      "<option value=\"oldest\">",
+      "<option value=\"\">",
+      "<option key={b.business_id} value={b.business_id} disabled={b.approval_status!=='approved'}>",
+      "<option value=\"\">",
+      "<option key={s} value={s}>"
+    ],
+    "originalHandlers": [
+      "<select value={sort} onChange={e=",
+      "<select className={field} value={business||''} disabled={busy||!!id} onChange={event=",
+      "<select className={field} value={status} disabled={busy} onChange={event="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/customer/TransactionHistory.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option value=\"credit_sale\">",
+      "<option value=\"repayment\">"
+    ],
+    "originalHandlers": [
+      "<select className=\"mt-2 block w-full rounded-lg border border-[#D4E2EE] bg-white p-2\" value={filters.entry_type} onChange={e="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/driver/DriverDeliveries.jsx",
+    "controls": 2,
+    "originalOptions": [
+      "<option value=\"newest\">",
+      "<option value=\"oldest\">",
+      "<option value=\"\">",
+      "<option key={status} value={status}>"
+    ],
+    "originalHandlers": [
+      "<select className=\"mt-2 w-full rounded-lg border border-[#DAE5F3] px-3 py-2\" value={sort} onChange={e=",
+      "<select id=\"delivery-status\" value={state.status} disabled={state.list.loading} onChange={event="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/BusinessOnboarding.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={type.value} value={type.value}>"
+    ],
+    "originalHandlers": [
+      "<select\n              id=\"business_type\"\n              name=\"business_type\"\n              value={form.business_type}\n              onChange={updateField}\n              className={inputStyle}\n              required\n              disabled={submitting}\n            "
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ManageCustomerModal.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option key={status} value={status}>"
+    ],
+    "originalHandlers": [
+      "<select name=\"account_status\" value={form.account_status} onChange={update} className={fieldClass}"
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ReminderCommunication.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option value=\"granted\">",
+      "<option value=\"opted_out\">"
+    ],
+    "originalHandlers": [
+      "<select id={id + \"-status\"} value={state.consentStatus} onChange={e ="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ShopOwnerCreditSales.jsx",
+    "controls": 2,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={item.business_id} value={item.business_id}>",
+      "<option value=\"\">",
+      "<option key={customer.customer_id} value={customer.customer_id}>"
+    ],
+    "originalHandlers": [
+      "<select id=\"sale-business\" className=\"max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm\" value={state.businessId} disabled={busy || !state.businesses.length} onChange={event =",
+      "<select id=\"sale-customer\" value={state.customerId} disabled={busy || state.customersLoading || !!state.customersError || !state.customers.length} onChange={event ="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ShopOwnerCustomers.jsx",
+    "controls": 2,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={b.business_id} value={b.business_id}>",
+      "<option value=\"all\">",
+      "<option key={s} value={s}>"
+    ],
+    "originalHandlers": [
+      "<select id=\"customer-business\" className=\"max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm\" value={selectedBusinessId} disabled={contextLoading || !businesses.length} onChange={e =",
+      "<select id=\"customer-filter\" value={statusFilter} onChange={e ="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ShopOwnerDashboard.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option\n                  key={business.business_id}\n                  value={business.business_id}\n                >"
+    ],
+    "originalHandlers": [
+      "<select\n              aria-label={tr(\"Select business\")}\n              value={selectedBusinessId ?? \"\"}\n              onChange={(event) ="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ShopOwnerDeliveries.jsx",
+    "controls": 2,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={row.business_id} value={row.business_id}>",
+      "<option value=\"\">",
+      "<option key={value} value={value}>"
+    ],
+    "originalHandlers": [
+      "<select id=\"delivery-business\" value={state.businessId??''} disabled={state.busy||state.contextLoading||!state.businesses.length} onChange={event=",
+      "<select id=\"shop-delivery-status\" value={state.status} disabled={state.busy||state.list.loading} onChange={event="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ShopOwnerNotifications.jsx",
+    "controls": 7,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={b.business_id} value={b.business_id}>",
+      "<option value=\"\">",
+      "<option key={c.customer_id} value={c.customer_id}>",
+      "<option key={v} value={v} disabled={v !== \"internal\" && !!state.details && !state.details.customer.phone}>",
+      "<option key={v} value={v}>",
+      "<option value=\"\">",
+      "<option key={c.customer_id} value={c.customer_id}>",
+      "<option value=\"\">",
+      "<option value=\"recorded\">",
+      "<option value=\"newest\">",
+      "<option value=\"oldest\">"
+    ],
+    "originalHandlers": [
+      "<select id=\"reminder-business\" className=\"min-w-0 max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm\" value={state.businessId} disabled={busy || !state.businesses.length} onChange={e =",
+      "<select id=\"reminder-customer\" className={field} value={state.customerId} disabled={busy || state.customersLoading || !!state.customersError} onChange={e =",
+      "<select id=\"reminder-channel\" className={field} value={state.channel} onChange={e =",
+      "<select id=\"reminder-language\" className={field} value={state.language} onChange={e =",
+      "<select id=\"history-customer\" className={field} value={state.historyCustomerId} onChange={e =",
+      "<select id=\"history-status\" className={field} value={state.status} onChange={e =",
+      "<select id=\"history-order\" className={field} value={state.ordering} onChange={e ="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ShopOwnerProducts.jsx",
+    "controls": 7,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option value={selected}>",
+      "<option key={row.category_id} value={row.category_id}>",
+      "<option value=\"\">",
+      "<option key={row.category_id} value={row.category_id}>",
+      "<option value=\"\">",
+      "<option key={value} value={value}>",
+      "<option value=\"\">",
+      "<option key={value} value={value}>",
+      "<option key={value} value={value}>",
+      "<option value=\"draft\">",
+      "<option value=\"published\">",
+      "<option value=\"\">",
+      "<option key={row.business_id} value={row.business_id}>"
+    ],
+    "originalHandlers": [
+      "<select id=\"catalogue-category-filter\" value={state.filters.category_id} className={field} disabled={state.busy} onChange={event=",
+      "<select id=\"catalogue-availability-filter\" value={state.filters.availability_status} className={field} disabled={state.busy} onChange={event=",
+      "<select id=\"catalogue-publication-filter\" value={state.filters.publication_status} className={field} disabled={state.busy} onChange={event=",
+      "<select id=\"product-category\" className={field} value={form.category_id} disabled={disabled} onChange={event=",
+      "<select id=\"product-availability\" className={field} value={form.availability_status} disabled={disabled} onChange={event=",
+      "<select id=\"product-publication\" className={field} value={form.publication_status} disabled={disabled} onChange={event=",
+      "<select id=\"catalogue-business\" className={field} value={state.businessId??''} disabled={state.busy||state.contextLoading||!state.businesses.length} onChange={event="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ShopOwnerRepayments.jsx",
+    "controls": 3,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={item.business_id} value={item.business_id}>",
+      "<option value=\"\">",
+      "<option key={customer.customer_id} value={customer.customer_id}>",
+      "<option key={value} value={value}>"
+    ],
+    "originalHandlers": [
+      "<select id=\"repayment-business\" className=\"max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm\" value={state.businessId} disabled={busy || !state.businesses.length} onChange={event =",
+      "<select id=\"repayment-customer\" value={state.customerId} disabled={busy || state.customersLoading || !!state.customersError || !state.customers.length} onChange={event =",
+      "<select id=\"repayment-method\" value={state.payment_method} onChange={event ="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ShopOwnerReports.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={b.business_id} value={b.business_id} disabled={b.approval_status!=='approved'}>"
+    ],
+    "originalHandlers": [
+      "<select className=\"mt-2 block max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2\" value={businessId || ''} onChange={e="
+    ]
+  },
+  {
+    "file": "frontend/src/pages/shopOwner/ShopOwnerSettings.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={b.business_id} value={b.business_id}>"
+    ],
+    "originalHandlers": [
+      "<select value={businessId||''} onChange={e="
+    ]
+  },
+  {
+    "file": "frontend/src/components/customer/CustomerInbox.jsx",
+    "controls": 2,
+    "originalOptions": [
+      "<option value=\"all\">",
+      "<option value=\"unread\">",
+      "<option value=\"read\">",
+      "<option value=\"\">",
+      "<option key={value} value={value}>"
+    ],
+    "originalHandlers": [
+      "<select value={state.readFilter} disabled={blocked} onChange={e=",
+      "<select value={state.typeFilter} disabled={blocked} onChange={e="
+    ]
+  },
+  {
+    "file": "frontend/src/components/driver/DriverInbox.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={value} value={value}>"
+    ],
+    "originalHandlers": [
+      "<select value={state.typeFilter} disabled={blocked} className=\"ml-2 max-w-full rounded-lg border border-[#DAE5F3] px-3 py-2\" onChange={e="
+    ]
+  },
+  {
+    "file": "frontend/src/components/notifications/NotificationInbox.jsx",
+    "controls": 2,
+    "originalOptions": [
+      "<option value=\"all\">",
+      "<option value=\"unread\">",
+      "<option value=\"read\">",
+      "<option value=\"\">",
+      "<option key={value} value={value}>"
+    ],
+    "originalHandlers": [
+      "<select id=\"notification-read-filter\" className={field} value={state.readFilter} disabled={state.mutating || !!state.authError} onChange={e =",
+      "<select id=\"notification-type-filter\" className={field} value={state.typeFilter} disabled={state.mutating || !!state.authError} onChange={e ="
+    ]
+  },
+  {
+    "file": "frontend/src/components/shopOwner/ShopOwnerInbox.jsx",
+    "controls": 1,
+    "originalOptions": [
+      "<option value=\"\">",
+      "<option key={value} value={value}>"
+    ],
+    "originalHandlers": [
+      "<select aria-label=\"Notification category\" value={state.typeFilter} disabled={state.mutating||!!state.authError} onChange={e="
+    ]
+  }
+]

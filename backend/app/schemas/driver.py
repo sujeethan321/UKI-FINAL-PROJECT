@@ -29,6 +29,9 @@ class DriverProfileResponse(BaseModel):
     eligible_for_jobs: bool
     eligibility_reason: Literal["profile_required", "approval_pending", "approval_rejected", "approval_suspended", "vehicle_required", "eligible"]
     vehicle: DriverVehicle | None
+    vehicle_registration_status: Literal['not_registered', 'pending', 'approved', 'rejected', 'suspended'] = 'not_registered'
+    document_statuses: dict[Literal['DRIVING_LICENCE', 'VEHICLE_OWNERSHIP_PROOF'], Literal['PENDING', 'APPROVED', 'REJECTED']] = Field(default_factory=dict)
+    legacy_document_exempt: bool = False
 
 
 class DriverSummary(BaseModel):
@@ -47,6 +50,8 @@ class DriverDelivery(BaseModel):
     status: Literal["assigned", "picked_up", "in_transit", "delivered", "cancelled"]
     assigned_at: datetime
     finished_at: datetime | None = None
+    linked_order_subtotal: str | None = None
+    estimated_delivery_earning: str | None = None
 
 
 class DriverDeliveries(BaseModel):

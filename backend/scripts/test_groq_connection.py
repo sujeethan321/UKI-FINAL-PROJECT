@@ -7,6 +7,7 @@ import argparse
 import asyncio
 from dataclasses import dataclass
 import sys
+from pathlib import Path
 
 MODEL = "openai/gpt-oss-120b"
 BASE_URL = "https://api.groq.com/openai/v1"
@@ -24,8 +25,9 @@ SAFE_CATEGORIES = {
 
 
 class Stop(RuntimeError):
-    def __init__(self, category="configuration"):
+    def __init__(self, category="configuration", diagnostic="UNSPECIFIED"):
         self.category = category if category in SAFE_CATEGORIES else "provider_error"
+        self.diagnostic = diagnostic
         super().__init__(self.category)
 
 
@@ -50,25 +52,34 @@ def arguments(argv=None):
 def validate_config(config):
     try:
         secret = config.GROQ_API_KEY.get_secret_value() if config.GROQ_API_KEY else ""
-        valid = (
-            config.AI_ENABLED is True
-            and bool(secret)
-            and config.GROQ_BASE_URL == BASE_URL
-            and config.GROQ_MODEL == MODEL
-            and float(config.GROQ_TIMEOUT_SECONDS) == TIMEOUT_SECONDS
-            and int(config.GROQ_MAX_OUTPUT_TOKENS) == MAX_OUTPUT_TOKENS
+        checks = (
+            ("AI_DISABLED", config.AI_ENABLED is True),
+            ("KEY_MISSING", bool(secret)),
+            ("BASE_URL_MISMATCH", config.GROQ_BASE_URL == BASE_URL),
+            ("MODEL_MISMATCH", config.GROQ_MODEL == MODEL),
+            ("TIMEOUT_MISMATCH", float(config.GROQ_TIMEOUT_SECONDS) == TIMEOUT_SECONDS),
+            ("TOKEN_BUDGET_MISMATCH", int(config.GROQ_MAX_OUTPUT_TOKENS) == MAX_OUTPUT_TOKENS),
         )
     except Exception:
-        valid = False
-    if not valid:
-        raise Stop("configuration")
+        raise Stop("configuration", "INVALID_SETTINGS_SHAPE") from None
+    for diagnostic, valid in checks:
+        if not valid:
+            raise Stop("configuration", diagnostic)
 
 
 def load_validated_settings():
     # Imported only for an operator invocation. Importing this script for its
     # database-free tests does not load dotenv or inspect any real secret.
-    from app.core.config import load_settings
-    return load_settings()
+    backend = str(Path(__file__).resolve().parents[1])
+    if backend not in sys.path:
+        sys.path.insert(0, backend)
+    try:
+        from app.core.config import load_settings
+        return load_settings()
+    except ImportError:
+        raise Stop("configuration", "BACKEND_IMPORT") from None
+    except Exception:
+        raise Stop("configuration", "SETTINGS_VALIDATION") from None
 
 
 async def generate_once(config, request):
@@ -115,7 +126,7 @@ def main(argv=None):
         if isinstance(exc, SystemExit):
             print("STOP: GroqCloud connection-test arguments rejected", file=sys.stderr)
         else:
-            print(f"STOP: GroqCloud connection test failed category={exc.category}", file=sys.stderr)
+            print(f"STOP: GroqCloud connection test failed category={exc.category}; diagnostic={exc.diagnostic}", file=sys.stderr)
         return 1
     except Exception:
         print("STOP: GroqCloud connection test failed category=configuration", file=sys.stderr)

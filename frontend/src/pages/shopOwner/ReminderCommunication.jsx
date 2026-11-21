@@ -1,3 +1,4 @@
+import Select from "../../components/ui/Select";
 import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { getReminderCommunication, recordCustomerCommunicationConsent, requestWhatsAppHandoff } from "../../services/communicationService";
 import { sessionCommunicationStore } from "../../utils/communication";
@@ -22,11 +23,11 @@ export function ReminderCommunicationView({ state, actions }) {
       <div className="space-y-2 rounded-lg bg-[#F5F8FC] p-4"><h4 className="text-sm font-semibold">Saved server message — {reminderMoney(preview.outstanding_amount)}</h4><p lang={preview.language} className="whitespace-pre-wrap break-words text-sm">{preview.message}</p></div>
       <p className="text-xs text-[#587098]">Open WhatsApp shares this customer number and saved message with WhatsApp. You must review and send it there yourself. A handoff request does not confirm application launch, sending or delivery. The reminder remains recorded.</p>
       <button type="button" disabled={!preview.eligible || state.saving || state.loading} onClick={actions.openWhatsApp} className="rounded-lg bg-[#12B8A6] px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">{state.saving ? "Preparing..." : "Open WhatsApp"}</button>
-      <details className="border-t border-[#E1EAF4] pt-3"><summary className="cursor-pointer text-sm font-semibold">Record customer preference or opt-out</summary>
+      <details className="lp-disclosure border-t border-[#E1EAF4] pt-3"><summary className="cursor-pointer text-sm font-semibold">Record customer preference or opt-out</summary>
         <p className="mt-3 text-xs text-[#587098]">Record only what the customer actually stated. This does not obtain permission on their behalf. A grant applies to the current mobile number; a changed number requires a new statement. Opt-outs block all WhatsApp handoffs for this customer.</p>
         <form className="mt-3 space-y-3" onSubmit={e => { e.preventDefault(); void actions.saveConsent(); }}>
           <fieldset disabled={state.saving || state.loading} className="space-y-3">
-            <label htmlFor={id + "-status"} className="block text-sm font-semibold">Customer's stated preference<select id={id + "-status"} value={state.consentStatus} onChange={e => actions.edit("consentStatus", e.target.value)} className={field}><option value="">Select the actual preference</option><option value="granted">Customer granted WhatsApp permission</option><option value="opted_out">Customer opted out of WhatsApp</option></select></label>
+            <label htmlFor={id + "-status"} className="block text-sm font-semibold">Customer's stated preference<Select id={id + "-status"} value={state.consentStatus} onChange={e => actions.edit("consentStatus", e.target.value)} className={field}><option value="">Select the actual preference</option><option value="granted">Customer granted WhatsApp permission</option><option value="opted_out">Customer opted out of WhatsApp</option></Select></label>
             <label htmlFor={id + "-evidence"} className="block text-sm font-semibold">When and how was this stated?<input id={id + "-evidence"} value={state.evidence} maxLength={500} onChange={e => actions.edit("evidence", e.target.value)} className={field} autoComplete="off" /></label>
             <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={state.confirmed} onChange={e => actions.edit("confirmed", e.target.checked)} className="mt-1" />I confirm this records the customer's actual stated preference for this contact, not an assumption.</label>
             <button type="submit" className={button}>Record Preference</button>

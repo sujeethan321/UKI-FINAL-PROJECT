@@ -1,3 +1,4 @@
+import MobileNavigation from "../ui/MobileNavigation";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import BrandLogo from "../BrandLogo";
 
@@ -16,6 +17,7 @@ import {
   Settings,
   Menu,
   X,
+  LockKeyhole,
 } from "lucide-react";
 
 const navigation = [
@@ -79,12 +81,18 @@ const navigation = [
     icon: Settings,
     ready: true,
   },
+  {
+    label: "Subscription & Billing",
+    path: "/shop-owner/subscription",
+    icon: CreditCard,
+    ready: true,
+  },
 ];
 
 // Keep the reference order, with catalogue after delivery management.
 const orderedNavigation = [navigation[0], navigation[1], navigation[3], navigation[4], navigation[5], navigation[6], navigation[2], ...navigation.slice(7)];
 
-export default function ShopOwnerSidebar() {
+export default function ShopOwnerSidebar({entitlements}) {
   const { tr } = useAppTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -139,7 +147,7 @@ export default function ShopOwnerSidebar() {
               }
             >
               <Icon size={19} aria-hidden="true" />
-              <span>{tr(item.label)}</span>
+              <span>{tr(item.label)}</span>{entitlements?.[{products:'catalogue',orders:'orders',deliveries:'deliveries',reports:'reports'}[item.path.split('/').at(-1)]]===false&&<LockKeyhole size={15} aria-label={tr('Upgrade to Pro')}/>}
             </NavLink>
           );
         })}
@@ -156,6 +164,7 @@ export default function ShopOwnerSidebar() {
         onClick={() => setIsOpen(true)}
         aria-label={tr("Open shop owner menu")}
         aria-expanded={isOpen}
+        aria-controls="shop-owner-mobile-sidebar"
         className="fixed left-4 top-4 z-40 flex h-11 w-11 items-center justify-center rounded-xl bg-[#10243E] text-white shadow-lg lg:hidden"
       >
         <Menu size={23} />
@@ -166,30 +175,11 @@ export default function ShopOwnerSidebar() {
         {sidebar}
       </aside>
 
-      {/* Mobile sidebar */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            type="button"
-            aria-label={tr("Close sidebar overlay")}
-            onClick={closeSidebar}
-            className="absolute inset-0 bg-black/50"
-          />
-
-          <aside className="absolute inset-y-0 left-0 w-[min(286px,85vw)] shadow-2xl">
-            {sidebar}
-
-            <button
-              type="button"
-              onClick={closeSidebar}
-              aria-label={tr("Close shop owner menu")}
-              className="absolute right-3 top-3 rounded-lg p-2 text-white hover:bg-white/10"
-            >
-              <X size={22} />
-            </button>
-          </aside>
-        </div>
-      )}
+      <MobileNavigation open={isOpen} onClose={closeSidebar} id="shop-owner-mobile-sidebar" label={tr("Shop owner navigation")}>
+        {sidebar}
+        <button type="button" onClick={closeSidebar} aria-label={tr("Close shop owner menu")}
+          className="absolute right-3 top-3 rounded-lg p-2 text-white hover:bg-white/10"><X size={22} /></button>
+      </MobileNavigation>
     </>
   );
 }

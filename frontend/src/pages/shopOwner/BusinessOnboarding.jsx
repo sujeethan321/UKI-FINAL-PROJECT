@@ -1,3 +1,4 @@
+import Select from "../../components/ui/Select";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -293,7 +294,7 @@ export default function BusinessOnboarding() {
               Business Type *
             </label>
 
-            <select
+            <Select
               id="business_type"
               name="business_type"
               value={form.business_type}
@@ -309,7 +310,7 @@ export default function BusinessOnboarding() {
                   {type.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>

@@ -1,3 +1,4 @@
+import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
 import { useState, useSyncExternalStore } from "react";
@@ -34,7 +35,7 @@ const roleConfigs = {
 
 export default function RegistrationForm({ controller, joinReturnTo }) {
   const { tr } = useAppTranslation();
-  const { role, form, confirmPassword, loading, error } = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  const { role, form, confirmPassword, loading, uncertain, error } = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const config = roleConfigs[role];
   const safeJoinReturnTo = role === "customer" ? validateJoinReturnPath(joinReturnTo) : null;
   const [showPassword, setShowPassword] = useState(false);
@@ -166,7 +167,7 @@ export default function RegistrationForm({ controller, joinReturnTo }) {
             className="mb-2 block text-sm font-semibold text-[#10243E]"
           >{tr("Preferred Language (Optional)")}</label>
 
-          <select
+          <Select
             disabled={loading}
             id="preferred_language"
             name="preferred_language"
@@ -177,7 +178,7 @@ export default function RegistrationForm({ controller, joinReturnTo }) {
             <option value="en">{tr("English")}</option>
             <option value="ta">{tr("தமிழ் (Tamil)")}</option>
             <option value="si">{tr("සිංහල (Sinhala)")}</option>
-          </select>
+          </Select>
         </div>
 
         <div>
@@ -250,7 +251,7 @@ export default function RegistrationForm({ controller, joinReturnTo }) {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || uncertain}
           className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-[#05BEC5] to-[#06BDA5] px-5 py-4 font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
         >
           {loading ? (

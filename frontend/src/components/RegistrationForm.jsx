@@ -1,3 +1,4 @@
+import Select from "./ui/Select";
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -220,7 +221,7 @@ export default function RegistrationForm({ role }) {
             Preferred Language (Optional)
           </label>
 
-          <select
+          <Select
             id="preferred_language"
             name="preferred_language"
             value={form.preferred_language}
@@ -230,7 +231,7 @@ export default function RegistrationForm({ role }) {
             <option value="en">English</option>
             <option value="ta">தமிழ் (Tamil)</option>
             <option value="si">සිංහල (Sinhala)</option>
-          </select>
+          </Select>
         </div>
 
         <div>

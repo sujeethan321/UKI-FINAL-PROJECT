@@ -5,7 +5,7 @@ user/profile before the delivery; business checks use shared locks.
 """
 from uuid import uuid4
 from fastapi import HTTPException
-from sqlalchemy import exists, func, select
+from sqlalchemy import and_, exists, func, select
 from app.models import User, Business, BusinessMember, DriverProfile, DeliveryRequest, DeliveryAssignment, DeliveryStatusEvent, Order
 from app.models.delivery import utc_now
 
@@ -46,7 +46,16 @@ def eligibility(profile):
 def driver_profile(db, user):
     profile = profile_row(db, user.user_id)
     eligible, reason = eligibility(profile)
+    from app.models import DriverVerificationDocument
+    documents = dict(db.execute(select(DriverVerificationDocument.document_type, DriverVerificationDocument.review_status).where(
+        DriverVerificationDocument.driver_user_id == user.user_id,
+        DriverVerificationDocument.current_slot == 1)).all()) if profile else {}
+    rejected = 'REJECTED' in documents.values()
+    state = 'not_registered' if profile is None or (profile.approval_status == 'pending' and not documents) else (
+        'rejected' if rejected or profile.approval_status == 'rejected' else profile.approval_status)
     return dict(driver_user_id=user.user_id, full_name=user.full_name, account_status=user.account_status,
+                vehicle_registration_status=state, document_statuses=documents,
+                legacy_document_exempt=bool(profile and profile.legacy_document_exempt),
                 approval_status=profile.approval_status if profile else "not_submitted",
                 eligible_for_jobs=eligible, eligibility_reason=reason,
                 vehicle=dict(vehicle_type=profile.vehicle_type, registration_reference=profile.registration_reference)
@@ -72,9 +81,12 @@ def summary(db, user):
 
 
 def assigned_deliveries(db, user, page, page_size, status=None, history=False):
-    query = select(DeliveryRequest, DeliveryAssignment.assigned_at, Business.business_name).join(
+    query = select(DeliveryRequest, DeliveryAssignment.assigned_at, Business.business_name, Order.subtotal).join(
         DeliveryAssignment, DeliveryAssignment.delivery_request_id == DeliveryRequest.delivery_request_id,
-    ).join(Business, Business.business_id == DeliveryRequest.business_id).where(
+    ).join(Business, Business.business_id == DeliveryRequest.business_id).outerjoin(Order,and_(
+        Order.delivery_request_id == DeliveryRequest.delivery_request_id,
+        Order.business_id == DeliveryRequest.business_id,
+        Order.status.in_(('approved','processing','completed')))).where(
         DeliveryAssignment.driver_user_id == user.user_id,
         DeliveryRequest.status.in_(("delivered", "cancelled") if history else ACTIVE))
     if status:
@@ -82,11 +94,16 @@ def assigned_deliveries(db, user, page, page_size, status=None, history=False):
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     rows = db.execute(query.order_by(DeliveryAssignment.assigned_at.desc(), DeliveryAssignment.assignment_id.desc()).offset(
         (page - 1) * page_size).limit(page_size))
+    from app.services.delivery_estimate_service import delivery_estimate
     return dict(driver_user_id=user.user_id, total=total, page=page, page_size=page_size,
                 deliveries=[dict(delivery_request_id=row.delivery_request_id, reference=row.reference,
                     business_name=business_name, pickup_area=row.pickup_area, delivery_area=row.delivery_area,
                     status=row.status, assigned_at=assigned_at,
-                    finished_at=recorded_finish(db, row)) for row, assigned_at, business_name in rows])
+                    finished_at=recorded_finish(db, row),
+                    linked_order_subtotal=format(subtotal,'.2f') if subtotal is not None and not history else None,
+                    estimated_delivery_earning=delivery_estimate(subtotal)['estimated_delivery_fee']
+                        if subtotal is not None and not history else None)
+                    for row, assigned_at, business_name, subtotal in rows])
 
 
 def create_profile(db, user_id, vehicle_type=None, registration_reference=None):
@@ -132,8 +149,18 @@ def requesting_business(db, user_id, business_id):
     return business
 
 
-def create_delivery(db, owner_id, business_id, pickup_area, delivery_area):
+def create_delivery(db, owner_id, business_id, pickup_area, delivery_area, existing_order_id=None):
     requesting_business(db, owner_id, business_id)
+    # Only a persisted already-accepted order may retain fulfilment after downgrade.
+    protected = existing_order_id is not None and db.scalar(select(Order.order_id).where(
+        Order.order_id==existing_order_id,Order.business_id==business_id,
+        Order.delivery_request_id.is_(None),
+        ((Order.payment_method=='cash') & (Order.status=='processing')) |
+        ((Order.payment_method=='credit') & Order.status.in_(('approved','processing')) & (Order.payment_status=='posted'))
+    ).with_for_update(read=True)) is not None
+    if not protected:
+        from app.services.subscription_service import require_business_feature
+        require_business_feature(db,business_id,'deliveries')
     if any(not isinstance(value, str) or not value.strip() or len(value.strip()) > 160 for value in [pickup_area, delivery_area]):
         raise HTTPException(422, "Provide valid pickup and delivery areas")
     row = DeliveryRequest(reference="DR-" + uuid4().hex, business_id=business_id, created_by=owner_id,
@@ -147,6 +174,10 @@ def eligible_driver(db, driver_id):
     profile = profile_row(db, driver_id, lock=True)
     if not eligibility(profile)[0]:
         raise HTTPException(403, "Driver is not eligible to accept or update deliveries")
+    if not profile.legacy_document_exempt:
+        from app.services.driver_document_service import application_documents_ready
+        if not application_documents_ready(db, driver_id):
+            raise HTTPException(403, 'Approved current verification documents are required for deliveries')
 
 
 def lock_linked_order(db, request_id):

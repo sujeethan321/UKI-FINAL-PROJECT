@@ -1,0 +1,29 @@
+.subscription-page { display:grid; gap:20px; color:#10243e; font-family:Inter,system-ui,sans-serif }
+.subscription-business { display:grid; gap:8px; max-width:420px; font-size:14px; font-weight:600 }
+.subscription-card { background:white; border:1px solid #d4e2ee; border-radius:16px; padding:24px; min-width:0; box-shadow:0 2px 5px #10243e05 }
+.subscription-card h3 { margin:0 0 12px; font-size:21px; font-weight:700 }
+.subscription-card p { font-size:14px; color:#52698a; line-height:1.6; margin:8px 0 }
+.subscription-eyebrow { text-transform:uppercase; letter-spacing:.08em; font-size:12px!important; font-weight:600 }
+.subscription-trial { margin-top:14px; border:1px solid #a4e5da; border-radius:12px; background:#edfbf7; padding:16px; font-size:14px; color:#075e5a }
+.subscription-trial p { margin:6px 0; font-size:13px; line-height:1.6 }
+.subscription-plans { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px }
+.subscription-plans .subscription-card { display:flex; flex-direction:column }
+.subscription-selected { border:2px solid #12b8a6; padding:23px }
+.subscription-plan-heading { display:flex; align-items:start; flex-wrap:wrap; justify-content:space-between; gap:8px }
+.subscription-plan-heading span { border-radius:20px; background:#e2f8f4; padding:4px 8px; font-size:12px; color:#075e5a }
+.subscription-price { font-size:27px!important; font-weight:700; color:#10243e!important }
+.subscription-price small { display:block; font-size:13px; color:#52698a; font-weight:400 }
+.subscription-card ul { padding:12px 0; list-style:none; flex:1; font-size:13px; line-height:2.1 }
+.subscription-card li span { color:#087d78 }
+.subscription-page button { min-height:44px; padding:10px 16px; border-radius:10px; border:1px solid #c4d6e5; background:white; color:#10243e; font-size:14px; font-weight:600; cursor:pointer }
+.subscription-page button:disabled { background:#f5f8fc; color:#64748b; cursor:not-allowed }
+.subscription-page :is(button,a):focus-visible { outline:3px solid #12b8a6; outline-offset:3px }
+.subscription-interval { display:flex; gap:6px; flex-wrap:wrap }
+.subscription-interval [aria-pressed=true] { background:#10243e; border-color:#10243e; color:white }
+.subscription-table-wrap { overflow:auto }
+.subscription-page table { width:100%; border-collapse:collapse; min-width:480px; font-size:13px; text-align:left }
+.subscription-page :is(th,td) { padding:12px; border-bottom:1px solid #e1eaf4 }
+.subscription-page thead { background:#f5f8fc }
+.subscription-error { padding:16px; border:1px solid #dc4545; border-radius:12px }
+@media(max-width:1000px) { .subscription-plans { grid-template-columns:1fr } }
+@media(max-width:480px) { .subscription-card { padding:18px } .subscription-selected { padding:17px } }

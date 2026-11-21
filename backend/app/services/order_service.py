@@ -14,6 +14,13 @@ from app.schemas.ledger import CreditSaleCreate
 from app.services.notification_service import notify_event
 
 MAX_TOTAL = Decimal('999999999999.99')
+
+def require_new_order_plan(db,business_id):
+    from app.services.subscription_service import require_business_feature
+    try:require_business_feature(db,business_id,'orders')
+    except HTTPException as error:
+        if error.status_code!=403:raise
+        raise HTTPException(403,'This shop is not accepting new shopping orders on its current plan. Choose another shop or contact its owner.') from None
 def current(db, query, shared=True):
     return db.scalar(query.with_for_update(read=shared).execution_options(populate_existing=True))
 def actor(db, user_id, role, exclusive=False):
@@ -72,15 +79,17 @@ def line_data(line):
     return data
 
 def quote(db,user,payload):
+    from app.services.delivery_estimate_service import delivery_estimate
     business=shop(db,payload.business_id)
     actor(db,user.user_id,'customer')
+    require_new_order_plan(db,payload.business_id)
     lines,total=priced_items(db,payload)
     eligible=True;guidance='Credit requires Shop Owner approval; no debt is created by submission.'
     try: credit(db,user.user_id,payload.business_id,total)
     except HTTPException as error: eligible=False;guidance=error.detail
     return dict(business_id=business.business_id,business_name=business.business_name,
         items=[line_data(i) for i in lines],subtotal=f'{total:.2f}',total=f'{total:.2f}',
-        credit_available=eligible,credit_guidance=guidance)
+        credit_available=eligible,credit_guidance=guidance,**delivery_estimate(total))
 
 def order_data(row,business_name,customer_name,items):
     return dict(**{key:getattr(row,key) for key in ('order_id','reference','business_id','payment_method','payment_status','status','credit_sale_id','created_at','updated_at')},
@@ -103,6 +112,7 @@ def create(db,user,payload):
     if existing:
         if existing.request_hash!=digest: raise HTTPException(409,'Request key already used for a different order')
         return response(db,existing)
+    require_new_order_plan(db,payload.business_id)
     lines,total=priced_items(db,payload)
     account=credit(db,user.user_id,payload.business_id,total) if payload.payment_method=='credit' else None
     row=Order(reference='ORD-'+uuid4().hex,customer_user_id=user.user_id,business_id=payload.business_id,
@@ -154,6 +164,9 @@ def decide(db,user,order_id,action,business_id=None):
     allowed={'submitted':{'reject','cancel','approve'} if row.payment_method=='credit' else {'reject','cancel','process'},
              'approved':{'process'},'processing':{'complete'}}
     if action not in allowed.get(row.status,set()):raise HTTPException(409,'Order transition is not permitted')
+    if row.status=='submitted' and action in {'approve','process'}:
+        from app.services.subscription_service import require_business_feature
+        require_business_feature(db,row.business_id,'orders')
     if action=='approve':
         actor(db,row.customer_user_id,'customer')
         account=credit(db,row.customer_user_id,row.business_id,row.total,row.credit_account_id)

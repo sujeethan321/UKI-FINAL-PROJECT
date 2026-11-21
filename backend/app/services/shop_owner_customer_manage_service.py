@@ -49,6 +49,8 @@ def manage_credit_account(db, business_id, customer_id, payload, create=False):
     if create:
         if account is not None:
             raise HTTPException(409, "This customer already has a credit account")
+        from app.services.subscription_service import enforce_new_credit_account_capacity
+        enforce_new_credit_account_capacity(db,business_id)
         account = CreditAccount(creditor_business_id=business_id, customer_id=customer_id,
                                 **payload.model_dump())
         db.add(account)

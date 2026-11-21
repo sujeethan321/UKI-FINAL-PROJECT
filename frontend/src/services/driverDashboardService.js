@@ -1,6 +1,8 @@
 import api from './api';
 export async function submitDriverProfile(payload) {
-  return (await api.post('/driver/profile', payload)).data;
+  const form = new FormData();
+  for (const [name, value] of Object.entries(payload)) form.append(name, value);
+  return (await api.post('/driver/vehicle', form, {headers: {'Content-Type': undefined}, timeout: 60000})).data;
 }
 export async function getDriverProfile({signal}={}) {
   return (await api.get('/driver/profile',{signal})).data;

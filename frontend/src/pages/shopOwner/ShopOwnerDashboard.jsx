@@ -1,3 +1,6 @@
+import Select from "../../components/ui/Select";
+import SubscriptionSummary from "../../components/shopOwner/SubscriptionSummary";
+import "./subscription.css";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
 import { useEffect, useState } from "react";
@@ -234,7 +237,7 @@ if (businesses.length === 0) {
             >{tr("Your business was submitted successfully. It is now waiting for administrator approval.")}</div>
           )}
           {businesses.length > 1 && (
-            <select
+            <Select
               aria-label={tr("Select business")}
               value={selectedBusinessId ?? ""}
               onChange={(event) =>
@@ -250,7 +253,7 @@ if (businesses.length === 0) {
                   {business.business_name}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
         </div>
 
@@ -281,6 +284,7 @@ if (businesses.length === 0) {
         </div>
       ) : (
         <>
+          <QuickActions businessId={selectedBusinessId} />
           {dataLoading && (
             <p role="status" className="text-sm text-[#64748B]">{tr("Loading dashboard data...")}</p>
           )}
@@ -296,6 +300,7 @@ if (businesses.length === 0) {
           )}
 
           <OverviewCards summary={summary} />
+          <SubscriptionSummary key={selectedBusinessId} businessId={selectedBusinessId} />
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.8fr_1fr]">
             <div>
@@ -315,7 +320,6 @@ if (businesses.length === 0) {
 
             <NeedsAttention summary={summary} businessId={selectedBusinessId} />
           </div>
-          <QuickActions businessId={selectedBusinessId} />
         </>
       )}
     </div>

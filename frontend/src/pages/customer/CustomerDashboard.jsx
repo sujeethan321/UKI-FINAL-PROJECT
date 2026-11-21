@@ -2,7 +2,6 @@ import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { Link } from "react-router-dom";
 import CustomerCreditOverview from "../../components/customer/CustomerCreditOverview";
 import CustomerRecentOrders from "../../components/customer/CustomerRecentOrders";
-import CustomerLinkAcceptance from "../../components/customer/CustomerLinkAcceptance";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { RefreshCw, LoaderCircle, CalendarClock } from "lucide-react";
 import { useAuth } from "../../context/useAuth";
@@ -22,15 +21,14 @@ function Section({ id, title, section, retry, children }) {
 }
 function PreviewNote({ data }) {
   const { tr } = useAppTranslation(); return <p className="mt-4 text-xs text-[#64748B]">{tr("Showing {{shown}} of {{total}} records.", { shown: data.items.length, total: data.total })}</p>; }
-export function CustomerDashboardView({ state, actions, displayName }) {
+export function CustomerDashboardView({ state, actions }) {
   const { tr, statusLabel } = useAppTranslation();
   const summary = state.summary.data;
 
   const busy = ["summary", "shops", "accounts", "transactions"].some(key => state[key].loading);
   return <div className="space-y-7 pb-6">
-    <div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><h2 className="break-words text-2xl font-bold">{tr("Welcome, {{name}}!", { name: displayName || tr("Customer") })}</h2><p className="mt-2 text-sm text-[#64748B]">{tr("Your credit and order overview.")}</p></div><button type="button" className={button} disabled={busy} onClick={actions.start}><RefreshCw size={17} aria-hidden="true" />{tr("Refresh dashboard")}</button></div>
+    <div className="flex justify-end"><button type="button" className={button} disabled={busy} onClick={actions.start}><RefreshCw size={17} aria-hidden="true" />{tr("Refresh dashboard")}</button></div>
     {state.authError ? <p role="alert" className="rounded-xl border border-[#DC4545] bg-white p-5 text-sm text-[#10243E]">{tr(state.authError)}</p> : <>
-      <CustomerLinkAcceptance onLinked={actions.start} />
       <section aria-label={tr("Customer overview")}>
         {state.summary.loading && <Loading>{tr("Loading your account summary...")}</Loading>}
         {state.summary.error && <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 border-l-4 border-[#DC4545] pl-3 text-sm text-[#10243E]"><p>{tr(state.summary.error)}</p><button type="button" className={button} onClick={() => actions.load("summary")}>{tr("Retry summary")}</button></div>}
@@ -43,21 +41,18 @@ export function CustomerDashboardView({ state, actions, displayName }) {
       <Section id="transactions" title={tr("Recent Transactions")} section={state.transactions} retry={() => actions.load("transactions")}>
         {state.transactions.data && (state.transactions.data.items.length ? <><p className="mt-2 text-xs text-[#64748B]">{tr("Newest records first. A repayment record does not independently verify bank or card settlement.")}</p><ul className="mt-5 divide-y divide-[#E1EAF4]">{state.transactions.data.items.map(row => <li key={row.entry_id} className="grid min-w-0 gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{tr(typeLabel[row.entry_type])}</h3>{row.status !== "recorded" && <span className="rounded-full bg-[#F5B544]/15 px-2 py-1 text-xs capitalize">{statusLabel(row.status)}</span>}</div><p className="mt-1 break-words text-sm">{row.business_name}</p><p className="mt-1 break-all text-xs text-[#64748B]">{row.reference}</p><time dateTime={row.recorded_at} className="mt-1 block text-xs text-[#64748B]" title={tr("Recorded time")}>{formatRecordedTime(row.recorded_at)}</time></div><div className="min-w-0 sm:max-w-64 sm:text-right"><p className="break-words font-bold [overflow-wrap:anywhere]">{formatCustomerMoney(row.amount)}</p>{row.entry_type === "reversal" && <p className="mt-1 break-words text-xs text-[#64748B] [overflow-wrap:anywhere]">{tr("Balance adjustment:")}{" "}{formatCustomerMoney(row.balance_delta)}</p>}</div></li>)}</ul><PreviewNote data={state.transactions.data} /></> : <p className="py-6 text-sm text-[#64748B]">{tr("No transactions to display yet.")}</p>)}
       </Section>
-      <Section id="my-shops" title={tr("My Shops")} section={state.shops} retry={() => actions.load("shops")}>
-        {state.shops.data && (state.shops.data.items.length ? <><ul className="mt-5 grid min-w-0 gap-4 md:grid-cols-2">{state.shops.data.items.map(shop => <li key={shop.business_id} className="min-w-0 rounded-xl border border-[#E1EAF4] p-4"><h3 className="break-words font-semibold">{shop.business_name}</h3><p className="mt-2 text-sm text-[#64748B]">{shop.credit_account_count ? tr("{{count}} credit account(s)", { count: shop.credit_account_count }) : tr("No credit account at this shop yet.")}</p><p className="mt-3 break-words font-semibold [overflow-wrap:anywhere]">{tr("Outstanding:")}{" "}{formatCustomerMoney(shop.outstanding_balance)}</p></li>)}</ul><PreviewNote data={state.shops.data} /></> : <div className="py-6 text-sm text-[#64748B]"><p>{tr("No shops are linked to your account yet.")}</p><p className="mt-2">{tr("Your shop records will appear after your account is securely linked. Matching contact details alone do not link records.")}</p></div>)}
-      </Section>
       <section className="flex flex-wrap items-center gap-4 rounded-xl border border-[#F5B544]/40 bg-[#FFFBF1] p-5"><CalendarClock size={30} className="text-[#C78513]" aria-hidden="true"/><div className="min-w-0 flex-1"><h3 className="font-bold">{tr("Next Payment")}</h3><p className="mt-1 text-sm text-[#52698A]">{tr("Next payment amount and deadline are unavailable.")}</p></div><Link to="/customer/transactions?entry_type=repayment" className={button}>{tr("View repayment records")}</Link></section>
     </>}
   </div>;
 }
-function CustomerDashboardSession({ displayName }) {
+function CustomerDashboardSession() {
   const [reader] = useState(() => createCustomerDashboardReader({ summary: getCustomerSummary, shops: getCustomerShops, accounts: getCustomerCreditAccounts, transactions: getCustomerTransactions }));
   const state = useSyncExternalStore(reader.subscribe, reader.getSnapshot, reader.getSnapshot);
   useEffect(() => { reader.start(); return () => reader.dispose(); }, [reader]);
-  return <CustomerDashboardView state={state} actions={reader} displayName={displayName} />;
+  return <CustomerDashboardView state={state} actions={reader} />;
 }
 export default function CustomerDashboard() {
   const { user, token, isAuthenticated } = useAuth();
   if (!isAuthenticated || user?.platform_role !== "customer") return null;
-  return <CustomerDashboardSession key={user.user_id + ":" + token} displayName={user.full_name} />;
+  return <CustomerDashboardSession key={user.user_id + ":" + token} />;
 }

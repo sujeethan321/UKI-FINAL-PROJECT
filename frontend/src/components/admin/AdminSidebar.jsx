@@ -1,7 +1,8 @@
+import MobileNavigation from "../ui/MobileNavigation";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import BrandLogo from "../BrandLogo";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Bell,
@@ -16,7 +17,6 @@ import {
 } from "lucide-react";
 
 const navigation = [
-  { label: "Notifications", path: "/admin/notifications", icon: Bell, enabled: true },
   {
     label: "Dashboard",
     path: "/admin/dashboard",
@@ -49,15 +49,14 @@ const navigation = [
   },
   { label: "Activity Logs", path: "/admin/dashboard#recent-admin-activity", icon: History, enabled: true },
   { label: "Platform Reports", icon: ChartNoAxesCombined, enabled: false },
+  { label: "Notifications", path: "/admin/notifications", icon: Bell, enabled: true },
 ];
 
 export default function AdminSidebar() {
   const { tr } = useAppTranslation();
   const [open, setOpen] = useState(false);
-  const dialog = useRef(null);
   const { pathname, hash } = useLocation();
-  useEffect(() => { if (open && !dialog.current.open) dialog.current.showModal(); }, [open]);
-  function close() { dialog.current?.close(); setOpen(false); }
+  function close() { setOpen(false); }
 
   const menu = (
     <div className="flex h-full flex-col bg-[#10243E] text-white">
@@ -127,7 +126,7 @@ export default function AdminSidebar() {
         {menu}
       </aside>
 
-      <dialog ref={dialog} id="admin-mobile-sidebar" aria-label={tr("Admin menu")} onClose={() => setOpen(false)} className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-[min(286px,85vw)] max-w-none border-0 p-0 text-white backdrop:bg-[#10243E]/60">
+      <MobileNavigation open={open} onClose={close} id="admin-mobile-sidebar" label={tr("Admin menu")}>
             {menu}
 
             <button
@@ -138,7 +137,7 @@ export default function AdminSidebar() {
             >
               <X size={20} />
             </button>
-      </dialog>
+      </MobileNavigation>
     </>
   );
 }

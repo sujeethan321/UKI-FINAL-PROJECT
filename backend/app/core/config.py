@@ -53,6 +53,7 @@ def local_host(host):
 
 
 class Settings(BaseSettings):
+    DRIVER_DOCUMENT_PRIVATE_ROOT: Path | None = None
     APP_ENV: Literal['development', 'testing', 'ai_snapshot_testing',
                      'ai_snapshot_migration', 'production'] = 'development'
     MYSQL_HOST: str = 'localhost'
@@ -83,6 +84,15 @@ class Settings(BaseSettings):
     MAX_INTERACTIVE_CUSTOMERS: int = Field(default=1000, ge=1, le=10000)
     MAX_READ_LEDGER_ENTRIES: int = Field(default=5000, ge=1, le=100000)
     AI_ENABLED: bool = False
+    STRIPE_SANDBOX_ENABLED: bool = False
+    STRIPE_TEST_SECRET_KEY: SecretStr | None = Field(default=None, repr=False)
+    STRIPE_WEBHOOK_SECRET: SecretStr | None = Field(default=None, repr=False)
+    STRIPE_PRO_MONTH_PRICE: str = ''
+    STRIPE_PRO_YEAR_PRICE: str = ''
+    STRIPE_BUSINESS_MONTH_PRICE: str = ''
+    STRIPE_BUSINESS_YEAR_PRICE: str = ''
+    STRIPE_RETURN_ORIGIN: str = Field(default='http://127.0.0.1:5176', max_length=255)
+    STRIPE_PORTAL_CONFIGURATION: str = ''
     GROQ_API_KEY: SecretStr | None = Field(default=None, repr=False)
     GROQ_BASE_URL: str = 'https://api.groq.com/openai/v1'
     GROQ_MODEL: str = 'openai/gpt-oss-120b'
@@ -171,6 +181,21 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def validate_environment(self):
+        if self.STRIPE_SANDBOX_ENABLED:
+            key = self.STRIPE_TEST_SECRET_KEY.get_secret_value() if self.STRIPE_TEST_SECRET_KEY else ''
+            hook = self.STRIPE_WEBHOOK_SECRET.get_secret_value() if self.STRIPE_WEBHOOK_SECRET else ''
+            prices = [self.STRIPE_PRO_MONTH_PRICE, self.STRIPE_PRO_YEAR_PRICE,
+                      self.STRIPE_BUSINESS_MONTH_PRICE, self.STRIPE_BUSINESS_YEAR_PRICE]
+            origin = urlsplit(self.STRIPE_RETURN_ORIGIN)
+            if (not key.startswith('sk_test_') or not hook.startswith('whsec_')
+                    or len(set(prices)) != 4 or any(not p.startswith('price_') for p in prices)
+                    or not self.STRIPE_PORTAL_CONFIGURATION.startswith('bpc_')
+                    or self.STRIPE_RETURN_ORIGIN not in self.CORS_ALLOWED_ORIGINS
+                    or origin.username or origin.password or origin.query or origin.fragment
+                    or origin.path or not origin.hostname
+                    or (origin.scheme != 'https' and not (self.APP_ENV == 'development'
+                        and origin.scheme == 'http' and origin.hostname == '127.0.0.1'))):
+                raise ValueError('Sandbox billing requires test credentials, four distinct prices, portal configuration and an approved return origin')
         if self.MYSQL_TLS_MODE == 'local_viva_required' and (
                 self.APP_ENV != 'development'
                 or self.MYSQL_HOST != '127.0.0.1'

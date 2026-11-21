@@ -55,9 +55,9 @@ def detail_data(db, row, current=False):
         events=events, can_cancel=row.status == 'available' and assigned is None)
 
 
-def create_request(db, user, business_id, payload):
+def create_request(db, user, business_id, payload, existing_order_id=None):
     authorized_business(db, user.user_id, business_id)
-    row = delivery.create_delivery(db, user.user_id, business_id, payload.pickup_area, payload.delivery_area)
+    row = delivery.create_delivery(db, user.user_id, business_id, payload.pickup_area, payload.delivery_area,existing_order_id)
     # Current response reads avoid mixing snapshots with concurrent assignment.
     row = scoped_request(db, business_id, row.delivery_request_id, current=True)
     return detail_data(db, row, current=True)

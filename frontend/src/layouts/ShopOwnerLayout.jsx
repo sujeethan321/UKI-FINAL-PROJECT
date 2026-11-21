@@ -1,3 +1,4 @@
+import useSubscription from '../hooks/useSubscription';
 import { useAppTranslation } from "../i18n/useAppTranslation.js";
 
 import { Outlet, useLocation } from "react-router-dom";
@@ -23,6 +24,7 @@ const pageTitles = {
   "/shop-owner/reports": "Reports",
   "/shop-owner/notifications": "Notifications",
   "/shop-owner/settings": "Settings",
+  "/shop-owner/subscription": "Subscription & Billing",
   "/shop-owner/business/register": "Business Registration",
 };
 
@@ -40,12 +42,13 @@ export default function ShopOwnerLayout() {
   // Do not guess which business a page is operating on when several are linked.
   const business = businesses.length === 1 ? businesses[0] : null;
 
+  const subscription=useSubscription(business?.business_id);
   const title = pathname.startsWith("/shop-owner/orders") ? "Orders" : pageTitles[pathname] ?? "Dashboard";
 
   return (
     <div className="shop-owner-shell min-h-screen bg-[#F5F8FC] lg:flex">
       {/* Shared sidebar */}
-      <ShopOwnerSidebar />
+      <ShopOwnerSidebar entitlements={subscription.data?.entitlements} />
 
       {/* Main content area */}
       <div className="min-w-0 flex-1">

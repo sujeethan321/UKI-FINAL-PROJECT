@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
@@ -24,10 +24,46 @@ import logo from "../../assets/lankapex-logo.png";
 import hero from "../../assets/landing-hero.png";
 import "./landing.css";
 
+function subscribeToSectionChange(onChange) {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+}
+
+const getActiveSection = () => window.location.hash || "#home";
+const getInitialSection = () => "#home";
+
+const landingNavigation = [
+  ["home", "nav.home"],
+  ["explore-features", "nav.features"],
+  ["how-it-works", "nav.how"],
+  ["who-can-use", "nav.businesses"],
+  ["why-lankapex", "nav.about"],
+];
 
 function LandingHeader() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const menuButton = useRef(null), navigation = useRef(null);
+  const activeSection = useSyncExternalStore(subscribeToSectionChange, getActiveSection, getInitialSection);
+  useEffect(() => {
+    if (!open) return;
+    const menu = navigation.current, trigger = menuButton.current;
+    menu.querySelector('a')?.focus();
+    const outside = event => {
+      if (!menu.contains(event.target) && !trigger.contains(event.target)) setOpen(false);
+    };
+    const keyboard = event => {
+      if (event.key === "Escape") { event.preventDefault(); setOpen(false); trigger.focus(); }
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('focusin', outside);
+    document.addEventListener('keydown', keyboard);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('focusin', outside);
+      document.removeEventListener('keydown', keyboard);
+    };
+  }, [open]);
 
   return (
     <header className="landing-header">
@@ -41,6 +77,7 @@ function LandingHeader() {
       </Link>
 
       <button
+        ref={menuButton}
         className="landing-menu"
         type="button"
         aria-label={t(open ? "aria.closeMenu" : "aria.openMenu")}
@@ -52,16 +89,17 @@ function LandingHeader() {
       </button>
 
       <nav
+        ref={navigation}
         id="landing-navigation"
         className={open ? "landing-nav is-open" : "landing-nav"}
         aria-label={t("aria.navigation")}
         onClick={() => setOpen(false)}
       >
-        <a href="#home" aria-current="page">{t("nav.home")}</a>
-        <a href="#features">{t("nav.features")}</a>
-        <a href="#who-can-use">{t("nav.businesses")}</a>
-        <a href="#how-it-works">{t("nav.how")}</a>
-        <a href="#why-lankapex">{t("nav.about")}</a>
+        {landingNavigation.map(([id, label]) => (
+          <a key={id} href={"#" + id} aria-current={activeSection === "#" + id ? "location" : undefined}>
+            {t(label)}
+          </a>
+        ))}
       </nav>
 
       <div className="landing-header-actions">
@@ -88,13 +126,12 @@ function RoleBadge({ Icon, title, children, className }) {
 }
 
 
-const featureIcons = [CreditCard, ShoppingCart, Truck, BarChart3];
 const roleIcons = [Store, UserRound, Truck];
 const roleRoutes = ["shop-owner", "customer", "driver"];
 const registerKeys = ["hero.registerOwner", "hero.registerCustomer", "hero.registerDriver"];
 const benefitIcons = [CreditCard, BarChart3, UsersRound, ShieldCheck];
 const detailIcons = [CreditCard, UsersRound, Bell, Bell, ShoppingCart, Truck];
-const quickLinks = [["nav.home", "home"], ["nav.features", "features"], ["nav.how", "how-it-works"], ["sections.roles.title", "who-can-use"], ["sections.why.title", "why-lankapex"], ["sections.faq.title", "faq"]];
+const quickLinks = [["nav.home", "home"], ["nav.features", "explore-features"], ["nav.how", "how-it-works"], ["sections.roles.title", "who-can-use"], ["sections.why.title", "why-lankapex"], ["sections.faq.title", "faq"]];
 const translatedItems = (t, key, icons) => icons.map((Icon, index) => ({ ...t(`${key}.${index}`, { returnObjects: true }), Icon }));
 
 function SectionHeading({ id, title, children }) {
@@ -149,6 +186,13 @@ function LandingEnhancements() {
   const [openFaq, setOpenFaq] = useState(null);
   const [selectedRole, setSelectedRole] = useState(0);
   return <>
+    <section id="explore-features" className="landing-extra-section" aria-labelledby="explore-heading">
+      <div className="landing-explore-heading">
+        <h2 id="explore-heading">{t("sections.explore.prefix")} <span>{t("sections.explore.accent")}</span>{t("sections.explore.suffix") && <> {t("sections.explore.suffix")}</>}</h2>
+        <div className="landing-explore-subtitle"><span className="landing-explore-line" aria-hidden="true" /><p>{t("sections.explore.subtitle")}</p></div>
+      </div>
+      <div className="landing-extra-grid three">{detailedFeatures.map(({ title, Icon, items, planned, note }) => <article className="landing-info-card" key={title}><span className="landing-icon-circle"><Icon aria-hidden="true" /></span><h3>{title}{planned && <> <span className="landing-status">{t("sections.planned")}</span></>}</h3><ul>{items.map(item => <li key={item}>{item}</li>)}</ul>{note && <p className="landing-card-note">{note}</p>}</article>)}</div>
+    </section>
     <section id="how-it-works" className="landing-extra-section" aria-labelledby="how-heading">
       <SectionHeading id="how-heading" title={t("sections.how.title")}>{t("sections.how.subtitle")}</SectionHeading>
       <ol className="landing-timeline">
@@ -162,13 +206,6 @@ function LandingEnhancements() {
     <section id="why-lankapex" className="landing-extra-section" aria-labelledby="why-heading">
       <SectionHeading id="why-heading" title={t("sections.why.title")}>{t("sections.why.subtitle")}</SectionHeading>
       <div className="landing-editorial">{benefits.map(({ title, Icon, description }, index) => <article key={title}><div className="landing-editorial-marker"><span aria-hidden="true">0{index + 1}</span><Icon size={26} aria-hidden="true" /></div><h3>{title}</h3><p>{description}</p></article>)}</div>
-    </section>
-    <section id="explore-features" className="landing-extra-section" aria-labelledby="explore-heading">
-      <div className="landing-explore-heading">
-        <h2 id="explore-heading">{t("sections.explore.prefix")} <span>{t("sections.explore.accent")}</span>{t("sections.explore.suffix") && <> {t("sections.explore.suffix")}</>}</h2>
-        <div className="landing-explore-subtitle"><span className="landing-explore-line" aria-hidden="true" /><p>{t("sections.explore.subtitle")}</p></div>
-      </div>
-      <div className="landing-extra-grid three">{detailedFeatures.map(({ title, Icon, items, planned, note }) => <article className="landing-info-card" key={title}><span className="landing-icon-circle"><Icon aria-hidden="true" /></span><h3>{title}{planned && <> <span className="landing-status">{t("sections.planned")}</span></>}</h3><ul>{items.map(item => <li key={item}>{item}</li>)}</ul>{note && <p className="landing-card-note">{note}</p>}</article>)}</div>
     </section>
     <section id="faq" className="landing-extra-section" aria-labelledby="faq-heading">
       <SectionHeading id="faq-heading" title={t("sections.faq.title")}>{t("sections.faq.subtitle")}</SectionHeading>
@@ -192,7 +229,6 @@ function LandingFooter() {
 
 export default function LandingPage() {
   const { t, i18n: activeI18n } = useTranslation();
-  const features = translatedItems(t, "features", featureIcons).map((item, index) => ({ ...item, id: index === 0 ? "business-credit" : undefined }));
   return (
     <div className="landing-page" id="home" lang={activeI18n.resolvedLanguage || "en"}>
       <LandingHeader />
@@ -248,29 +284,6 @@ export default function LandingPage() {
               <span>{t("hero.connects")}</span><br />
               <em>{t("hero.everyone")}</em>
             </p>
-          </div>
-        </section>
-
-        <section
-          className="landing-features"
-          id="features"
-          aria-label={t("aria.features")}
-        >
-          <span className="landing-section-note">
-            {t("sections.vision")}
-          </span>
-
-          <div className="landing-feature-rows">
-            {features.map(({ Icon, title, description, id }, index) => (
-              <article className="landing-feature-row" key={title} id={id}>
-                <div className="landing-feature-copy">
-                  <span className="landing-feature-index" aria-hidden="true">0{index + 1}</span>
-                  <h2>{title}</h2>
-                  <p>{description}</p>
-                </div>
-                <div className="landing-feature-visual" aria-hidden="true"><div className="landing-feature-orbit"><Icon strokeWidth={1.25} /></div></div>
-              </article>
-            ))}
           </div>
         </section>
 

@@ -1,3 +1,5 @@
+import usePlanAccess from '../../hooks/usePlanAccess';
+import {PlanLockNotice} from './PlanFeatureNotice';
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useEffect, useRef, useState } from "react";
 import { Copy, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
@@ -51,13 +53,15 @@ export function TamilCreditSummaryView({ state, onGenerate, onCopy }) {
 }
 
 export default function TamilCreditSummary({ businessId, customerId, creditAccountId }) {
+  const access=usePlanAccess(businessId,'ai_summaries');
+  const {tr}=useAppTranslation();
   const [state, setState] = useState({ loading: false, data: null, error: "", retryable: false, copyStatus: "" });
   const requestRef = useRef(null);
   const lockedRef = useRef(false);
   useEffect(() => () => requestRef.current?.abort(), []);
 
   async function generate() {
-    if (lockedRef.current) return;
+    if (lockedRef.current || !creditAccountId || access.locked) return;
     lockedRef.current = true;
     requestRef.current?.abort();
     const controller = new AbortController();
@@ -87,5 +91,12 @@ export default function TamilCreditSummary({ businessId, customerId, creditAccou
     }
   }
 
-  return <TamilCreditSummaryView state={state} onGenerate={generate} onCopy={copySummary} />;
+  if (!creditAccountId || access.loading || access.error || access.locked) return <section className="rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm">
+    <h3 className="text-lg font-extrabold text-[#0D1D47]">{tr('Tamil Credit Summary')}</h3>
+    {!creditAccountId ? <p className="mt-3 text-sm text-[#587098]">{tr('Select a customer with an active credit account to generate a summary.')}</p>
+      : access.loading ? <p role="status" className="mt-3 text-sm">{tr('Loading subscription...')}</p>
+      : access.error ? <p role="alert" className="mt-3 text-sm">{tr('Subscription access is unavailable. Refresh before trying again.')}</p>
+      : <PlanLockNotice businessId={businessId}/>}
+  </section>;
+  return <TamilCreditSummaryView state={state} onGenerate={generate} onCopy={copySummary}/>;
 }

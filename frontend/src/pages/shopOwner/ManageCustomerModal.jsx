@@ -1,3 +1,4 @@
+import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useRef, useState } from "react";
 import { X } from "lucide-react";
@@ -62,7 +63,7 @@ export default function ManageCustomerModal({ businessId, details, mode, onClose
           {credit ? <>
             <label className="block text-sm font-semibold text-[#36517B]">{tr("Credit limit (LKR)")}<input autoFocus name="credit_limit" type="number" min="0" max="999999999999.99" step="0.01" required value={form.credit_limit} onChange={update} className={fieldClass} /></label>
             <label className="block text-sm font-semibold text-[#36517B]">{tr("Payment terms (days)")}<input name="payment_term_days" type="number" min="1" max="2147483647" step="1" required value={form.payment_term_days} onChange={update} className={fieldClass} /></label>
-            <label className="block text-sm font-semibold text-[#36517B]">{tr("Account status")}<select name="account_status" value={form.account_status} onChange={update} className={fieldClass}>{["active", "suspended", "closed"].map(status => <option key={status} value={status}>{tr(status)}</option>)}</select></label>
+            <label className="block text-sm font-semibold text-[#36517B]">{tr("Account status")}<Select name="account_status" value={form.account_status} onChange={update} className={fieldClass}>{["active", "suspended", "closed"].map(status => <option key={status} value={status}>{tr(status)}</option>)}</Select></label>
             <p className="text-xs text-[#587098]">{tr("Outstanding: LKR")} {details.outstanding_balance}{tr(". Customer advance: LKR")} {details.advance_balance}{tr(". Settle the balance before closing.")}</p>
           </> : <>
             <label className="block text-sm font-semibold text-[#36517B]">{tr("Customer name")}<input autoFocus name="customer_name" required minLength={2} maxLength={150} value={form.customer_name} onChange={update} className={fieldClass} /></label>

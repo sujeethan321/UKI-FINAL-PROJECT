@@ -64,12 +64,16 @@ async def generate_tamil_credit_summary(
     customer_id: int = Path(gt=0),
     credit_account_id: int = Path(gt=0),
     current_user: User = Depends(require_shop_owner),
+    db: Session = Depends(get_db),
     snapshot_service: ShopOwnerFinancialSnapshotService = Depends(get_owner_snapshot_service),
     summary_service: TamilCreditSummaryService = Depends(get_tamil_summary_service),
 ):
-    ai_generation_limit(request, current_user.user_id, business_id)
+
     snapshot = snapshot_service.assemble(
         current_user.user_id, business_id, customer_id, credit_account_id)
+    from app.services.subscription_service import require_entitlement, subscription_state
+    require_entitlement(db,current_user,business_id,'ai_summaries')
+    ai_generation_limit(request,current_user.user_id,business_id,subscription_state(db,business_id)['ai_limit_multiplier'])
     result = await summary_service.summarize(snapshot)
     response.headers["Cache-Control"] = "no-store"
     return TamilCreditSummaryResponse(

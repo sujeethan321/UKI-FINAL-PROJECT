@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -82,10 +82,7 @@ def register_shop_owner(
     response_model=RegistrationResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def register_driver(
-    data: DriverRegister,
-    db: Session = Depends(get_db),
-):
+def register_driver(data: DriverRegister, db: Session = Depends(get_db)):
     return _register(db, data, "driver")
 
 

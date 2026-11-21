@@ -45,6 +45,10 @@ class CustomerSummary(BaseModel):
     credit_account_count: int
     total_outstanding_balance: Money
     recent_activity: list[CustomerTransaction]
+    due_soon_amount: Money | None = None
+    overdue_amount: Money | None = None
+    due_totals_status: Literal['complete', 'incomplete', 'unavailable'] = 'unavailable'
+    due_date_policy: Literal['fifo_database_wall_clock_today_through_7_days'] = 'fifo_database_wall_clock_today_through_7_days'
 
 
 class CustomerShops(BaseModel):

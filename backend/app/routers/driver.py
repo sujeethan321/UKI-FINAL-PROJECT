@@ -1,7 +1,7 @@
 """Driver-scoped reads, atomic job acceptance and guarded progress updates."""
 from typing import Annotated
 from typing import Literal
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, Request
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import Session
 from app.core.auth_dependencies import require_roles
@@ -15,6 +15,39 @@ from app.schemas.driver import DriverProfileSubmission
 router = APIRouter(prefix="/driver", tags=["Driver Dashboard"])
 Driver = Annotated[User, Depends(require_roles("driver"))]
 Database = Annotated[Session, Depends(get_db)]
+
+
+@router.post('/vehicle', response_model=DriverProfileResponse, status_code=201)
+async def register_vehicle(request: Request, response: Response, user: Driver, db: Database):
+    from app.core.driver_document_body_limit import DriverMultipartParser
+    from app.services.driver_vehicle_service import submit_vehicle
+    from starlette.datastructures import UploadFile
+    from starlette.formparsers import MultiPartException
+    from starlette.concurrency import run_in_threadpool
+    from pydantic import ValidationError
+    response.headers['Cache-Control'] = 'no-store'
+    if request.headers.get('content-type', '').split(';', 1)[0].strip().lower() != 'multipart/form-data':
+        raise HTTPException(415, 'Vehicle registration requires multipart/form-data')
+    try:
+        form = await DriverMultipartParser(request.headers, request.stream(), max_files=2,
+                                          max_fields=2, max_part_size=5*1024*1024).parse()
+    except MultiPartException:
+        raise HTTPException(422, 'Invalid or excessive vehicle registration parts') from None
+    try:
+        required = {'vehicle_type', 'registration_reference', 'driving_licence', 'vehicle_ownership_proof'}
+        names = [key for key, _ in form.multi_items()]
+        if set(names) != required or len(names) != len(required):
+            raise HTTPException(422, 'Provide vehicle details and both required documents')
+        try:
+            vehicle = DriverProfileSubmission(vehicle_type=form['vehicle_type'], registration_reference=form['registration_reference'])
+            licence, ownership = form['driving_licence'], form['vehicle_ownership_proof']
+            if not isinstance(licence, UploadFile) or not isinstance(ownership, UploadFile):
+                raise ValueError()
+        except (ValidationError, ValueError, TypeError):
+            raise HTTPException(422, 'Invalid vehicle information or required documents') from None
+        return await run_in_threadpool(submit_vehicle, db, user.user_id, vehicle, licence, ownership)
+    finally:
+        await form.close()
 
 
 def read(response, operation):
@@ -33,22 +66,9 @@ def profile(response: Response, user: Driver, db: Database):
 @router.post('/profile', response_model=DriverProfileResponse, status_code=201)
 def submit_profile(payload: DriverProfileSubmission, response: Response, user: Driver, db: Database):
     response.headers['Cache-Control'] = 'no-store'
-    try:
-        # Existing service locks the authenticated User and rejects replacement.
-        # The caller cannot choose an identity, reviewer or approval state.
-        service.create_profile(db, user.user_id, payload.vehicle_type, payload.registration_reference)
-        result = DriverProfileResponse.model_validate(service.driver_profile(db, user))
-        db.commit()
-        return result
-    except HTTPException:
-        db.rollback()
-        raise
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(409, 'Driver profile already exists; refresh your profile') from None
-    except SQLAlchemyError:
-        db.rollback()
-        raise HTTPException(503, 'Profile submission could not be confirmed; refresh before retrying') from None
+    # New applications must be created together with their required documents.
+    # Existing approved/legacy profiles remain readable and unchanged.
+    raise HTTPException(409, 'Driver applications require both verification documents; contact the operator for existing-account submission', headers={'Cache-Control':'no-store'})
 
 
 @router.get("/dashboard/summary", response_model=DriverSummary)

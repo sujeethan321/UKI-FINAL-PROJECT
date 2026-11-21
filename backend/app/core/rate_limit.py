@@ -104,10 +104,10 @@ def customer_link_limit(request, user_id):
                        ('customer-link-peer', peer(request), 20)])
 
 
-def ai_generation_limit(request, user_id, business_id):
+def ai_generation_limit(request, user_id, business_id, limit_multiplier=1):
     """Bound expensive AI generation per authenticated owner and business."""
     if request is None or not hasattr(request.app.state, 'rate_limit_config'):
         return
-    limit = request.app.state.rate_limit_config.RATE_LIMIT_AI_GENERATION
+    limit = request.app.state.rate_limit_config.RATE_LIMIT_AI_GENERATION * limit_multiplier
     _consume(request, [('ai-generation-user', str(user_id), limit),
                        ('ai-generation-business', str(business_id), limit)])

@@ -1,3 +1,4 @@
+import {validDeliveryEstimate} from './deliveryEstimate.js';
 const id=value=>Number.isSafeInteger(value)&&value>0;
 const count=value=>Number.isSafeInteger(value)&&value>=0;
 const text=value=>typeof value==='string'&&!!value.trim();
@@ -21,7 +22,11 @@ export function parseDriverResponse(section,data,userId) {
   if(data.vehicle!==null&&(!data.vehicle||!text(data.vehicle.vehicle_type)||!text(data.vehicle.registration_reference)))throw Error('Invalid vehicle');
   const expected=data.approval_status==='not_submitted'?'profile_required':data.approval_status!=='approved'?'approval_'+data.approval_status:data.vehicle?'eligible':'vehicle_required';
   if(data.eligibility_reason!==expected||data.eligible_for_jobs!==(expected==='eligible'))throw Error('Unconfirmed eligibility');
-  return {...pick(data,['driver_user_id','full_name','account_status','approval_status','eligible_for_jobs','eligibility_reason']),vehicle:data.vehicle?pick(data.vehicle,['vehicle_type','registration_reference']):null};
+  const vehicleStatus=data.vehicle_registration_status ?? (data.approval_status==='not_submitted'?'not_registered':data.approval_status);
+  if(!['not_registered','pending','approved','rejected','suspended'].includes(vehicleStatus))throw Error('Invalid vehicle status');
+  const documentStatuses=data.document_statuses ?? {};
+  if(!documentStatuses||typeof documentStatuses!=='object'||Array.isArray(documentStatuses)||Object.entries(documentStatuses).some(([key,value])=>!['DRIVING_LICENCE','VEHICLE_OWNERSHIP_PROOF'].includes(key)||!['PENDING','APPROVED','REJECTED'].includes(value)))throw Error('Invalid document status');
+  return {...pick(data,['driver_user_id','full_name','account_status','approval_status','eligible_for_jobs','eligibility_reason']),vehicle_registration_status:vehicleStatus,document_statuses:{...documentStatuses},legacy_document_exempt:data.legacy_document_exempt===true,vehicle:data.vehicle?pick(data.vehicle,['vehicle_type','registration_reference']):null};
  }
  if(section==='summary'){
   const keys=['available_jobs_count','active_deliveries_count','completed_deliveries_count'];
@@ -31,7 +36,9 @@ export function parseDriverResponse(section,data,userId) {
  if(section!=='deliveries'||data.page!==1||data.page_size!==5||!count(data.total)||!Array.isArray(data.deliveries)||data.deliveries.length>5||data.deliveries.length>data.total)throw Error('Invalid delivery page');
  const seen=new Set();const deliveries=data.deliveries.map(row=>{
   if(!row||!id(row.delivery_request_id)||seen.has(row.delivery_request_id)||!['reference','business_name','pickup_area','delivery_area'].every(key=>text(row[key]))||!['assigned','picked_up','in_transit'].includes(row.status)||formatAssignedTime(row.assigned_at)==='Time unavailable')throw Error('Invalid assigned delivery');
-  seen.add(row.delivery_request_id);return pick(row,['delivery_request_id','reference','business_name','pickup_area','delivery_area','status','assigned_at']);
+  const subtotal=row.linked_order_subtotal??null,estimate=row.estimated_delivery_earning??null;
+  if((subtotal!==null||estimate!==null)&&!validDeliveryEstimate(subtotal,estimate))throw Error('Unconfirmed delivery estimate');
+  seen.add(row.delivery_request_id);return {...pick(row,['delivery_request_id','reference','business_name','pickup_area','delivery_area','status','assigned_at']),linked_order_subtotal:subtotal,estimated_delivery_earning:estimate};
  });
  return {total:data.total,deliveries};
 }

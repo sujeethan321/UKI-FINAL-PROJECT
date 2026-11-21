@@ -23,10 +23,7 @@ export const registerShopOwner = async (shopOwnerData) => {
 
 // Delivery Driver registration
 export const registerDriver = async (driverData) => {
-  const response = await api.post(
-    "/auth/register/driver",
-    driverData
-  );
+  const response = await api.post("/auth/register/driver", driverData);
 
   return response.data;
 };

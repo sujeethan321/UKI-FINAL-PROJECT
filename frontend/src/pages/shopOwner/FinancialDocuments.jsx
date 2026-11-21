@@ -1,3 +1,5 @@
+import PlanFeatureNotice from '../../components/shopOwner/PlanFeatureNotice';
+import usePlanAccess from '../../hooks/usePlanAccess';
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import BrandLogo from "../../components/BrandLogo";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -116,6 +118,7 @@ export function OutstandingView({ state, onSelectCustomer }) {
 }
 
 export default function FinancialDocuments({ businessId, customerId, refreshToken, onSelectCustomer }) {
+  const statementAccess=usePlanAccess(businessId,'statement_exports');
   const { tr } = useAppTranslation();
   const [outstandingReader, outstanding] = useReader(getOutstandingPayments, validateOutstanding);
   const [statementReader, statement] = useReader(getCustomerStatement, validateStatement);
@@ -132,15 +135,16 @@ export default function FinancialDocuments({ businessId, customerId, refreshToke
   }, [outstandingReader, businessId, search, outstandingOnly, page, revision, refreshToken]);
   useEffect(() => { statementReader.clear(); }, [statementReader, businessId, customerId, refreshToken]);
   const closeStatement = useCallback(() => { setStatementScope(null); statementReader.clear(); }, [statementReader]);
-  const loadStatement = () => { setStatementScope({ businessId, customerId, refreshToken }); void statementReader.load(businessId, customerId, { start_date: start, end_date: end }); };
+  const loadStatement = () => { if(statementAccess.locked)return; setStatementScope({ businessId, customerId, refreshToken }); void statementReader.load(businessId, customerId, { start_date: start, end_date: end }); };
   const invalidRange = !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || start > end;
   return <section className="space-y-4 rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5">
     <h3 className="text-lg font-bold text-[#0D1D47]">{tr("Outstanding Payments & Statements")}</h3>
     <div className="flex flex-wrap items-center gap-3"><label className="text-sm text-[#36517B]">{tr("Search customers")} <input type="search" maxLength={150} value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} className={field} /></label><label className="flex items-center gap-2 text-sm text-[#36517B]"><input type="checkbox" checked={outstandingOnly} onChange={event => { setOutstandingOnly(event.target.checked); setPage(1); }} />{tr("Outstanding only")}</label><button type="button" className={button} onClick={() => setRevision(value => value + 1)}>{tr("Refresh balances")}</button></div>
     <OutstandingView state={outstanding} onSelectCustomer={onSelectCustomer} />
     {outstanding.data && <div className="flex items-center justify-end gap-3 text-sm"><button type="button" className={button} disabled={outstanding.loading || page <= 1} onClick={() => setPage(value => value - 1)}>{tr("Previous")}</button><span>{tr("Page")} {page} · {outstanding.data.filtered_customers} {tr("matching customers")}</span><button type="button" className={button} disabled={outstanding.loading || page * 10 >= outstanding.data.filtered_customers} onClick={() => setPage(value => value + 1)}>{tr("Next")}</button></div>}
-    <div className="flex flex-wrap items-end gap-3 border-t border-[#E1EAF4] pt-4"><label className="text-sm text-[#36517B]">{tr("Statement from")}<input type="date" value={start} onChange={event => setStart(event.target.value)} className={`${field} ml-2`} /></label><label className="text-sm text-[#36517B]">{tr("To")}<input type="date" value={end} onChange={event => setEnd(event.target.value)} className={`${field} ml-2`} /></label><button type="button" className={button} disabled={!customerId || invalidRange || statement.loading} onClick={loadStatement}>{tr("View Customer Statement")}</button></div>
+    <PlanFeatureNotice businessId={businessId} feature="statement_exports"/>
+    <div className="flex flex-wrap items-end gap-3 border-t border-[#E1EAF4] pt-4"><label className="text-sm text-[#36517B]">{tr("Statement from")}<input type="date" value={start} onChange={event => setStart(event.target.value)} className={`${field} ml-2`} /></label><label className="text-sm text-[#36517B]">{tr("To")}<input type="date" value={end} onChange={event => setEnd(event.target.value)} className={`${field} ml-2`} /></label><button type="button" className={button} disabled={statementAccess.locked || !customerId || invalidRange || statement.loading} onClick={loadStatement}>{tr("View Customer Statement")}</button></div>
     {!customerId && <p className="text-xs text-[#587098]">{tr("Select a customer above to view a statement, including reversed repayments and their receipts.")}</p>}{invalidRange && <p role="alert" className="text-sm text-red-700">{tr("Choose a valid start and end date.")}</p>}
-    {showStatement && <DocumentModal title={tr("Customer Credit Statement")} onClose={closeStatement} printable={!!statement.data}>{statement.loading && <p role="status">{tr("Loading customer statement...")}</p>}{statement.error && <div role="alert" className="text-sm text-red-700">{tr(statement.error)}<button type="button" className={`${button} ml-3`} onClick={loadStatement}>{tr("Retry")}</button></div>}{statement.data && <StatementContent statement={statement.data} />}</DocumentModal>}
+    {showStatement && <DocumentModal title={tr("Customer Credit Statement")} onClose={closeStatement} printable={!!statement.data&&!statementAccess.locked}>{statement.loading && <p role="status">{tr("Loading customer statement...")}</p>}{statement.error && <div role="alert" className="text-sm text-red-700">{tr(statement.error)}<button type="button" className={`${button} ml-3`} onClick={loadStatement}>{tr("Retry")}</button></div>}{statement.data && <StatementContent statement={statement.data} />}</DocumentModal>}
   </section>;
 }

@@ -48,7 +48,7 @@ function formatValue(value, type) {
 
   if (type === "currency") {
     return `LKR ${number.toLocaleString("en-LK", {
-      minimumFractionDigits: 0,
+      minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
   }
@@ -56,7 +56,7 @@ function formatValue(value, type) {
   return number.toLocaleString("en-LK");
 }
 
-export default function OverviewCards({ summary = null }) {
+export default function OverviewCards({ summary = null, overdueUnavailable = null }) {
   const { tr } = useAppTranslation();
   return (
     <section aria-labelledby="overview-heading">
@@ -111,7 +111,7 @@ export default function OverviewCards({ summary = null }) {
               </p>
 
               {!hasData && (
-                <p className="mt-2 text-xs text-[#64748B]">{tr("Data not connected yet")}</p>
+                <p className="mt-2 text-xs text-[#64748B]">{card.key === 'overdue_amount' && overdueUnavailable ? overdueUnavailable : tr("Unavailable")}</p>
               )}
             </article>
           );

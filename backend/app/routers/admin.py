@@ -3,6 +3,8 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Path, Response
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import Session
+from uuid import UUID
+from app.schemas.admin import DriverVerification, DocumentDecision
 from app.core.auth_dependencies import require_admin
 from app.core.database import get_db
 from app.models import User
@@ -81,6 +83,48 @@ def drivers(response:Response,db:Database,limit:Limit=20,offset:Offset=0,status:
 @router.get('/drivers/{user_id}',response_model=AdminDriver)
 def driver_details(response:Response,db:Database,user_id:Id):
     return operation(db,response,lambda:service.driver_detail(db,user_id),AdminDriver)
+
+
+DOCUMENT_HEADERS={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
+    'Content-Security-Policy':"default-src 'none'; sandbox; frame-ancestors 'none'",'Referrer-Policy':'no-referrer'}
+
+
+def document_operation(db,callback):
+    try:
+        result=callback()
+        db.commit()  # access/review audit is part of the operation
+        return result
+    except HTTPException as error:
+        db.rollback();error.headers={**(error.headers or {}),**DOCUMENT_HEADERS};raise
+    except Exception:
+        try: db.rollback()
+        except Exception: pass
+        raise HTTPException(503,'Document operation could not be confirmed; refresh before proceeding',headers=DOCUMENT_HEADERS) from None
+
+
+def document_bytes(db,user,user_id,document_id,preview):
+    from app.services.admin_driver_documents import retrieve
+    data,media=document_operation(db,lambda:retrieve(db,user,user_id,str(document_id),'PREVIEWED' if preview else 'DOWNLOADED'))
+    extension={'application/pdf':'pdf','image/png':'png','image/jpeg':'jpg'}[media]
+    return Response(data,media_type=media,headers={**DOCUMENT_HEADERS,
+        'Content-Disposition':f'{"inline" if preview else "attachment"}; filename="driver-document-{document_id}.{extension}"'})
+
+
+@router.get('/drivers/{user_id}/documents/{document_id}/preview')
+def document_preview(user:Admin,db:Database,user_id:Id,document_id:UUID):
+    return document_bytes(db,user,user_id,document_id,True)
+
+
+@router.get('/drivers/{user_id}/documents/{document_id}/download')
+def document_download(user:Admin,db:Database,user_id:Id,document_id:UUID):
+    return document_bytes(db,user,user_id,document_id,False)
+
+
+@router.patch('/drivers/{user_id}/documents/{document_id}/review',response_model=DriverVerification)
+def document_review(response:Response,user:Admin,db:Database,user_id:Id,document_id:UUID,payload:DocumentDecision):
+    from app.services.admin_driver_documents import review
+    response.headers.update(DOCUMENT_HEADERS)
+    return document_operation(db,lambda:DriverVerification.model_validate(review(db,user,user_id,str(document_id),payload.decision,payload.rejection_code)))
 
 
 @router.patch('/drivers/{user_id}/decision',response_model=AdminDriver)

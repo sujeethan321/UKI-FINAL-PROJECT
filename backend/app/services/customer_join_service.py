@@ -178,6 +178,8 @@ def decide(db, owner, business_id, request_id, decision):
     if profile_exists(db, business_id, customer.user_id):
         raise HTTPException(409, "Customer is already linked")
     if decision == "approve":
+        from app.services.subscription_service import enforce_customer_capacity
+        enforce_customer_capacity(db,business_id)
         db.add(CustomerProfile(business_id=business_id, user_id=customer.user_id,
                                customer_name=customer.full_name, phone=None, address=None))
     row.status = expected

@@ -87,7 +87,7 @@ def create(db, user, order_id, business_id, payload):
         # A new request key cannot bypass this permanent one-order/one-link rule.
         return owner_data(db, order, existing)
     eligible_order(db, order)
-    result = deliveries.create_request(db, user, business_id, payload)
+    result = deliveries.create_request(db, user, business_id, payload, existing_order_id=order.order_id)
     order.delivery_request_id = result['delivery_request_id']
     order.updated_at = utc_now()
     db.flush()
