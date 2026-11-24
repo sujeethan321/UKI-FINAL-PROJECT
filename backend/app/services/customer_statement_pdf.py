@@ -1,3 +1,4 @@
+# Purpose: Render customer statement data into a PDF document for viewing or download.
 """Customer-authorized statement snapshots rendered with no client totals."""
 from datetime import datetime, timezone
 from io import BytesIO
@@ -14,6 +15,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, LongTable, TableStyle
 
 
+# Register the bundled statement font so PDF text uses an explicit local font.
 @lru_cache(maxsize=1)
 def statement_font():
     # Bundle-provided embedded font: portable, searchable, no missing-glyph
@@ -23,6 +25,7 @@ def statement_font():
     return font
 
 
+# Render statement pdf for the customer statement pdf workflow.
 def render_statement_pdf(data):
     output = BytesIO()
     navy = colors.HexColor("#10243E")
@@ -34,11 +37,13 @@ def render_statement_pdf(data):
     styles.add(ParagraphStyle(name="Cell", fontName=font.fontName, fontSize=8, leading=11, wordWrap="CJK"))
     styles["Title"].textColor = navy
     styles["Heading2"].textColor = navy
+    # Escape statement text and check font support before creating a PDF paragraph.
     def para(value, style="Cell"):
         value = str(value)
         if any(ord(char) not in font.face.charToGlyph for char in value if not char.isspace()):
             raise ValueError("Statement contains unsupported font characters")
         return Paragraph(escape(value), styles[style])
+    # Format the financial value for the customer-details response.
     def cash(value):
         whole, fraction = value.split(".")
         sign = "-" if whole.startswith("-") else ""
@@ -73,6 +78,7 @@ def render_statement_pdf(data):
     for key in ["reversal_policy", "time_basis", "historical_limitations"]:
         story.extend([para(data[key]), Spacer(1, 6)])
     story.append(para("Repayment records do not independently verify bank or card settlement."))
+    # Draw the statement footer on each rendered PDF page.
     def footer(canvas, document):
         canvas.setFillColor(navy)
         canvas.setFont(font.fontName, 8)

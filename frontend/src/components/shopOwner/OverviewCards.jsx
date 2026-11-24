@@ -1,3 +1,4 @@
+// Purpose: Render the reusable overview cards interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
 import {
@@ -29,6 +30,7 @@ const cardDefinitions = [
 
 ];
 
+// Format value for display so screens use a consistent representation.
 function formatValue(value, type) {
   // Null/undefined means data is unavailable.
   // Zero is a valid value and should display as 0.
@@ -56,6 +58,7 @@ function formatValue(value, type) {
   return number.toLocaleString("en-LK");
 }
 
+// Render the overview cards interface and connect its controls to the state and callbacks defined here.
 export default function OverviewCards({ summary = null, overdueUnavailable = null }) {
   const { tr } = useAppTranslation();
   return (

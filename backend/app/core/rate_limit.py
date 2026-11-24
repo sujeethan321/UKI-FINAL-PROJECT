@@ -1,4 +1,5 @@
-"""Bounded process-local development throttling, not a distributed limiter."""
+# Purpose: Apply request budgets to authentication and application operations to limit repeated or abusive calls.
+"""Bounded per-process backstop; external mode still requires a shared limiter."""
 import hashlib
 import hmac
 import math
@@ -10,12 +11,15 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 
 
+# Group the state and operations for local limiter in the rate limit module.
 class LocalLimiter:
+    # Initialize the dependencies and state this instance needs for later operations.
     def __init__(self, window=60, capacity=4096, clock=time.monotonic):
         self.window, self.capacity, self.clock = window, capacity, clock
         self.entries = OrderedDict()
         self.lock = threading.Lock()
 
+    # Clear the local rate-limit buckets while holding the limiter lock.
     def clear(self):
         with self.lock:
             self.entries.clear()
@@ -40,14 +44,17 @@ class LocalLimiter:
             return None
 
 
+# Configure rate limits for the rate limit workflow.
 def configure_rate_limits(app, config):
     mode = getattr(config, 'RATE_LIMIT_MODE', 'external' if config.APP_ENV == 'production' else 'local')
     app.state.rate_limit_config = config
+    if mode not in ('local','external'):raise ValueError('Invalid rate limit mode')
     app.state.rate_limiter = LocalLimiter(
         getattr(config, 'RATE_LIMIT_WINDOW_SECONDS', 60),
-        getattr(config, 'RATE_LIMIT_MAX_KEYS', 4096)) if mode == 'local' else None
+        getattr(config, 'RATE_LIMIT_MAX_KEYS', 4096))
 
 
+# Construct the rate-limit key used to group related requests into a budget.
 def _key(request, scope, identity):
     config = request.app.state.rate_limit_config
     secret = config.JWT_SECRET_KEY.encode()
@@ -55,22 +62,25 @@ def _key(request, scope, identity):
     return (scope, digest)
 
 
+# Consume the shared resource budget and reject work when the configured limit is exceeded.
 def _consume(request, scopes):
     limiter = getattr(request.app.state, 'rate_limiter', None)
     if limiter is None:
-        return  # Explicit external enforcement mode; no claim of in-app protection.
+        raise HTTPException(503,'Request protection is not configured')
     retry = limiter.consume([(_key(request, scope, identity), limit) for scope, identity, limit in scopes])
     if retry:
         raise HTTPException(429, 'Too many requests. Please wait before retrying.',
                             headers={'Retry-After': str(retry)})
 
 
+# Resolve the request peer used by the rate limiter.
 def peer(request):
     # Never parse X-Forwarded-For / Forwarded here. ASGI server proxy trust must
     # be configured narrowly by the operator; default deployment guidance disables it.
     return request.client.host if request.client else '<unknown-peer>'
 
 
+# Apply the configured login budgets before password-verification work.
 def login_limit(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     if len(form.username) > 320 or len(form.password.encode()) > 1024:
         raise HTTPException(422, 'Login input exceeds the supported size')
@@ -80,11 +90,13 @@ def login_limit(request: Request, form: OAuth2PasswordRequestForm = Depends()):
                        ('login-account-ip', ip + '\0' + form.username.strip().lower(), config.RATE_LIMIT_LOGIN)])
 
 
+# Apply the registration request budget before creating an account.
 def registration_limit(request: Request):
     config = request.app.state.rate_limit_config
     _consume(request, [('registration', peer(request), config.RATE_LIMIT_REGISTRATION)])
 
 
+# Consume the authenticated user request budget before protected work proceeds.
 def authenticated_limit(request, user_id):
     if request is None or not hasattr(request.app.state, 'rate_limit_config'):
         return

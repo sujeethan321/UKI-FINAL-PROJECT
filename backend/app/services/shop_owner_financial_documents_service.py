@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner financial documents operations behind the HTTP layer so related business rules are shared by their callers.
 """Authorized routes call these read-only, business-scoped document queries.
 
 Statements post a reversal's opposite original delta on the reversal's recorded
@@ -17,18 +18,22 @@ from app.services.shop_owner_customer_service import list_business_customers
 OVERDUE_UNAVAILABLE = "Repayments are not allocated to individual credit sales; exact overdue amounts are unavailable."
 
 
+# Format financial values at the response or document boundary instead of exposing decimal internals.
 def money(value):
     return f"{Decimal(value):.2f}"
 
 
+# Project the business identity and contact fields included in financial documents.
 def business_info(business):
     return {key: getattr(business, key) for key in ("business_id", "business_name", "phone", "address")}
 
 
+# Project the customer identity and contact fields included in financial documents.
 def customer_info(customer):
     return {key: getattr(customer, key) for key in ("customer_id", "business_id", "customer_name", "phone", "address")}
 
 
+# Query repayment receipt data for the shop owner financial documents workflow.
 def repayment_receipt(db, business, entry_id):
     # An ordinary consistent SELECT sees committed records, never another
     # session's uncommitted writes. Scope every relationship in the same query.
@@ -62,6 +67,7 @@ def repayment_receipt(db, business, entry_id):
     )
 
 
+# Query customer statement data for the shop owner financial documents workflow.
 def customer_statement(db, business, customer_id, start_date, end_date):
     if start_date > end_date or end_date == date.max:
         raise HTTPException(422, "Choose a valid inclusive date range ending before 9999-12-31")
@@ -129,6 +135,7 @@ def customer_statement(db, business, customer_id, start_date, end_date):
     )
 
 
+# Build the outstanding-payment document from the business-scoped financial records.
 def outstanding_payments(db, business_id, search, outstanding_only, page, page_size):
     # Reuse the exact existing effective balance rules, including no-account
     # customers. One customer/account/ledger query each, never one per customer.

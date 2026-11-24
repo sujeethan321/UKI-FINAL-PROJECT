@@ -1,3 +1,4 @@
+// Purpose: Render the reusable shop owner inbox interface and keep its presentation and interactions together.
 import Select from "../ui/Select";
 import { useEffect } from 'react';
 import { Bell, CheckCheck, RefreshCw } from 'lucide-react';
@@ -6,6 +7,7 @@ import { NOTIFICATION_TYPES } from '../../utils/notification';
 import NotificationItem from '../notifications/NotificationItem';
 
 const button='rounded-lg border border-[#DAE5F3] bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50';
+// Render the shop owner inbox view interface and connect its controls to the state and callbacks defined here.
 export function ShopOwnerInboxView({state,actions}) {
   const groups = new Map();
   for (const row of state.list?.notifications || []) {
@@ -22,8 +24,10 @@ export function ShopOwnerInboxView({state,actions}) {
     {!state.authError&&state.list&&<>{groups.size?[...groups].map(([date,rows])=><div key={date}><h4 className="rounded-lg bg-[#EDF4F9] px-4 py-2 text-sm font-semibold text-[#52698A]">{date}</h4><ul className="owner-inbox-list mt-2 space-y-2">{rows.map(row=><NotificationItem key={row.notification_id} notification={row} role="shop_owner" busy={state.mutating} onRead={actions.markRead}/>)}</ul></div>):<div className="owner-unavailable flex items-center justify-center gap-3"><Bell size={23} aria-hidden="true"/><p>{state.readFilter==='all'&&!state.typeFilter?'No notifications yet.':'No notifications match these filters.'}</p></div>}<nav aria-label="Notification pages" className="flex flex-wrap items-center justify-end gap-3"><button className={button} disabled={state.mutating||state.listLoading||state.page<=1} onClick={()=>actions.setFilter('page',state.page-1)}>Previous</button><span className="text-sm">Page {state.page} · {state.list.total} notifications</span><button className={button} disabled={state.mutating||state.listLoading||state.page*state.pageSize>=state.list.total} onClick={()=>actions.setFilter('page',state.page+1)}>Next</button></nav></>}
   </section>;
 }
+// Render the shop owner inbox interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerInbox() {
   const context=useNotifications(),actions=context?.actions;
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(()=>{if(!actions)return;actions.openInbox();return()=>actions.closeInbox();},[actions]);
   return context?<ShopOwnerInboxView state={context.state} actions={actions}/>:null;
 }

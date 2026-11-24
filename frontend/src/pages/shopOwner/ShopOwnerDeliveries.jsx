@@ -1,3 +1,4 @@
+// Purpose: Render the shop owner deliveries screen and connect its user interactions to shared application state and services.
 import PlanFeatureNotice from '../../components/shopOwner/PlanFeatureNotice';
 import usePlanAccess from '../../hooks/usePlanAccess';
 import Select from "../../components/ui/Select";
@@ -14,9 +15,12 @@ import {formatAssignedTime} from '../../utils/driverDashboard';
 const card='min-w-0 rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5';
 const button='inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#DAE5F3] bg-white px-4 py-2 text-sm font-semibold text-[#10243E] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12B8A6] disabled:opacity-50';
 const field='mt-1.5 w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2.5 text-sm text-[#10243E] outline-none focus:border-[#12B8A6] focus:ring-2 focus:ring-[#12B8A6]/15 disabled:opacity-50';
+// Render the badge interface and connect its controls to the state and callbacks defined here.
 function Badge({status}) {
   const { tr } = useAppTranslation();return <span className={'inline-block rounded-full px-3 py-1 text-xs font-semibold '+(status==='delivered'?'bg-[#22C55E]/10 text-[#10243E]':status==='cancelled'?'bg-[#DC4545]/10 text-[#DC4545]':status==='available'?'bg-[#F5B544]/15 text-[#10243E]':'bg-[#12B8A6]/10 text-[#10243E]')}>{tr(shopDeliveryLabels[status])}</span>;}
+// Render the recorded time interface and connect its controls to the state and callbacks defined here.
 function RecordedTime({value}) {return <time dateTime={value+'Z'}>{formatAssignedTime(value)}</time>;}
+// Render the shop owner deliveries view interface and connect its controls to the state and callbacks defined here.
 export function ShopOwnerDeliveriesView({state,actions,planLocked=false}) {
   const { tr } = useAppTranslation();
   const business=state.businesses.find(b=>b.business_id===state.businessId),approved=business?.approval_status==='approved';
@@ -54,9 +58,11 @@ export function ShopOwnerDeliveriesView({state,actions,planLocked=false}) {
     </>}
   </div>;
 }
+// Render the delivery session interface and connect its controls to the state and callbacks defined here.
 function DeliverySession({userId,businessId,deliveryId}) {
   const [workflow]=useState(()=>createShopDeliveryWorkflow({businesses:getDeliveryBusinesses,list:listShopDeliveries,summary:getShopDeliverySummary,detail:getShopDelivery,create:createShopDelivery,cancel:cancelShopDelivery},userId));
   const state=useSyncExternalStore(workflow.subscribe,workflow.getSnapshot,workflow.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(()=>{let active=true;
     void (async()=>{await workflow.start();if(!active)return;
       if(Number.isSafeInteger(businessId)&&businessId>0)await workflow.selectBusiness(businessId);
@@ -65,6 +71,7 @@ function DeliverySession({userId,businessId,deliveryId}) {
   const access=usePlanAccess(state.businessId,'deliveries');
   return <ShopOwnerDeliveriesView state={state} actions={workflow} planLocked={access.locked}/>;
 }
+// Render the shop owner deliveries interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerDeliveries() {
   const {user,token,isAuthenticated}=useAuth();
   const [params]=useSearchParams(),businessId=Number(params.get("business_id")),deliveryId=Number(params.get("delivery_id"));

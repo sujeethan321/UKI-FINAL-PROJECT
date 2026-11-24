@@ -1,3 +1,4 @@
+// Purpose: Render the login brand panel screen and connect its user interactions to shared application state and services.
 import LanguageSelector from "../../components/LanguageSelector";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import BrandLogo from "../../components/BrandLogo";
@@ -158,10 +159,12 @@ const iconColors = {
   purple: "bg-purple-100 text-purple-600",
 };
 
+// Render the lanka pex logo interface and connect its controls to the state and callbacks defined here.
 export function LankaPexLogo() {
   return <BrandLogo />;
 }
 
+// Render the login brand panel interface and connect its controls to the state and callbacks defined here.
 export default function LoginBrandPanel({ role, registration = false }) {
   const { tr } = useAppTranslation();
   const content =

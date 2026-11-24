@@ -1,3 +1,4 @@
+// Purpose: Render the landing page screen and connect its user interactions to shared application state and services.
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -24,12 +25,15 @@ import logo from "../../assets/lankapex-logo.png";
 import hero from "../../assets/landing-hero.png";
 import "./landing.css";
 
+// Listen for resource-section changes and return cleanup for the subscriber.
 function subscribeToSectionChange(onChange) {
   window.addEventListener("hashchange", onChange);
   return () => window.removeEventListener("hashchange", onChange);
 }
 
+// Get active section within the landing page workflow.
 const getActiveSection = () => window.location.hash || "#home";
+// Get initial section within the landing page workflow.
 const getInitialSection = () => "#home";
 
 const landingNavigation = [
@@ -40,18 +44,22 @@ const landingNavigation = [
   ["why-lankapex", "nav.about"],
 ];
 
+// Render the landing header interface and connect its controls to the state and callbacks defined here.
 function LandingHeader() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const menuButton = useRef(null), navigation = useRef(null);
   const activeSection = useSyncExternalStore(subscribeToSectionChange, getActiveSection, getInitialSection);
+  // Attach browser listeners for this mounted resource and remove them during effect cleanup.
   useEffect(() => {
     if (!open) return;
     const menu = navigation.current, trigger = menuButton.current;
     menu.querySelector('a')?.focus();
+    // Dismiss the open panel when the user interacts outside its trigger and content.
     const outside = event => {
       if (!menu.contains(event.target) && !trigger.contains(event.target)) setOpen(false);
     };
+    // Handle keyboard interaction for the current menu or popover.
     const keyboard = event => {
       if (event.key === "Escape") { event.preventDefault(); setOpen(false); trigger.focus(); }
     };
@@ -113,6 +121,7 @@ function LandingHeader() {
   );
 }
 
+// Render the role badge interface and connect its controls to the state and callbacks defined here.
 function RoleBadge({ Icon, title, children, className }) {
   return (
     <div className={`landing-role ${className}`}>
@@ -132,12 +141,15 @@ const registerKeys = ["hero.registerOwner", "hero.registerCustomer", "hero.regis
 const benefitIcons = [CreditCard, BarChart3, UsersRound, ShieldCheck];
 const detailIcons = [CreditCard, UsersRound, Bell, Bell, ShoppingCart, Truck];
 const quickLinks = [["nav.home", "home"], ["nav.features", "explore-features"], ["nav.how", "how-it-works"], ["sections.roles.title", "who-can-use"], ["sections.why.title", "why-lankapex"], ["sections.faq.title", "faq"]];
+// Resolve item labels through the active application language before rendering them.
 const translatedItems = (t, key, icons) => icons.map((Icon, index) => ({ ...t(`${key}.${index}`, { returnObjects: true }), Icon }));
 
+// Render the section heading interface and connect its controls to the state and callbacks defined here.
 function SectionHeading({ id, title, children }) {
   return <div className="landing-section-heading"><h2 id={id}>{title}</h2><p>{children}</p></div>;
 }
 
+// Render the faq accordion interface and connect its controls to the state and callbacks defined here.
 export function FaqAccordion({ openFaq, onToggle, t = i18n.t.bind(i18n) }) {
   const faqs = t("faqs", { returnObjects: true });
   return (<div className="landing-faq-list">{faqs.map(([question, answer], index) => <div className="landing-faq-item" key={question}>
@@ -146,8 +158,10 @@ export function FaqAccordion({ openFaq, onToggle, t = i18n.t.bind(i18n) }) {
       </div>)}</div>);
 }
 
+// Render the role showcase interface and connect its controls to the state and callbacks defined here.
 export function RoleShowcase({ selectedRole, onSelect, t = i18n.t.bind(i18n) }) {
   const roles = translatedItems(t, "roles", roleIcons).map((role, index) => ({ ...role, route: roleRoutes[index], registrationLabel: t(registerKeys[index]) }));
+  // Handle supported keys so the control can be operated without a pointer.
   function onKeyDown(event, index) {
     let next;
     if (event.key === "ArrowRight") next = (index + 1) % roles.length;
@@ -178,6 +192,7 @@ export function RoleShowcase({ selectedRole, onSelect, t = i18n.t.bind(i18n) }) 
   </div>;
 }
 
+// Render the landing enhancements interface and connect its controls to the state and callbacks defined here.
 function LandingEnhancements() {
   const { t } = useTranslation();
   const steps = t("steps", { returnObjects: true });
@@ -214,6 +229,7 @@ function LandingEnhancements() {
   </>;
 }
 
+// Render the landing footer interface and connect its controls to the state and callbacks defined here.
 function LandingFooter() {
   const { t } = useTranslation();
   return <footer id="contact" className="landing-footer" aria-label={t("aria.footer")}>
@@ -227,6 +243,7 @@ function LandingFooter() {
   </footer>;
 }
 
+// Render the landing page interface and connect its controls to the state and callbacks defined here.
 export default function LandingPage() {
   const { t, i18n: activeI18n } = useTranslation();
   return (

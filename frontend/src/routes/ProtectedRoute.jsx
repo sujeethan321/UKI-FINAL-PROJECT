@@ -1,3 +1,4 @@
+// Purpose: Wait for session restoration and redirect unsigned, inactive, or wrong-role users before rendering private screens; the API still enforces authorization.
 
 import { Navigate, Outlet } from "react-router-dom";
 
@@ -7,6 +8,7 @@ import {
   getLoginPath,
 } from "../utils/roleRoutes";
 
+// Gate private rendering by restored identity and role; backend authorization remains the final access check.
 export default function ProtectedRoute({ allowedRoles }) {
   const { user, loading, isAuthenticated } = useAuth();
 

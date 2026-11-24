@@ -1,3 +1,4 @@
+// Purpose: Render the login page screen and connect its user interactions to shared application state and services.
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
 import { loginDestination, validateJoinReturnPath } from "../../utils/joinReturn";
@@ -6,6 +7,7 @@ import { loginDestination, validateJoinReturnPath } from "../../utils/joinReturn
 import LoginBrandPanel from "./LoginBrandPanel";
 import LoginForm from "./LoginForm";
 
+// Render the login page interface and connect its controls to the state and callbacks defined here.
 export default function LoginPage() {
   const { user, loading, isAuthenticated } = useAuth();
   const location = useLocation();

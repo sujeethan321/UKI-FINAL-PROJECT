@@ -1,3 +1,4 @@
+# Purpose: Expose driver HTTP endpoints and connect request validation and dependencies to the application services.
 """Driver-scoped reads, atomic job acceptance and guarded progress updates."""
 from typing import Annotated
 from typing import Literal
@@ -17,6 +18,7 @@ Driver = Annotated[User, Depends(require_roles("driver"))]
 Database = Annotated[Session, Depends(get_db)]
 
 
+# Handle POST /vehicle through the declared request and dependency contract.
 @router.post('/vehicle', response_model=DriverProfileResponse, status_code=201)
 async def register_vehicle(request: Request, response: Response, user: Driver, db: Database):
     from app.core.driver_document_body_limit import DriverMultipartParser
@@ -50,6 +52,7 @@ async def register_vehicle(request: Request, response: Response, user: Driver, d
         await form.close()
 
 
+# Wrap the service read with no-store caching and the endpoint error handling.
 def read(response, operation):
     response.headers["Cache-Control"] = "no-store"
     try:
@@ -58,11 +61,13 @@ def read(response, operation):
         raise HTTPException(503, "Driver information is temporarily unavailable") from None
 
 
+# Handle GET /profile through the declared request and dependency contract.
 @router.get("/profile", response_model=DriverProfileResponse)
 def profile(response: Response, user: Driver, db: Database):
     return read(response, lambda: service.driver_profile(db, user))
 
 
+# Handle POST /profile through the declared request and dependency contract.
 @router.post('/profile', response_model=DriverProfileResponse, status_code=201)
 def submit_profile(payload: DriverProfileSubmission, response: Response, user: Driver, db: Database):
     response.headers['Cache-Control'] = 'no-store'
@@ -71,11 +76,13 @@ def submit_profile(payload: DriverProfileSubmission, response: Response, user: D
     raise HTTPException(409, 'Driver applications require both verification documents; contact the operator for existing-account submission', headers={'Cache-Control':'no-store'})
 
 
+# Handle GET /dashboard/summary through the declared request and dependency contract.
 @router.get("/dashboard/summary", response_model=DriverSummary)
 def summary(response: Response, user: Driver, db: Database):
     return read(response, lambda: service.summary(db, user))
 
 
+# Handle GET /deliveries through the declared request and dependency contract.
 @router.get("/deliveries", response_model=DriverDeliveries)
 def deliveries(response: Response, user: Driver, db: Database,
                page: Annotated[int, Query(ge=1, le=1000000)] = 1,
@@ -84,6 +91,7 @@ def deliveries(response: Response, user: Driver, db: Database,
     return read(response, lambda: service.assigned_deliveries(db, user, page, page_size, status))
 
 
+# Handle GET /history through the declared request and dependency contract.
 @router.get("/history", response_model=DriverDeliveries)
 def history(response: Response, user: Driver, db: Database,
             page: Annotated[int, Query(ge=1, le=1000000)] = 1,
@@ -95,6 +103,7 @@ def history(response: Response, user: Driver, db: Database,
 JobId = Annotated[int, Path(gt=0, le=9223372036854775807)]
 
 
+# Handle GET /jobs through the declared request and dependency contract.
 @router.get("/jobs", response_model=AvailableJobs)
 def jobs(response: Response, user: Driver, db: Database,
          page: Annotated[int, Query(ge=1, le=1000000)] = 1,
@@ -102,16 +111,19 @@ def jobs(response: Response, user: Driver, db: Database,
     return read(response, lambda: service.available_jobs(db, user, page, page_size))
 
 
+# Handle GET /jobs/{job_id} through the declared request and dependency contract.
 @router.get("/jobs/{job_id}", response_model=AvailableJobDetail)
 def job_detail(response: Response, user: Driver, db: Database, job_id: JobId):
     return read(response, lambda: service.available_job_detail(db, user, job_id))
 
 
+# Handle GET /deliveries/{job_id} through the declared request and dependency contract.
 @router.get("/deliveries/{job_id}", response_model=DeliveryProgress)
 def assigned_detail(response: Response, user: Driver, db: Database, job_id: JobId):
     return read(response, lambda: service.delivery_progress(db, user, job_id))
 
 
+# Handle POST /deliveries/{job_id}/status through the declared request and dependency contract.
 @router.post("/deliveries/{job_id}/status", response_model=DeliveryProgress)
 def update_status(response: Response, user: Driver, db: Database, job_id: JobId, payload: StatusUpdateRequest):
     response.headers["Cache-Control"] = "no-store"
@@ -131,6 +143,7 @@ def update_status(response: Response, user: Driver, db: Database, job_id: JobId,
         raise HTTPException(503, "Update could not be confirmed. Refresh delivery details to check its recorded status.") from None
 
 
+# Handle POST /jobs/{job_id}/accept through the declared request and dependency contract.
 @router.post("/jobs/{job_id}/accept", response_model=JobAcceptance)
 def accept_job(response: Response, user: Driver, db: Database, job_id: JobId, payload: AcceptJobRequest):
     response.headers["Cache-Control"] = "no-store"

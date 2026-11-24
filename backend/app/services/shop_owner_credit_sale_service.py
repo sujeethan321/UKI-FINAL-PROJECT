@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner credit sale operations behind the HTTP layer so related business rules are shared by their callers.
 """Record one sale while holding the account lock until the route commits."""
 from datetime import timedelta
 
@@ -14,12 +15,14 @@ from app.services.ledger_service import (
 )
 
 
+# Shape sale fields for the response contract.
 def sale_response(entry, account, business_id, customer_id, balance, replayed):
     return CreditSaleResponse(**transaction_response_data(
         entry, account, business_id, customer_id, balance, replayed,
     ))
 
 
+# Record a credit sale using the shared account-locking, balance, and request-replay rules.
 def record_credit_sale(db, business_id, user_id, payload):
     account = lock_customer_credit_account(db, business_id, payload.customer_id)
 

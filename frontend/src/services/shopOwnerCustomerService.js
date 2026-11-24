@@ -1,6 +1,8 @@
+// Purpose: Wrap shop owner customer API calls so components use a shared request interface instead of building HTTP requests themselves.
 
 import api from "./api";
 
+// Call GET /shop-owner/customers through the shared client so authentication and API configuration are applied consistently.
 export async function getShopOwnerCustomers(
   businessId,
   options = {}
@@ -18,6 +20,7 @@ export async function getShopOwnerCustomers(
   return response.data;
 }
 
+// Call POST /shop-owner/customers through the shared client so authentication and API configuration are applied consistently.
 export async function createShopOwnerCustomer(
   businessId,
   payload
@@ -35,6 +38,7 @@ export async function createShopOwnerCustomer(
   return response.data;
 }
 
+// Call GET /shop-owner/customers/{parameter} through the shared client so authentication and API configuration are applied consistently.
 export async function getShopOwnerCustomerDetails(businessId, customerId, options = {}) {
   const response = await api.get(`/shop-owner/customers/${customerId}`, {
     params: { business_id: businessId },
@@ -44,6 +48,7 @@ export async function getShopOwnerCustomerDetails(businessId, customerId, option
 }
 
 
+// Call PATCH /shop-owner/customers/{parameter} through the shared client so authentication and API configuration are applied consistently.
 export async function updateShopOwnerCustomer(businessId, customerId, payload) {
   const response = await api.patch(`/shop-owner/customers/${customerId}`, payload, {
     params: { business_id: businessId },
@@ -51,6 +56,7 @@ export async function updateShopOwnerCustomer(businessId, customerId, payload) {
   return response.data;
 }
 
+// Save shop owner credit account within the shop owner customer workflow.
 export async function saveShopOwnerCreditAccount(businessId, customerId, payload, create) {
   const response = await api[create ? "post" : "patch"](
     `/shop-owner/customers/${customerId}/credit-account`, payload,

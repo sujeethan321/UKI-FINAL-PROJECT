@@ -1,3 +1,4 @@
+# Purpose: Report relational and domain consistency counts for database inspection without repairing records.
 """Read-only relational and financial checks; reports counts, never private rows."""
 from decimal import Decimal
 import hashlib
@@ -11,6 +12,7 @@ from app.models import (AdminAudit, CreditAccount, CustomerProfile, DeliveryRequ
 from app.services.ledger_service import account_balances
 
 
+# Query relational counts data for the database integrity workflow.
 def relational_counts(connection):
     findings = {}
     for table in Base.metadata.sorted_tables:
@@ -32,7 +34,9 @@ def relational_counts(connection):
     return findings
 
 
+# Query domain counts data for the database integrity workflow.
 def domain_counts(db):
+    # Query count data for the database integrity workflow.
     def count(statement):
         return db.scalar(select(func.count()).select_from(statement.subquery()))
     accounts = select(CreditAccount.credit_account_id).join(CustomerProfile).where(

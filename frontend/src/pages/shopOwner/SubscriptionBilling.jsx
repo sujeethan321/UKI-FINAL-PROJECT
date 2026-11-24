@@ -1,3 +1,4 @@
+// Purpose: Render the subscription billing screen and connect its user interactions to shared application state and services.
 import { useEffect, useRef, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useAppTranslation } from "../../i18n/useAppTranslation";
@@ -11,8 +12,10 @@ import { billingRedirect, checkoutRequestKey } from "../../utils/billing";
 import "./subscription.css";
 
 const features = [['financial_history','Credit records & repayments'],['customers','Customer management'],['catalogue','Shop & product catalogue'],['orders','Customer Shopping Orders'],['deliveries','Delivery Management'],['reports','Detailed Reports'],['ai_summaries','AI Business Summaries'],['statement_exports','Export Statements'],['advanced_reports','Advanced Reports']];
+// Check whether the current plan includes the requested feature before presenting its access state.
 const included=(plan,key)=>key==='advanced_reports'?'Unavailable':plan?.entitlements?.[key]===true?'Included':plan?.entitlements?.[key]===false?'Locked':'Unavailable';
 
+// Render the subscription billing view interface and connect its controls to the state and callbacks defined here.
 export function SubscriptionBillingView({ businesses = [], businessId, onBusiness, data, plans = [],
   loading = false, error = false, history = null, onRetry, interval = "month", onInterval,
   busy = false, billingError = false, checkoutReturn, onCheckout, onPortal, onReconcile }) {
@@ -53,6 +56,7 @@ export function SubscriptionBillingView({ businesses = [], businessId, onBusines
   </div>;
 }
 
+// Render the subscription billing interface and connect its controls to the state and callbacks defined here.
 export default function SubscriptionBilling() {
   const { businesses = [] } = useOutletContext() || {};
   const [params, setParams] = useSearchParams();
@@ -65,6 +69,7 @@ export default function SubscriptionBilling() {
   const gate = useRef(false);
   const [busy, setBusy] = useState(false);
   const [billingError, setBillingError] = useState(false);
+  // Run the requested billing action and handle its result before allowing another billing interaction.
   async function billingAction(action, portal = false) {
     if (gate.current) return;
     gate.current = true; setBusy(true); setBillingError(false);
@@ -82,6 +87,7 @@ export default function SubscriptionBilling() {
     } catch { setBillingError(true); }
     finally { gate.current = false; setBusy(false); }
   }
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => {
     if (!businessId) return;
     const controller = new AbortController();

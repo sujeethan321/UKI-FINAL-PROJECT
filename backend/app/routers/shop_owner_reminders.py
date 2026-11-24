@@ -1,3 +1,4 @@
+# Purpose: Expose shop owner reminders HTTP endpoints and connect request validation and dependencies to the application services.
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -14,6 +15,7 @@ from app.services.shop_owner_reminder_service import record_reminder, reminder_h
 router = APIRouter(prefix="/shop-owner/payment-reminders", tags=["Payment Reminders"])
 
 
+# Handle POST  through the declared request and dependency contract.
 @router.post("", response_model=PaymentReminderResponse, status_code=201)
 def create_reminder(
     payload: PaymentReminderCreate, response: Response,
@@ -45,6 +47,7 @@ def create_reminder(
             raise HTTPException(500, "Unable to record reminder") from None
 
 
+# Handle GET  through the declared request and dependency contract.
 @router.get("", response_model=PaymentReminderHistory)
 def list_reminders(
     response: Response,

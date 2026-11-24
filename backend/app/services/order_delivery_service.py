@@ -1,3 +1,4 @@
+# Purpose: Implement order delivery operations behind the HTTP layer so related business rules are shared by their callers.
 """Order-to-delivery bridge. The route owns the single commit/rollback.
 
 MVP: one permanently retained delivery link per order, including cancellation.
@@ -13,6 +14,7 @@ from app.services import order_service as orders
 from app.services import shop_owner_delivery_service as deliveries
 
 
+# Resolve order within the access scope checked by this service.
 def scoped_order(db, user, order_id, business_id=None, write=False):
     preview = orders.scoped(db, user, order_id, business_id)
     if write:
@@ -27,6 +29,7 @@ def scoped_order(db, user, order_id, business_id=None, write=False):
     return row
 
 
+# Find the delivery associated with this order rather than creating a separate delivery identity.
 def linked_delivery(db, order):
     if order.delivery_request_id is None:
         return None
@@ -38,7 +41,17 @@ def linked_delivery(db, order):
     return row
 
 
+# Require an order in the supported state before creating or reusing its delivery workflow.
 def eligible_order(db, order):
+    from app.models.driver_finance import OrderFulfilmentCharge
+    from app.services.driver_finance_rollout import enabled,require_ready
+    charge=None
+    if enabled():
+        require_ready(db)
+        charge=db.scalar(select(OrderFulfilmentCharge).where(OrderFulfilmentCharge.order_id==order.order_id)
+            .with_for_update(read=True).execution_options(populate_existing=True))
+    if charge and charge.mode=='pickup':
+        raise HTTPException(409,'Pickup orders cannot request delivery')
     if order.payment_method == 'cash':
         if order.status != 'processing' or order.payment_status != 'unpaid':
             raise HTTPException(409, 'Cash order must be processing before requesting delivery')
@@ -63,6 +76,7 @@ def eligible_order(db, order):
         raise HTTPException(409, 'Order credit approval is no longer valid for delivery')
 
 
+# Shape owner fields for the response contract.
 def owner_data(db, order, delivery):
     reason = 'This order already has a retained delivery request.' if delivery else None
     if delivery is None:
@@ -77,6 +91,7 @@ def owner_data(db, order, delivery):
                 delivery=deliveries.detail_data(db, delivery, current=True) if delivery else None)
 
 
+# Create the scoped order or delivery through its validation, locking, and existing-record checks.
 def create(db, user, order_id, business_id, payload):
     order = scoped_order(db, user, order_id, business_id, write=True)
     existing = linked_delivery(db, order)
@@ -96,11 +111,13 @@ def create(db, user, order_id, business_id, payload):
     return owner_data(db, order, linked_delivery(db, order))
 
 
+# Resolve the owner-scoped order and summarize the delivery linked to it.
 def owner_summary(db, user, order_id, business_id):
     order = scoped_order(db, user, order_id, business_id)
     return owner_data(db, order, linked_delivery(db, order))
 
 
+# Resolve customer summary using a row lock so the caller can coordinate concurrent changes.
 def customer_summary(db, user, order_id):
     order = scoped_order(db, user, order_id)
     row = linked_delivery(db, order)

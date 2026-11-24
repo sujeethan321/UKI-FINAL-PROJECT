@@ -1,3 +1,4 @@
+# Purpose: Implement dashboard due operations behind the HTTP layer so related business rules are shared by their callers.
 """Current unpaid due-date totals, using the approved reporting-only FIFO policy."""
 from datetime import datetime
 from decimal import Decimal
@@ -6,6 +7,7 @@ from app.core.config import settings
 from app.services.shop_owner_aging_service import aging
 
 
+# Calculate due amounts from the effective ledger for dashboard summaries.
 def due_totals(entries, now, outstanding):
     unavailable = dict(due_soon_amount=None, overdue_amount=None, due_totals_status='unavailable',
                        due_date_policy='fifo_database_wall_clock_today_through_7_days')

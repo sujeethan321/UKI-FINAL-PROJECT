@@ -1,3 +1,4 @@
+// Purpose: Render the login form screen and connect its user interactions to shared application state and services.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
 import { useRef, useState } from "react";
@@ -18,6 +19,7 @@ import { validateJoinReturnPath } from "../../utils/joinReturn";
 import { LankaPexLogo } from "./LoginBrandPanel";
 
 
+// Render the login form interface and connect its controls to the state and callbacks defined here.
 export default function LoginForm({ joinReturnTo }) {
   const { tr } = useAppTranslation();
   const safeJoinReturnTo = validateJoinReturnPath(joinReturnTo);
@@ -31,6 +33,7 @@ export default function LoginForm({ joinReturnTo }) {
   const submitting = useRef(false);
 
 
+  // Respond to the submit interaction using the current component state.
   async function handleSubmit(event) {
     event.preventDefault();
 

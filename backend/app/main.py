@@ -1,3 +1,4 @@
+# Purpose: Assemble the FastAPI application, register versioned API routes, and install shared HTTP protections.
 
 from fastapi import FastAPI
 from app.core.config import settings
@@ -30,8 +31,11 @@ app = FastAPI(
     version="1.0.0",
     debug=settings.APP_DEBUG,
 )
+# Register feature routers under one version prefix so clients share a stable API base URL.
 app.include_router(subscription_router, prefix="/api/v1")
 app.include_router(driver_router, prefix="/api/v1")
+from app.routers.driver_finance import router as driver_finance_router
+app.include_router(driver_finance_router,prefix='/api/v1')
 app.include_router(owner_catalogue_router, prefix="/api/v1")
 app.include_router(customer_catalogue_router, prefix="/api/v1")
 app.include_router(shop_owner_delivery_router, prefix="/api/v1")
@@ -89,3 +93,18 @@ app.include_router(owner_order_router, prefix='/api/v1')
 
 from app.routers.admin import router as admin_router
 app.include_router(admin_router, prefix='/api/v1')
+from app.routers.admin_reports import router as admin_reports_router
+app.include_router(admin_reports_router, prefix='/api/v1')
+from app.routers.support import router as support_router
+from app.routers.admin_support import router as admin_support_router
+app.include_router(support_router, prefix='/api/v1')
+app.include_router(admin_support_router, prefix='/api/v1')
+from app.core.support_body_limit import SupportBodyLimit
+app.add_middleware(SupportBodyLimit)
+from app.routers.profile import router as profile_router
+from app.core.profile_body_limit import ProfileBodyLimit
+app.include_router(profile_router, prefix='/api/v1')
+app.add_middleware(ProfileBodyLimit)
+
+from app.routers.customer_addresses import router as address_router
+app.include_router(address_router,prefix='/api/v1')

@@ -1,3 +1,4 @@
+# Purpose: Implement admin driver documents operations behind the HTTP layer so related business rules are shared by their callers.
 """Active Admin access to current, integrity-checked sanitized documents."""
 from datetime import datetime, timezone
 import hashlib
@@ -11,6 +12,7 @@ from app.services.driver_document_storage import PrivateDocumentStore, DocumentE
 KINDS=('DRIVING_LICENCE','VEHICLE_OWNERSHIP_PROOF')
 
 
+# Lock profile rows before the calling operation proceeds.
 def locked_profile(db, actor, driver_id):
     from app.services.driver_service import actor as checked_actor
     checked_actor(db,actor.user_id,'admin',lock=True)
@@ -22,12 +24,14 @@ def locked_profile(db, actor, driver_id):
     return profile
 
 
+# Resolve current documents using a row lock so the caller can coordinate concurrent changes.
 def current_documents(db,driver_id):
     return list(db.scalars(select(DriverVerificationDocument).where(
         DriverVerificationDocument.driver_user_id==driver_id,DriverVerificationDocument.current_slot==1)
         .order_by(DriverVerificationDocument.document_type).with_for_update().execution_options(populate_existing=True)))
 
 
+# Resolve stored document content through the private-document service.
 def content(row):
     try:
         root=getattr(settings,'DRIVER_DOCUMENT_PRIVATE_ROOT',None)
@@ -43,6 +47,7 @@ def content(row):
         raise HTTPException(409,'Document unavailable or integrity check failed') from None
 
 
+# Build current driver verification state from the retained document versions.
 def verification(db,driver_id,profile):
     rows=current_documents(db,driver_id)
     documents=[]
@@ -61,11 +66,13 @@ def verification(db,driver_id,profile):
         all(d['review_status']=='APPROVED' and d['integrity_valid'] for d in documents)),documents=documents)
 
 
+# Append the administrative decision to the audit trail so the actor and change remain traceable.
 def audit(db,actor,row,action):
     db.add(DriverDocumentAudit(audit_id=str(uuid4()),document_id=row.document_id,actor_user_id=actor.user_id,
         action=action,outcome='SUCCESS',created_at=datetime.now(timezone.utc).replace(tzinfo=None)))
 
 
+# Get current for the admin driver documents workflow.
 def get_current(db,actor,driver_id,document_id):
     profile=locked_profile(db,actor,driver_id)
     row=next((r for r in current_documents(db,driver_id) if r.document_id==document_id),None)
@@ -73,6 +80,7 @@ def get_current(db,actor,driver_id,document_id):
     return profile,row
 
 
+# Resolve the authorized current document, read its content, and record the administrative access.
 def retrieve(db,actor,driver_id,document_id,action):
     _,row=get_current(db,actor,driver_id,document_id)
     data=content(row)
@@ -80,6 +88,7 @@ def retrieve(db,actor,driver_id,document_id,action):
     return data,row.media_type
 
 
+# Accept a document review only for a pending driver application after confirming the current evidence.
 def review(db,actor,driver_id,document_id,decision,rejection_code):
     profile,row=get_current(db,actor,driver_id,document_id)
     if profile.approval_status!='pending': raise HTTPException(409,'Only pending Driver applications can be reviewed')
@@ -94,6 +103,7 @@ def review(db,actor,driver_id,document_id,decision,rejection_code):
     return verification(db,driver_id,profile)
 
 
+# Check approved and stop callers when the required conditions are not met.
 def require_approved(db,driver_id,profile):
     if not verification(db,driver_id,profile)['approval_ready']:
         raise HTTPException(409,'Both current Driver documents must pass integrity checks and be approved')

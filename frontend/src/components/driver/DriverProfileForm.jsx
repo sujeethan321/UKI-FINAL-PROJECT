@@ -1,14 +1,17 @@
+// Purpose: Render the reusable driver profile form interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import {useEffect,useState,useSyncExternalStore} from 'react';
 import {submitDriverProfile} from '../../services/driverDashboardService';
 import {createDriverProfileSubmission} from '../../utils/driverProfileSubmission';
 const field='mt-2 block min-h-11 w-full rounded-lg border border-[#D4E2EE] bg-white px-3 py-2 focus-visible:outline-2 focus-visible:outline-[#12B8A6]';
+// Render the driver profile form interface and connect its controls to the state and callbacks defined here.
 export default function DriverProfileForm({userId,onSubmitted}) {
   const { tr } = useAppTranslation();
  const [vehicle,setVehicle]=useState(''),[registration,setRegistration]=useState('');
  const [documents,setDocuments]=useState({driving_licence:null,vehicle_ownership_proof:null});
  const [controller]=useState(()=>createDriverProfileSubmission(submitDriverProfile,userId,onSubmitted));
  const state=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
+ // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
  useEffect(()=>{controller.activate();return()=>controller.dispose();},[controller]);
  return <form className="mt-5 space-y-4" aria-label={tr("Register Vehicle")} onSubmit={event=>{event.preventDefault();void controller.submit({vehicle_type:vehicle,registration_reference:registration,...documents});}}>
   <h3 className="text-xl font-bold">{tr('Register Vehicle')}</h3>

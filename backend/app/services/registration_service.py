@@ -1,3 +1,4 @@
+# Purpose: Create public user accounts through a shared registration path with password hashing and duplicate-email handling.
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -12,14 +13,17 @@ from app.schemas.auth import (
 )
 
 
+# Distinguish email already registered failures so callers can handle this condition explicitly.
 class EmailAlreadyRegistered(Exception):
     pass
 
 
+# Distinguish registration failed failures so callers can handle this condition explicitly.
 class RegistrationFailed(Exception):
     pass
 
 
+# Create user for the registration workflow.
 def _create_user(
     db: Session,
     data: CustomerRegister | DriverRegister | ShopOwnerRegister,
@@ -51,6 +55,7 @@ def _create_user(
 
 
 
+# Register user for the registration workflow.
 def register_user(
     db: Session,
     data: CustomerRegister | DriverRegister | ShopOwnerRegister,

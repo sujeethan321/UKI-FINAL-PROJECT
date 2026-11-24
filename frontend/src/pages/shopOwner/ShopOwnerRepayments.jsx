@@ -1,3 +1,4 @@
+// Purpose: Render the shop owner repayments screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -16,6 +17,7 @@ const fieldClass = "mt-1.5 w-full rounded-lg border border-[#DAE5F3] bg-white px
 const api = { businesses: getShopOwnerBusinessContext, customers: getShopOwnerCustomers,
   details: getShopOwnerCustomerDetails, record: createShopOwnerRepayment };
 
+// Render the money card interface and connect its controls to the state and callbacks defined here.
 function MoneyCard({ icon: Icon, label, value, palette }) {
   const { tr } = useAppTranslation();
   return <div className="flex items-center gap-4 rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm">
@@ -24,11 +26,13 @@ function MoneyCard({ icon: Icon, label, value, palette }) {
   </div>;
 }
 
+// Format date label for display so screens use a consistent representation.
 function dateLabel(value) {
   const date = value ? new Date(value) : null;
   return date && !Number.isNaN(date.getTime()) ? date.toLocaleString("en-LK") : "?";
 }
 
+// Render the repayments view interface and connect its controls to the state and callbacks defined here.
 export function RepaymentsView({ state, actions }) {
   const { tr } = useAppTranslation();
   const business = state.businesses.find(b => String(b.business_id) === String(state.businessId));
@@ -125,11 +129,14 @@ export function RepaymentsView({ state, actions }) {
   </div>;
 }
 
+// Render the repayments page interface and connect its controls to the state and callbacks defined here.
 function RepaymentsPage({ userId, initialBusinessId, initialCustomerId }) {
   const [workflow] = useState(() => createRepaymentWorkflow({ api, store: sessionRepaymentStore(userId), initialBusinessId, initialCustomerId }));
   const state = useSyncExternalStore(workflow.subscribe, workflow.getSnapshot, workflow.getSnapshot);
+  // Attach browser listeners for this mounted resource and remove them during effect cleanup.
   useEffect(() => {
     void workflow.loadBusinesses();
+    // Explain that the previous write still needs confirmation before a new operation can start.
     const warnPending = event => {
       const current = workflow.getSnapshot();
       if (current.saving || current.uncertain) { event.preventDefault(); event.returnValue = ""; }
@@ -140,6 +147,7 @@ function RepaymentsPage({ userId, initialBusinessId, initialCustomerId }) {
   return <RepaymentsView state={state} actions={workflow} />;
 }
 
+// Render the shop owner repayments interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerRepayments() {
   const { user } = useAuth();
   const location = useLocation();

@@ -1,7 +1,12 @@
+// Purpose: Keep driver dashboard data handling and workflow helpers separate from React rendering so callers use consistent rules.
 import {validDeliveryEstimate} from './deliveryEstimate.js';
+// Accept only supported identifiers before response data is used for lookups or navigation.
 const id=value=>Number.isSafeInteger(value)&&value>0;
+// Validate count values before the interface uses them for totals or pagination.
 const count=value=>Number.isSafeInteger(value)&&value>=0;
+// Validate text values at the response boundary before rendering them.
 const text=value=>typeof value==='string'&&!!value.trim();
+// Project only the named response fields so unrelated API fields do not enter view state.
 const pick=(row,keys)=>Object.fromEntries(keys.map(key=>[key,row[key]]));
 export const driverApprovalLabels={not_submitted:'Not submitted',pending:'Pending review',approved:'Approved',rejected:'Rejected',suspended:'Suspended'};
 export const driverEligibilityMessages={
@@ -12,9 +17,11 @@ export const driverEligibilityMessages={
  vehicle_required:'Vehicle information is required before delivery work is permitted.',
  eligible:'Your driver profile is approved and eligible for delivery work.',
 };
+// Format assigned time for display so screens use a consistent representation.
 export function formatAssignedTime(value) {
  return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)&&!Number.isNaN(Date.parse(value)) ? value.replace('T',' ').split('.')[0]+' UTC':'Time unavailable';
 }
+// Check driver response before the surrounding workflow uses it.
 export function parseDriverResponse(section,data,userId) {
  if(!id(userId)||data?.driver_user_id!==userId)throw Error('Driver identity mismatch');
  if(section==='profile'){
@@ -42,6 +49,7 @@ export function parseDriverResponse(section,data,userId) {
  });
  return {total:data.total,deliveries};
 }
+// Translate driver read outcomes into display text for the interface.
 export function driverReadError(error) {
  if(error?.response?.status===401)return 'Your session has expired. Please sign in again.';
  if(error?.response?.status===403)return 'Driver access is unavailable. Check your account status or sign in with your driver account.';
@@ -50,15 +58,21 @@ export function driverReadError(error) {
  return 'Driver information is unavailable. Check your connection and retry.';
 }
 const sections=['profile','summary','deliveries'];
+// Create independent initial resource state so new readers do not inherit another instance state.
 const fresh=loading=>({authError:'',...Object.fromEntries(sections.map(key=>[key,{data:null,loading,error:''}]))});
+// Create driver dashboard reader for the driver dashboard workflow.
 export function createDriverDashboardReader(api,userId) {
  let state=fresh(true),active=false,generation=0;const listeners=new Set(),controllers={},versions={};
+ // Replace the store snapshot and notify subscribers so React can render the new state.
  const publish=next=>{state=next;if(active)listeners.forEach(fn=>fn());};
+ // Cancel outstanding reads before the reader is reset or disposed.
  const abortAll=()=>Object.values(controllers).forEach(controller=>controller.abort());
+ // Load the current resource data and update the state consumed by the interface.
  async function load(section){
   if(!active||state.authError||!sections.includes(section))return;
   controllers[section]?.abort();const controller=new AbortController();controllers[section]=controller;
   const version=versions[section]=(versions[section]||0)+1,current=generation;
+  // Check valid before the surrounding workflow uses it.
   const valid=()=>active&&!controller.signal.aborted&&generation===current&&versions[section]===version;
   publish({...state,[section]:{data:null,loading:true,error:''}});
   try{
@@ -70,7 +84,9 @@ export function createDriverDashboardReader(api,userId) {
    else publish({...state,[section]:{data:null,loading:false,error:driverReadError(error)}});
   }
  }
- return {getSnapshot:()=>state,subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},load,
+ return {/* Expose the current store snapshot to subscribers without starting a request. */ getSnapshot:()=>state,/* Register a state listener and return cleanup so consumers can unsubscribe. */ subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},load,
+  // Start the resource workflow using its current context and selection.
   start(){active=true;generation++;abortAll();publish(fresh(true));return Promise.allSettled(sections.map(load));},
+  // Release pending work and subscriptions when this resource reader is no longer used.
   dispose(){active=false;generation++;abortAll();state=fresh(false);}};
 }

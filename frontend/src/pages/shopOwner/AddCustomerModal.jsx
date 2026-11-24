@@ -1,3 +1,4 @@
+// Purpose: Render the add customer modal screen and connect its user interactions to shared application state and services.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
 import { useRef, useState } from "react";
@@ -15,6 +16,7 @@ const initialForm = {
 const fieldClass =
   "mt-1.5 w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2.5 text-sm text-[#0D1D47] outline-none focus:border-[#0BAAB4] focus:ring-2 focus:ring-[#0BAAB4]/15";
 
+// Render the add customer modal interface and connect its controls to the state and callbacks defined here.
 export default function AddCustomerModal({
   businessId,
   onClose,
@@ -27,6 +29,7 @@ export default function AddCustomerModal({
   const [requiresVerification, setRequiresVerification] = useState(false);
   const submitLock = useRef(false);
 
+  // Apply the new state and notify the consumers or handlers registered by this workflow.
   function update(event) {
     const { name, value } = event.target;
 
@@ -36,6 +39,7 @@ export default function AddCustomerModal({
     }));
   }
 
+  // Respond to the submit interaction using the current component state.
   async function handleSubmit(event) {
     event.preventDefault();
 

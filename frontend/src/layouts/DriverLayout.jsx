@@ -1,3 +1,4 @@
+// Purpose: Compose the driver layout shell and nested screen area so related pages share navigation and presentation.
 import AccountMenu from "../components/ui/AccountMenu";
 import LanguageSelector from "../components/LanguageSelector";
 import { useAppTranslation } from "../i18n/useAppTranslation.js";
@@ -12,10 +13,12 @@ import DriverSidebar from "../components/driver/DriverSidebar";
 import NotificationBell from "../components/notifications/NotificationBell";
 import { useAuth } from "../context/useAuth";
 
+// Render the driver layout interface and connect its controls to the state and callbacks defined here.
 export default function DriverLayout() {
   const { tr } = useAppTranslation();
   const { user, logout } = useAuth();
   const location = useLocation(), navigate = useNavigate();
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     if (["#driver-profile", "#active-deliveries"].includes(location.hash)) document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: "start" });
   }, [location.pathname, location.hash]);

@@ -1,3 +1,4 @@
+// Purpose: Keep financial documents data handling and workflow helpers separate from React rendering so callers use consistent rules.
 // Aggregated document balances can exceed an individual Numeric(14,2) entry.
 export function formatDocumentMoney(value) {
   if (typeof value !== "string" || !/^-?\d+\.\d{2}$/.test(value)) return "Not available";
@@ -5,11 +6,16 @@ export function formatDocumentMoney(value) {
   return `LKR ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${fraction}`;
 }
 
+// Compare normalized record identifiers so a response is matched to the requested record.
 const sameId = (left, right) => String(left) === String(right);
+// Require a positive identifier before associating data with an application record.
 const positiveId = value => Number.isSafeInteger(value) && value > 0;
+// Validate or format decimal monetary data at the interface boundary without changing the ledger.
 const money = value => typeof value === "string" && /^\d+\.\d{2}$/.test(value);
+// Accept the signed money representation needed for balances and reversals.
 const signedMoney = value => typeof value === "string" && money(value.startsWith("-") ? value.slice(1) : value);
 
+// Check receipt before the surrounding workflow uses it.
 export function validateReceipt(data, [businessId, entryId]) {
   return data?.currency === "LKR" && sameId(data.business?.business_id, businessId) && sameId(data.entry_id, entryId) &&
     positiveId(data.customer?.customer_id) && sameId(data.customer.business_id, businessId) && positiveId(data.credit_account_id) &&
@@ -18,6 +24,7 @@ export function validateReceipt(data, [businessId, entryId]) {
     !Number.isNaN(Date.parse(data.recorded_at)) && (data.status !== "reversed" || (positiveId(data.reversal_entry_id) && !!data.reversed_at));
 }
 
+// Check statement before the surrounding workflow uses it.
 export function validateStatement(data, [businessId, customerId, period]) {
   return data?.currency === "LKR" && sameId(data.business?.business_id, businessId) && sameId(data.customer?.business_id, businessId) &&
     sameId(data.customer.customer_id, customerId) && data.start_date === period.start_date && data.end_date === period.end_date &&
@@ -27,6 +34,7 @@ export function validateStatement(data, [businessId, customerId, period]) {
       ["credit_sale", "repayment", "reversal"].includes(row.entry_type) && money(row.debit) && money(row.credit) && signedMoney(row.running_balance));
 }
 
+// Check outstanding before the surrounding workflow uses it.
 export function validateOutstanding(data, [businessId, filters]) {
   return data?.currency === "LKR" && sameId(data.business_id, businessId) && money(data.total_outstanding) &&
     Number.isSafeInteger(data.customers_with_outstanding) && data.customers_with_outstanding >= 0 &&
@@ -36,6 +44,7 @@ export function validateOutstanding(data, [businessId, filters]) {
       (row.credit_limit === null || money(row.credit_limit)) && (row.available_credit === null || money(row.available_credit)));
 }
 
+// Translate financial read outcomes into display text for the interface.
 export function financialReadError(error) {
   const status = error?.response?.status;
   if (status === 401) return "Your session has expired. Please sign in again.";
@@ -51,13 +60,19 @@ export function createFinancialReader(api, validate) {
   let state = { data: null, loading: false, error: "" };
   let active = true, version = 0, controller;
   const listeners = new Set();
+  // Replace the store snapshot and notify subscribers so React can render the new state.
   const publish = patch => { if (active) { state = { ...state, ...patch }; listeners.forEach(fn => fn()); } };
+  // Remove the saved workflow value so it cannot be reused after reset.
   const clear = () => { controller?.abort(); ++version; publish({ data: null, loading: false, error: "" }); };
   return {
+    // Expose the current store snapshot to subscribers without starting a request.
     getSnapshot: () => state,
+    // Register a state listener and return cleanup so consumers can unsubscribe.
     subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
     clear,
+    // Release pending work and subscriptions when this resource reader is no longer used.
     dispose: () => { clear(); active = false; },
+    // Load the requested resource section and publish its loading or result state.
     async load(...args) {
       active = true; controller?.abort(); const current = ++version;
       controller = new AbortController(); const { signal } = controller;

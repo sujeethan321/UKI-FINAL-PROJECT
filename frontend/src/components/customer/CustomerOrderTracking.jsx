@@ -1,3 +1,4 @@
+// Purpose: Render the reusable customer order tracking interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import {useCustomerRead} from '../../hooks/useCustomerRead';
 import {customerOrderDelivery} from '../../services/orderService';
@@ -6,6 +7,7 @@ import {orderCard as card,orderButton as button} from '../../utils/shopping';
 import {formatAssignedTime} from '../../utils/driverDashboard';
 import DeliveryTimeline from '../delivery/DeliveryTimeline';
 
+// Render the customer order tracking view interface and connect its controls to the state and callbacks defined here.
 export function CustomerOrderTrackingView({state,retry,compact=false}) {
   const { tr } = useAppTranslation();
  const delivery=state.data?.delivery;
@@ -17,6 +19,7 @@ export function CustomerOrderTrackingView({state,retry,compact=false}) {
   </>:null}
  </section>;
 }
+// Render the customer order tracking interface and connect its controls to the state and callbacks defined here.
 export default function CustomerOrderTracking({orderId,compact=false,onDenied}) {
  const [state,reader]=useCustomerRead(({signal})=>customerOrderDelivery(orderId,signal),data=>parseCustomerOrderDelivery(data,orderId),onDenied);
  return <CustomerOrderTrackingView state={state} retry={reader.load} compact={compact}/>;

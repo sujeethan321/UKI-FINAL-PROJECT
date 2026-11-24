@@ -1,3 +1,4 @@
+// Purpose: Render the customer dashboard screen and connect its user interactions to shared application state and services.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { Link } from "react-router-dom";
 import CustomerCreditOverview from "../../components/customer/CustomerCreditOverview";
@@ -11,7 +12,9 @@ import { createCustomerDashboardReader, formatCustomerMoney, formatRecordedTime 
 const button = "inline-flex items-center gap-2 rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm font-semibold text-[#36517B] focus-visible:outline-2 focus-visible:outline-[#12B8A6] disabled:opacity-50";
 const card = "min-w-0 rounded-2xl border border-[#D4E2EE] bg-white p-5 shadow-sm sm:p-6";
 const typeLabel = { credit_sale: "Credit sale", repayment: "Repayment record", reversal: "Reversal" };
+// Render the loading interface and connect its controls to the state and callbacks defined here.
 function Loading({ children }) { return <p role="status" className="flex items-center gap-2 py-6 text-sm text-[#64748B]"><LoaderCircle size={18} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />{children}</p>; }
+// Render the section interface and connect its controls to the state and callbacks defined here.
 function Section({ id, title, section, retry, children }) {
   const { tr } = useAppTranslation();
   return <section id={id} aria-labelledby={id + "-heading"} className={card + " scroll-mt-6"}>
@@ -19,8 +22,10 @@ function Section({ id, title, section, retry, children }) {
     {section.loading ? <Loading>{tr("Loading")}{" "}{title.toLowerCase()}...</Loading> : section.error ? <div role="alert" className="my-5 space-y-3 border-l-4 border-[#DC4545] pl-3 text-sm text-[#10243E]"><p>{tr(section.error)}</p><button type="button" className={button} onClick={retry}>{tr("Retry")}{" "}{title.toLowerCase()}</button></div> : section.data ? children : <p className="py-5 text-sm text-[#64748B]">{tr("Data unavailable.")}</p>}
   </section>;
 }
+// Render the preview note interface and connect its controls to the state and callbacks defined here.
 function PreviewNote({ data }) {
   const { tr } = useAppTranslation(); return <p className="mt-4 text-xs text-[#64748B]">{tr("Showing {{shown}} of {{total}} records.", { shown: data.items.length, total: data.total })}</p>; }
+// Render the customer dashboard view interface and connect its controls to the state and callbacks defined here.
 export function CustomerDashboardView({ state, actions }) {
   const { tr, statusLabel } = useAppTranslation();
   const summary = state.summary.data;
@@ -45,12 +50,15 @@ export function CustomerDashboardView({ state, actions }) {
     </>}
   </div>;
 }
+// Render the customer dashboard session interface and connect its controls to the state and callbacks defined here.
 function CustomerDashboardSession() {
   const [reader] = useState(() => createCustomerDashboardReader({ summary: getCustomerSummary, shops: getCustomerShops, accounts: getCustomerCreditAccounts, transactions: getCustomerTransactions }));
   const state = useSyncExternalStore(reader.subscribe, reader.getSnapshot, reader.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => { reader.start(); return () => reader.dispose(); }, [reader]);
   return <CustomerDashboardView state={state} actions={reader} />;
 }
+// Render the customer dashboard interface and connect its controls to the state and callbacks defined here.
 export default function CustomerDashboard() {
   const { user, token, isAuthenticated } = useAuth();
   if (!isAuthenticated || user?.platform_role !== "customer") return null;

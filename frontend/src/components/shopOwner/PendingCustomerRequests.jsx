@@ -1,3 +1,4 @@
+// Purpose: Render the reusable pending customer requests interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useEffect, useRef, useState } from "react";
 import { decideBusinessJoinRequest, getBusinessJoinRequests } from "../../services/shopOwnerJoinService";
@@ -6,6 +7,7 @@ import { decideBusinessJoinRequest, getBusinessJoinRequests } from "../../servic
 
 const PAGE_SIZE = 10;
 
+// Represent a request result that is not yet confirmed by the workflow.
 export function pendingResponse(data, page) {
   if (!Number.isSafeInteger(data?.total) || data.total < 0 || data.page !== page || data.page_size !== PAGE_SIZE ||
       !Array.isArray(data.requests) || data.requests.length > PAGE_SIZE ||
@@ -15,6 +17,7 @@ export function pendingResponse(data, page) {
   return data;
 }
 
+// Translate join request outcomes into display text for the interface.
 export function joinRequestError(error) {
   const status = error?.response?.status;
   if (status === 401) return "Your session expired. Sign in again.";
@@ -24,6 +27,7 @@ export function joinRequestError(error) {
   return "Customer requests are unavailable. Check your connection and retry.";
 }
 
+// Render the pending customer requests interface and connect its controls to the state and callbacks defined here.
 export default function PendingCustomerRequests({ businessId, onChanged }) {
   const { tr } = useAppTranslation();
   const [page, setPage] = useState(1);
@@ -35,11 +39,13 @@ export default function PendingCustomerRequests({ businessId, onChanged }) {
   const [processing, setProcessing] = useState(null);
   const actionLock = useRef(false);
   const activeRef = useRef(true);
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     activeRef.current = true;
     return () => { activeRef.current = false; };
   }, []);
 
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     let active = true;
     getBusinessJoinRequests(businessId, "pending", page, PAGE_SIZE).then(result => {
@@ -50,7 +56,9 @@ export default function PendingCustomerRequests({ businessId, onChanged }) {
     return () => { active = false; };
   }, [businessId, page, retry]);
 
+  // Load the current resource data and update the state consumed by the interface.
   function refresh() { setLoading(true); setRetry(value => value + 1); }
+  // Submit the selected decision through the current workflow and handle its response.
   async function decide(requestId, decision) {
     if (actionLock.current || processing || !data?.requests.some(row => row.request_id === requestId)) return;
     const verb = decision === "approve" ? "approve" : "reject";

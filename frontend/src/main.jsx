@@ -1,3 +1,4 @@
+// Purpose: Mount the React application and initialize shared styles and translation support at the browser entry point.
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'

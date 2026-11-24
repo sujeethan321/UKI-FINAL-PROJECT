@@ -1,3 +1,4 @@
+# Purpose: Define typed customer dashboard API payloads so incoming data is validated and outgoing fields have an explicit contract.
 """Minimal customer-visible read models; LKR amounts are exact decimal strings."""
 from datetime import date, datetime
 from typing import Annotated, Literal
@@ -7,6 +8,7 @@ from pydantic import BaseModel, Field
 Money = Annotated[str, Field(pattern=r"^-?\d+\.\d{2}$")]
 
 
+# Define the customer transaction field contract used when validating or serializing API data.
 class CustomerTransaction(BaseModel):
     entry_id: int
     credit_account_id: int
@@ -20,6 +22,7 @@ class CustomerTransaction(BaseModel):
     status: Literal["recorded", "reversed", "reversal"]
 
 
+# Define the customer credit account field contract used when validating or serializing API data.
 class CustomerCreditAccount(BaseModel):
     credit_account_id: int
     business_id: int
@@ -32,6 +35,7 @@ class CustomerCreditAccount(BaseModel):
     opened_at: datetime
 
 
+# Define the customer shop field contract used when validating or serializing API data.
 class CustomerShop(BaseModel):
     business_id: int
     business_name: str
@@ -39,6 +43,7 @@ class CustomerShop(BaseModel):
     outstanding_balance: Money
 
 
+# Define the customer summary field contract used when validating or serializing API data.
 class CustomerSummary(BaseModel):
     currency: Literal["LKR"] = "LKR"
     linked_shop_count: int
@@ -51,6 +56,7 @@ class CustomerSummary(BaseModel):
     due_date_policy: Literal['fifo_database_wall_clock_today_through_7_days'] = 'fifo_database_wall_clock_today_through_7_days'
 
 
+# Define the customer shops field contract used when validating or serializing API data.
 class CustomerShops(BaseModel):
     currency: Literal["LKR"] = "LKR"
     total: int
@@ -59,6 +65,7 @@ class CustomerShops(BaseModel):
     shops: list[CustomerShop]
 
 
+# Define the customer credit accounts field contract used when validating or serializing API data.
 class CustomerCreditAccounts(BaseModel):
     currency: Literal["LKR"] = "LKR"
     total: int
@@ -67,6 +74,7 @@ class CustomerCreditAccounts(BaseModel):
     credit_accounts: list[CustomerCreditAccount]
 
 
+# Define the customer transactions field contract used when validating or serializing API data.
 class CustomerTransactions(BaseModel):
     currency: Literal["LKR"] = "LKR"
     total: int
@@ -75,11 +83,13 @@ class CustomerTransactions(BaseModel):
     transactions: list[CustomerTransaction]
 
 
+# Define the customer credit account detail field contract used when validating or serializing API data.
 class CustomerCreditAccountDetail(BaseModel):
     currency: Literal["LKR"] = "LKR"
     account: CustomerCreditAccount
 
 
+# Define the customer statement entry field contract used when validating or serializing API data.
 class CustomerStatementEntry(BaseModel):
     entry_id: int
     entry_type: Literal["credit_sale", "repayment", "reversal"]
@@ -92,6 +102,7 @@ class CustomerStatementEntry(BaseModel):
     status: Literal["recorded", "reversed", "reversal"]
 
 
+# Define the customer credit statement field contract used when validating or serializing API data.
 class CustomerCreditStatement(BaseModel):
     currency: Literal["LKR"] = "LKR"
     credit_account_id: int

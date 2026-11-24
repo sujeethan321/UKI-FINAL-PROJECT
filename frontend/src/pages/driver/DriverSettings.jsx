@@ -1,5 +1,8 @@
+// Purpose: Render the driver settings screen and connect its user interactions to shared application state and services.
 import {Link,useNavigate} from 'react-router-dom';
 import {useAuth} from '../../context/useAuth';
 
+// Render the driver settings view interface and connect its controls to the state and callbacks defined here.
 export function DriverSettingsView({onLogout}) {return <div className="space-y-5"><h2>Settings</h2>{[['Notifications','Review notifications addressed to your Driver account. Notification preference editing is unavailable.','/driver/notifications','Open Notifications'],['Driver & Vehicle','Review your recorded Driver approval and stored vehicle details.','/driver/vehicle','My Vehicle'],['Availability','Online/offline presence and availability scheduling are not supported.','/driver/profile','My Profile'],['Account Security','Password changes, two-factor authentication and session management are not available.',null,null]].map(([title,note,to,label])=><section key={title} className="rounded-xl border border-[#E1EAF4] bg-white p-5"><h3 className="text-xl font-bold">{title}</h3><p className="mt-3 text-sm text-[#52698A]">{note}</p>{to?<Link to={to} className="mt-4 inline-block rounded-lg border border-[#DAE5F3] px-4 py-2 text-sm font-semibold">{label}</Link>:<button type="button" onClick={onLogout} className="mt-4 rounded-lg border border-[#DAE5F3] px-4 py-2 text-sm font-semibold">Sign Out</button>}</section>)}</div>;}
+// Render the driver settings interface and connect its controls to the state and callbacks defined here.
 export default function DriverSettings() {const {logout}=useAuth(),navigate=useNavigate();return <DriverSettingsView onLogout={()=>{logout();navigate('/login',{replace:true});}}/>;}

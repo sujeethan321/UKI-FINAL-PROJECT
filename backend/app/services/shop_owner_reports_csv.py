@@ -1,3 +1,4 @@
+# Purpose: Render shop owner reports data into CSV for spreadsheet export, including safe text and money formatting.
 """In-memory CSV rendering of the validated financial report, never new totals."""
 import csv
 from datetime import datetime, timezone
@@ -5,6 +6,7 @@ from decimal import Decimal
 from io import StringIO
 
 
+# Escape or constrain text at the document/export boundary before it is rendered.
 def safe_text(value):
     text = str(value)
     # Quoting alone does not stop spreadsheet formulas. Only text is escaped;
@@ -14,6 +16,7 @@ def safe_text(value):
     return text
 
 
+# Format financial values at the response or document boundary instead of exposing decimal internals.
 def money(value):
     amount = Decimal(value)
     if not amount.is_finite() or amount != amount.quantize(Decimal('0.01')):
@@ -21,10 +24,12 @@ def money(value):
     return amount
 
 
+# Render report csv for the shop owner reports csv workflow.
 def render_report_csv(data):
     output = StringIO(newline='')
     writer = csv.writer(output, quoting=csv.QUOTE_ALL, lineterminator='\r\n')
 
+    # Write a CSV row with decimal formatting and text escaping at the export boundary.
     def row(*values):
         writer.writerow([f'{value:.2f}' if isinstance(value, Decimal) else safe_text(value) for value in values])
 

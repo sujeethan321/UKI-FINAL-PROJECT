@@ -1,3 +1,4 @@
+// Purpose: Render the reusable auth service test interface and keep its presentation and interactions together.
 
 import { useState } from "react";
 
@@ -8,6 +9,7 @@ import {
 
 import { getApiErrorMessage } from "../utils/apiError";
 
+// Render the auth service test interface and connect its controls to the state and callbacks defined here.
 export default function AuthServiceTest() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,6 +18,7 @@ export default function AuthServiceTest() {
   const [loading, setLoading] = useState(false);
 
  
+// Respond to the test login interaction using the current component state.
 const handleTestLogin = async (event) => {
   event.preventDefault();
 

@@ -1,13 +1,15 @@
+# Purpose: Create the shared SQLAlchemy engine and request-scoped sessions, applying the configured database TLS policy.
 
 import ssl
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.core.config import settings
 
 
+# Build the URL structurally so special characters in database credentials are escaped correctly.
 DATABASE_URL = URL.create(
     drivername="mysql+pymysql",
     username=settings.MYSQL_USER,
@@ -21,25 +23,21 @@ DATABASE_URL = URL.create(
 def connection_options(config):
     """Preserve verified TLS; explicitly require encryption for local viva data."""
     options = {"connect_timeout": getattr(config, 'MYSQL_CONNECT_TIMEOUT_SECONDS', 5)}
-    if getattr(config, 'MYSQL_TLS_MODE', 'default') == 'local_viva_required':
+    if getattr(config, 'MYSQL_TLS_MODE', 'default') == 'local_viva_required' or getattr(config,'MYSQL_DATABASE',None) == 'lankapex_viva_db':
         # Defense in depth for callers supplying an object other than Settings.
         if (config.APP_ENV != 'development' or config.MYSQL_HOST != '127.0.0.1'
                 or config.MYSQL_PORT != 3306
                 or config.MYSQL_DATABASE != 'lankapex_viva_db'
-                or config.MYSQL_SSL_CA is not None):
+                ):
             raise ValueError('Local viva TLS requires the exact approved target')
-        # Synthetic local demonstration only: encryption without server identity.
-        # An explicit context makes installed PyMySQL require TLS, not PREFERRED.
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
-        context.minimum_version = ssl.TLSVersion.TLSv1_2
-        options['ssl'] = context
+        from app.core.viva_tls import context
+        options['ssl'] = context(config.MYSQL_SSL_CA)
     elif config.APP_ENV == "production" or config.MYSQL_SSL_CA is not None:
         options['ssl'] = ssl.create_default_context(cafile=config.MYSQL_SSL_CA)
     return options
 
 
+# Reuse pooled connections, check stale connections before use, and avoid echoing SQL parameters into logs.
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
@@ -49,7 +47,14 @@ engine = create_engine(
     connect_args=connection_options(settings),
 )
 
+if DATABASE_URL.database == 'lankapex_viva_db':
+    @event.listens_for(engine,'connect')
+    def verify_viva_peer(dbapi_connection,connection_record):
+        from app.core.viva_tls import verify_socket
+        verify_socket(getattr(dbapi_connection,'_sock',None))
 
+
+# Leave flush/commit decisions explicit so services and routers control transaction boundaries.
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,
@@ -57,13 +62,16 @@ SessionLocal = sessionmaker(
 )
 
 
+# Group the state and operations for base in the database module.
 class Base(DeclarativeBase):
     pass
 
 
+# Yield one database session per dependency scope and close it even when the request fails.
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
+        # Return the connection to the pool even if endpoint validation or application processing raises.
         db.close()

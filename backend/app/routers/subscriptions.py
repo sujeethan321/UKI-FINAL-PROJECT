@@ -1,3 +1,4 @@
+# Purpose: Expose subscriptions HTTP endpoints and connect request validation and dependencies to the application services.
 """Tenant-scoped billing. Sandbox adapter stays disabled until configured."""
 from typing import Annotated
 
@@ -18,6 +19,7 @@ Database = Annotated[Session, Depends(get_db)]
 BusinessId = Annotated[int, Query(gt=0, le=9223372036854775807)]
 
 
+# Handle GET /plans through the declared request and dependency contract.
 @router.get("/plans", response_model=PlansResponse)
 def plans(response: Response, user: Actor):
     response.headers["Cache-Control"] = "no-store"
@@ -26,6 +28,7 @@ def plans(response: Response, user: Actor):
         "payment_configured": stripe_sandbox.enabled()}
 
 
+# Handle GET /current through the declared request and dependency contract.
 @router.get("/current", response_model=SubscriptionResponse)
 def current(response: Response, user: Actor, db: Database, business_id: BusinessId):
     response.headers["Cache-Control"] = "no-store"
@@ -39,34 +42,40 @@ def current(response: Response, user: Actor, db: Database, business_id: Business
         "portal_available": bool(stripe_sandbox.enabled() and sub and sub.stripe_subscription_id)}
 
 
+# Handle GET /entitlements through the declared request and dependency contract.
 @router.get("/entitlements", response_model=SubscriptionResponse)
 def entitlements(response: Response, user: Actor, db: Database, business_id: BusinessId):
     return current(response, user, db, business_id)
 
 
+# Handle GET /trial through the declared request and dependency contract.
 @router.get("/trial", response_model=SubscriptionResponse)
 def trial(response: Response, user: Actor, db: Database, business_id: BusinessId):
     return current(response, user, db, business_id)
 
 
+# Handle POST /checkout through the declared request and dependency contract.
 @router.post("/checkout")
 def checkout(response: Response, payload: CheckoutRequest, user: Actor, db: Database, business_id: BusinessId):
     response.headers["Cache-Control"] = "no-store"
     return billing.checkout(db, user, business_id, payload)
 
 
+# Handle POST /portal through the declared request and dependency contract.
 @router.post("/portal")
 def portal(response: Response, user: Actor, db: Database, business_id: BusinessId):
     response.headers["Cache-Control"] = "no-store"
     return billing.portal(db, user, business_id)
 
 
+# Handle POST /checkout/reconcile through the declared request and dependency contract.
 @router.post("/checkout/reconcile")
 def reconcile(response: Response, user: Actor, db: Database, business_id: BusinessId):
     response.headers['Cache-Control'] = 'no-store'
     return billing.recover(db, user, business_id)
 
 
+# Handle GET /history through the declared request and dependency contract.
 @router.get("/history")
 def history(response: Response, user: Actor, db: Database, business_id: BusinessId):
     response.headers["Cache-Control"] = "no-store"
@@ -76,6 +85,7 @@ def history(response: Response, user: Actor, db: Database, business_id: Business
         "message": "Hosted invoices are available in the billing portal" if stripe_sandbox.enabled() else "Payment integration not configured"}
 
 
+# Handle POST /webhook through the declared request and dependency contract.
 @router.post("/webhook")
 async def webhook(request: Request, db: Database):
     stripe_sandbox.require_enabled()

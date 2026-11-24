@@ -1,9 +1,12 @@
+// Purpose: Render the reusable customer credit overview interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { Wallet, CalendarClock, AlertTriangle } from 'lucide-react';
 import { formatCustomerMoney } from '../../utils/customerDashboard';
 
+// Render the customer credit overview interface and connect its controls to the state and callbacks defined here.
 export default function CustomerCreditOverview({summary,loading=false}) {
   const { tr } = useAppTranslation();
+  // Convert the entered due date into the value expected by the credit-sale request.
   const dueValue=key=>!loading&&summary?.due_totals_status==='complete'&&typeof summary[key]==='string'&&/^\d+\.\d{2}$/.test(summary[key])
     ? `Rs. ${summary[key].replace(/\B(?=(\d{3})+(?!\d))/g,',')}`:tr('Unavailable');
   const cards=[

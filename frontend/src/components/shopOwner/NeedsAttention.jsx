@@ -1,7 +1,9 @@
+// Purpose: Render the reusable needs attention interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { Link } from 'react-router-dom';
 import { ClipboardList, Users, Truck, ArrowRight } from 'lucide-react';
 
+// Render the needs attention interface and connect its controls to the state and callbacks defined here.
 export default function NeedsAttention({summary, businessId}) {
   const { tr } = useAppTranslation();
   const rows = [

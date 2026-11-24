@@ -1,3 +1,4 @@
+# Purpose: Map business records to database tables so SQLAlchemy can persist and relate application data.
 
 from datetime import datetime
 
@@ -7,9 +8,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
 
+# Map business to the businesses table for ORM queries and persistence.
 class Business(Base):
     __tablename__ = "businesses"
 
+    # Use business id as the unique row identity for ORM lookups and related records.
     business_id: Mapped[int] = mapped_column(
         BigInteger,
         primary_key=True,
@@ -41,6 +44,7 @@ class Business(Base):
         nullable=True,
     )
 
+    # Retain approval status so workflow checks can decide which operations are currently allowed.
     approval_status: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
@@ -48,6 +52,7 @@ class Business(Base):
         server_default="pending",
     )
 
+    # Retain created at for history, ordering, and time-based queries.
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

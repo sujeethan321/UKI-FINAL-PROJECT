@@ -1,3 +1,4 @@
+# Purpose: Define typed subscription API payloads so incoming data is validated and outgoing fields have an explicit contract.
 from datetime import datetime
 from typing import Literal
 
@@ -6,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 PlanName = Literal["FREE", "PRO", "BUSINESS"]
 
 
+# Define the plan field contract used when validating or serializing API data.
 class Plan(BaseModel):
     plan: PlanName
     currency: Literal["LKR"]
@@ -16,6 +18,7 @@ class Plan(BaseModel):
     ai_limit_multiplier: int = 0
 
 
+# Define the plans response field contract used when validating or serializing API data.
 class PlansResponse(BaseModel):
     plans: list[Plan]
     payment_configured: bool = False
@@ -23,6 +26,7 @@ class PlansResponse(BaseModel):
     entitlement_policy: str = "existing_features_preserved"
 
 
+# Define the subscription response field contract used when validating or serializing API data.
 class SubscriptionResponse(BaseModel):
     business_id: int
     effective_plan: PlanName
@@ -47,6 +51,7 @@ class SubscriptionResponse(BaseModel):
     checkout_available: bool = False
 
 
+# Define the checkout request field contract used when validating or serializing API data.
 class CheckoutRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     plan: Literal["PRO", "BUSINESS"]

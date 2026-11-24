@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner repayment operations behind the HTTP layer so related business rules are shared by their callers.
 """Manual Shop Owner repayments; no external payment verification is implied."""
 from app.services.notification_service import notify_event
 
@@ -11,6 +12,7 @@ from app.services.ledger_service import (
 )
 
 
+# Shape repayment fields for the response contract.
 def repayment_response(entry, account, business_id, customer_id, balance, replayed):
     return RepaymentResponse(
         **transaction_response_data(entry, account, business_id, customer_id, balance, replayed),
@@ -18,6 +20,7 @@ def repayment_response(entry, account, business_id, customer_id, balance, replay
     )
 
 
+# Lock the account, confirm any replay, and record a repayment only within the current outstanding debt.
 def record_repayment(db, business_id, user_id, payload):
     account = lock_customer_credit_account(db, business_id, payload.customer_id)
     entries = load_ledger_entries(db, [account.credit_account_id], lock=True)

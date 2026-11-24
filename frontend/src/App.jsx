@@ -1,3 +1,4 @@
+// Purpose: Map URLs to public and role-specific screens and compose the shared authentication and application providers.
 import ShoppingCart from './pages/customer/ShoppingCart';
 import OrderHistory from './pages/customer/OrderHistory';
 
@@ -40,6 +41,12 @@ import ShopOwnerLayout from "./layouts/ShopOwnerLayout";
 import ShopOwnerDashboard from "./pages/shopOwner/ShopOwnerDashboard";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminReports from "./pages/admin/AdminReports";
+import AdminProfile from "./pages/admin/AdminProfile";
+import AdminSupport from "./pages/admin/AdminSupport";
+import CustomerSupport from "./pages/customer/CustomerSupport";
+import ShopOwnerSupport from "./pages/shopOwner/ShopOwnerSupport";
+import DriverSupport from "./pages/driver/DriverSupport";
 import AdminBusinesses from "./pages/admin/AdminBusinesses";
 import AdminManagement from "./pages/admin/AdminManagement";
 import BusinessOnboarding from "./pages/shopOwner/BusinessOnboarding";
@@ -59,134 +66,141 @@ import AdminNotifications from "./pages/admin/AdminNotifications";
 
 import ShopOwnerNotifications from "./pages/shopOwner/ShopOwnerNotifications";
 
+// Compose providers and route trees so each URL renders within the appropriate shared application context.
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <NotificationProvider>
-        <Routes>
-          <Route
-            path="/"
-            element={<LandingPage />}
-          />
-          <Route path="/join/:publicCode" element={<JoinShop />} />
+          <Routes>
+            <Route
+              path="/"
+              element={<LandingPage />}
+            />
+            <Route path="/join/:publicCode" element={<JoinShop />} />
 
-          <Route
-            path="/select-role"
-            element={<Navigate to="/login" replace />}
-          />
+            <Route
+              path="/select-role"
+              element={<Navigate to="/login" replace />}
+            />
 
-          <Route
-            path="/login"
-            element={<LoginPage />}
-          />
+            <Route
+              path="/login"
+              element={<LoginPage />}
+            />
 
-          <Route path="/login/:role" element={<Navigate to="/login" replace />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route
-            path="/register/:role"
-            element={<RegisterPage />}
-          />
+            <Route path="/login/:role" element={<Navigate to="/login" replace />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route
+              path="/register/:role"
+              element={<RegisterPage />}
+            />
 
 
-          {/* Customer-only pages */}
-          <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
-            <Route path="/customer" element={<CustomerLayout />}>
-              <Route index element={<Navigate to="/customer/dashboard" replace />} />
-              <Route path="dashboard" element={<CustomerDashboard />} />
-              <Route path="credit-accounts" element={<CustomerCreditAccounts />} />
-              <Route path="deliveries" element={<CustomerDeliveries />} />
-              <Route path="profile" element={<CustomerProfile />} />
-              <Route path="settings" element={<CustomerSettings />} />
-              <Route path="shops" element={<MyShops />} />
-<Route path="cart" element={<ShoppingCart />} />
-<Route path="checkout" element={<ShoppingCart checkout />} />
-<Route path="orders" element={<OrderHistory />} />
-<Route path="orders/:orderId" element={<OrderHistory />} />
-              <Route path="shops/explore" element={<CustomerCatalogue />} />
-              <Route path="explore/:businessId" element={<CustomerCatalogue mode="shop" />} />
-              <Route path="explore/:businessId/products/:productId" element={<CustomerCatalogue mode="product" />} />
-              <Route path="transactions" element={<TransactionHistory />} />
-              <Route path="credit/:accountId/statement" element={<CreditStatement />} />
-              <Route path="credit/:accountId" element={<CreditAccountDetails />} />
-              <Route path="notifications" element={<CustomerNotifications />} />
+            {/* Customer-only pages */}
+            <Route element={<ProtectedRoute allowedRoles={["customer"]} />}>
+              <Route path="/customer" element={<CustomerLayout />}>
+                <Route index element={<Navigate to="/customer/dashboard" replace />} />
+                <Route path="dashboard" element={<CustomerDashboard />} />
+                <Route path="/customer/support" element={<CustomerSupport />} />
+                <Route path="credit-accounts" element={<CustomerCreditAccounts />} />
+                <Route path="deliveries" element={<CustomerDeliveries />} />
+                <Route path="profile" element={<CustomerProfile />} />
+                <Route path="settings" element={<CustomerSettings />} />
+                <Route path="shops" element={<MyShops />} />
+                <Route path="cart" element={<ShoppingCart />} />
+                <Route path="checkout" element={<ShoppingCart checkout />} />
+                <Route path="orders" element={<OrderHistory />} />
+                <Route path="orders/:orderId" element={<OrderHistory />} />
+                <Route path="shops/explore" element={<CustomerCatalogue />} />
+                <Route path="explore/:businessId" element={<CustomerCatalogue mode="shop" />} />
+                <Route path="explore/:businessId/products/:productId" element={<CustomerCatalogue mode="product" />} />
+                <Route path="transactions" element={<TransactionHistory />} />
+                <Route path="credit/:accountId/statement" element={<CreditStatement />} />
+                <Route path="credit/:accountId" element={<CreditAccountDetails />} />
+                <Route path="notifications" element={<CustomerNotifications />} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Shop Owner-only pages */}
+            {/* Shop Owner-only pages */}
 
 
-          {/* Shop Owner protected pages */}
-          <Route element={<ProtectedRoute allowedRoles={["shop_owner"]} />}>
-            <Route path="/shop-owner" element={<ShopOwnerLayout />}>
-              <Route index element={<Navigate to="/shop-owner/dashboard" replace />} />
-              <Route
-                path="dashboard"
-                element={<ShopOwnerDashboard />}
-              />
+            {/* Shop Owner protected pages */}
+            <Route element={<ProtectedRoute allowedRoles={["shop_owner"]} />}>
+              <Route path="/shop-owner" element={<ShopOwnerLayout />}>
+                <Route index element={<Navigate to="/shop-owner/dashboard" replace />} />
+                <Route
+                  path="dashboard"
+                  element={<ShopOwnerDashboard />}
+                />
 
-              <Route
-                path="business/register"
-                element={<BusinessOnboarding />}
-              />
+                <Route
+                  path="business/register"
+                  element={<BusinessOnboarding />}
+                />
 
-              <Route
-                path="customers"
-                element={<ShopOwnerCustomers />}
-              />
-              <Route path="credit-sales" element={<ShopOwnerCreditSales />} />
-              <Route path="repayments" element={<ShopOwnerRepayments />} />
-              <Route path="deliveries" element={<ShopOwnerDeliveries />} />
-              <Route path="products" element={<ShopOwnerProducts />} />
-              <Route path="reports" element={<ShopOwnerReports />} />
-              <Route path="settings" element={<ShopOwnerSettings />} />
-              <Route path="subscription" element={<SubscriptionBilling />} />
-<Route path="orders" element={<OrderHistory owner />} />
-<Route path="orders/:orderId" element={<OrderHistory owner />} />
-<Route path="credit-orders" element={<Navigate to="/shop-owner/orders" replace />} />
-              <Route path="notifications" element={<ShopOwnerNotifications />} />
+                <Route
+                  path="customers"
+                  element={<ShopOwnerCustomers />}
+                />
+                <Route path="credit-sales" element={<ShopOwnerCreditSales />} />
+                <Route path="repayments" element={<ShopOwnerRepayments />} />
+                <Route path="deliveries" element={<ShopOwnerDeliveries />} />
+                <Route path="products" element={<ShopOwnerProducts />} />
+                <Route path="reports" element={<ShopOwnerReports />} />
+                <Route path="support" element={<ShopOwnerSupport />} />
+                <Route path="settings" element={<ShopOwnerSettings />} />
+                <Route path="subscription" element={<SubscriptionBilling />} />
+                <Route path="orders" element={<OrderHistory owner />} />
+                <Route path="orders/:orderId" element={<OrderHistory owner />} />
+                <Route path="credit-orders" element={<Navigate to="/shop-owner/orders" replace />} />
+                <Route path="notifications" element={<ShopOwnerNotifications />} />
+              </Route>
             </Route>
-          </Route>
 
 
-          {/* Delivery Driver-only pages */}
-          <Route element={<ProtectedRoute allowedRoles={["driver"]} />}>
-            <Route element={<DriverLayout />}>
-              <Route path="/driver" element={<Navigate to="/driver/dashboard" replace />} />
-              <Route path="/driver/dashboard" element={<DriverDashboard />} />
-              <Route path="/driver/earnings" element={<DriverEarnings />} />
-              <Route path="/driver/vehicle" element={<DriverVehicle />} />
-              <Route path="/driver/profile" element={<DriverProfile />} />
-              <Route path="/driver/settings" element={<DriverSettings />} />
-              <Route path="/driver/deliveries" element={<DriverDeliveries />} />
-              <Route path="/driver/deliveries/:deliveryId" element={<DriverDeliveries detail />} />
-              <Route path="/driver/history" element={<DriverDeliveries history />} />
-              <Route path="/driver/jobs" element={<AvailableJobs />} />
-              <Route path="/driver/notifications" element={<DriverNotifications />} />
+            {/* Delivery Driver-only pages */}
+            <Route element={<ProtectedRoute allowedRoles={["driver"]} />}>
+              <Route element={<DriverLayout />}>
+                <Route path="/driver" element={<Navigate to="/driver/dashboard" replace />} />
+                <Route path="/driver/dashboard" element={<DriverDashboard />} />
+                <Route path="/driver/earnings" element={<DriverEarnings />} />
+                <Route path="/driver/support" element={<DriverSupport />} />
+                <Route path="/driver/vehicle" element={<DriverVehicle />} />
+                <Route path="/driver/profile" element={<DriverProfile />} />
+                <Route path="/driver/settings" element={<DriverSettings />} />
+                <Route path="/driver/deliveries" element={<DriverDeliveries />} />
+                <Route path="/driver/deliveries/:deliveryId" element={<DriverDeliveries detail />} />
+                <Route path="/driver/history" element={<DriverDeliveries history />} />
+                <Route path="/driver/jobs" element={<AvailableJobs />} />
+                <Route path="/driver/notifications" element={<DriverNotifications />} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Administrator-only pages */}
-          <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<Navigate to="/admin/dashboard" replace />} />
-              <Route path="shop-owners" element={<AdminManagement kind="shop_owner" />} />
-              <Route path="customers" element={<AdminManagement kind="customer" />} />
-              <Route path="drivers" element={<AdminManagement kind="driver" />} />
-              <Route path="notifications" element={<AdminNotifications />} />
-              <Route
-                path="dashboard"
-                element={<AdminDashboard />}
-              />
-              <Route
-                path="businesses"
-                element={<AdminBusinesses />}
-              />
+            {/* Administrator-only pages */}
+            <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                <Route path="shop-owners" element={<AdminManagement kind="shop_owner" />} />
+                <Route path="customers" element={<AdminManagement kind="customer" />} />
+                <Route path="drivers" element={<AdminManagement kind="driver" />} />
+                <Route path="notifications" element={<AdminNotifications />} />
+                <Route path="reports" element={<AdminReports />} />
+              <Route path="profile" element={<AdminProfile />} />
+                <Route path="support" element={<AdminSupport />} />
+                <Route
+                  path="dashboard"
+                  element={<AdminDashboard />}
+                />
+                <Route
+                  path="businesses"
+                  element={<AdminBusinesses />}
+                />
+              </Route>
             </Route>
-          </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -1,3 +1,4 @@
+// Purpose: Render the customer catalogue screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import CustomerCartPreview from '../../components/customer/CustomerCartPreview';
@@ -14,15 +15,21 @@ import {customerCard,customerButton,CustomerPagination} from '../../components/c
 const card=customerCard;
 const button=customerButton+' min-h-11 max-w-full';
 const field='mt-1.5 w-full min-w-0 rounded-lg border border-[#DAE5F3] bg-white px-3 py-2.5 text-sm text-[#10243E] outline-none focus:border-[#12B8A6] focus:ring-2 focus:ring-[#12B8A6]/15 disabled:opacity-50';
+// Build the shop route used when opening a catalogue from the customer interface.
 const shopPath=id=>'/customer/explore/'+id;
+// Render the pages interface and connect its controls to the state and callbacks defined here.
 function Pages({page,total,loading,onPage,label}){
   const { tr } = useAppTranslation();return <nav aria-label={tr(label)}><CustomerPagination page={page} total={total??null} loading={tr(loading)} onPage={onPage}/></nav>;}
+// Render the availability interface and connect its controls to the state and callbacks defined here.
 function Availability({value}){
   const { tr } = useAppTranslation();return <span className={'inline-block rounded-full px-3 py-1 text-xs font-semibold '+(value==='available'?'bg-[#22C55E]/10 text-[#10243E]':'bg-[#F5B544]/15 text-[#10243E]')}>{value==='available'?tr("Available"):tr("Unavailable")}</span>;}
+// Render the product placeholder interface and connect its controls to the state and callbacks defined here.
 function ProductPlaceholder(){
   const { tr } = useAppTranslation();return <div className="flex aspect-video items-center justify-center rounded-lg bg-[#F5F8FC] text-[#12B8A6]" aria-label={tr("Product image unavailable")}><div className="text-center"><Package size={38} className="mx-auto" aria-hidden="true"/><p className="mt-3 text-xs text-[#64748B]">{tr("Product image unavailable")}</p></div></div>;}
+// Render the search interface and connect its controls to the state and callbacks defined here.
 function Search({label,value,onSearch,disabled=false,id}){
   const { tr } = useAppTranslation();const [query,setQuery]=useState(value);return <form className="flex min-w-0 flex-wrap items-end gap-3" onSubmit={event=>{event.preventDefault();onSearch(query.trim());}}><label htmlFor={id} className="min-w-0 flex-1 text-sm font-semibold">{tr(label)}<input id={id} type="search" maxLength={200} className={field} value={query} onChange={event=>setQuery(event.target.value)} disabled={disabled}/></label><button className={button} type="submit" disabled={disabled}>{tr("Search")} {id==='shop-search'?tr("shops"):tr("products")}</button></form>;}
+// Render the customer catalogue view interface and connect its controls to the state and callbacks defined here.
 export function CustomerCatalogueView({state,actions,mode='explore',businessId=null}){
   const { tr } = useAppTranslation();
   const shop=state.shop.data,detail=state.detail.data;
@@ -48,12 +55,15 @@ export function CustomerCatalogueView({state,actions,mode='explore',businessId=n
     {!state.authError&&mode!=='explore'&&<CustomerCartPreview/>}
   </div>;
 }
+// Render the browse session interface and connect its controls to the state and callbacks defined here.
 function BrowseSession({mode,businessId,productId,initialQuery}){
   const [workflow]=useState(()=>createCustomerCatalogueWorkflow({shops:service.listCatalogueShops,shop:service.getCatalogueShop,categories:service.listCatalogueCategories,products:service.listCatalogueProducts,product:service.getCatalogueProduct},{businessId,productId,initialQuery}));
   const state=useSyncExternalStore(workflow.subscribe,workflow.getSnapshot,workflow.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(()=>{workflow.start();return()=>workflow.dispose();},[workflow]);
   return <CustomerCatalogueView state={state} actions={workflow} mode={mode} businessId={businessId}/>;
 }
+// Render the customer catalogue interface and connect its controls to the state and callbacks defined here.
 export default function CustomerCatalogue({mode='explore'}){
   const { tr } = useAppTranslation();
   const {user,token,isAuthenticated}=useAuth(),params=useParams(),[search]=useSearchParams();

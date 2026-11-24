@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner ai summary operations behind the HTTP layer so related business rules are shared by their callers.
 """Read-only owner authorization boundary for customer financial snapshots."""
 from typing import Protocol
 
@@ -10,6 +11,7 @@ from app.services.customer_financial_snapshot_service import CustomerFinancialSn
 from app.services.tamil_credit_summary_prompt import FinancialSummarySnapshot
 
 
+# Group the state and operations for owner customer account scope repository in the shop owner ai summary service module.
 class OwnerCustomerAccountScopeRepository(Protocol):
     def authorized_customer_user_id(
         self, owner_user_id: int, business_id: int, customer_id: int,
@@ -18,10 +20,13 @@ class OwnerCustomerAccountScopeRepository(Protocol):
         """Return the linked active Customer only for one exact owned account."""
 
 
+# Group the state and operations for sql alchemy owner customer account scope repository in the shop owner ai summary service module.
 class SQLAlchemyOwnerCustomerAccountScopeRepository:
+    # Initialize the dependencies and state this instance needs for later operations.
     def __init__(self, db: Session):
         self._db = db
 
+    # Resolve customer user id within the access scope checked by this service.
     def authorized_customer_user_id(
         self, owner_user_id: int, business_id: int, customer_id: int,
         credit_account_id: int,
@@ -55,11 +60,13 @@ class SQLAlchemyOwnerCustomerAccountScopeRepository:
 class ShopOwnerFinancialSnapshotService:
     """Authorize the owner path, then reuse the Customer's scoped assembler."""
 
+    # Initialize the dependencies and state this instance needs for later operations.
     def __init__(self, scope_repository: OwnerCustomerAccountScopeRepository,
                  customer_snapshot_service: CustomerFinancialSnapshotService):
         self._scope_repository = scope_repository
         self._customer_snapshot_service = customer_snapshot_service
 
+    # Build the financial snapshot only from records authorized for the supplied account scope.
     def assemble(self, owner_user_id: int, business_id: int, customer_id: int,
                  credit_account_id: int) -> FinancialSummarySnapshot:
         identifiers = (owner_user_id, business_id, customer_id, credit_account_id)

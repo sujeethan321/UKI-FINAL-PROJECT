@@ -1,3 +1,4 @@
+/* Purpose: Define dropdown layout, spacing, colors, and responsive presentation separately from component behavior. */
 /* Shared dropdown language. Native controls retain their form/a11y contract. */
 .lp-select {
   appearance:none; min-height:44px; max-width:100%; min-width:0;

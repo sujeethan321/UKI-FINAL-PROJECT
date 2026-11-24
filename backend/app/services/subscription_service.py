@@ -1,3 +1,4 @@
+# Purpose: Evaluate business plans, trial dates, feature entitlements, and capacity limits before restricted operations.
 """Internal no-card trial and request-time entitlements. Caller owns transactions.
 
 No Stripe API calls, automatic charges, expiry writes, or ledger mutations.
@@ -23,6 +24,7 @@ ENTITLEMENTS = {plan: {feature: (feature != 'advanced_reports' and
 POLICY='packages_v1_existing_obligations_preserved'
 
 
+# Resolve the feature and capacity limits configured for a supported plan.
 def plan_limits(plan):
     return dict(customer_limit=30 if plan=='FREE' else None,ai_limit_multiplier=0 if plan=='FREE' else 2 if plan=='BUSINESS' else 1)
 PLANS = (
@@ -32,14 +34,17 @@ PLANS = (
 )
 
 
+# Use timezone-aware UTC timestamps so application comparisons share one time reference.
 def utc_now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+# Normalize stored timestamps to UTC before comparing subscription boundaries.
 def utc(value):
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
+# Calculate the calendar-based trial boundary rather than assuming every month has the same number of days.
 def calendar_month_end(start):
     local = utc(start).astimezone(COLOMBO)
     year, month = (local.year + 1, 1) if local.month == 12 else (local.year, local.month + 1)
@@ -72,6 +77,7 @@ or reset an existing grant. Grant, approval, audit and notification commit once.
             started_at=approved_at, created_at=approved_at, updated_at=approved_at, provider_mode="sandbox"))
 
 
+# Query authorize business data for the subscription workflow.
 def authorize_business(db, user, business_id, manage=False):
     if user.account_status != "active" or user.platform_role not in {"shop_owner", "admin"}:
         raise HTTPException(403, "Subscription access is not permitted")
@@ -92,6 +98,7 @@ def authorize_business(db, user, business_id, manage=False):
     return business
 
 
+# Derive the effective subscription state and entitlements from stored plan and period information.
 def evaluate(subscription, grant, now=None):
     now = utc(now or utc_now())
     trial_end = grant.trial_ends_at if grant and grant.grant_status == "GRANTED" else None
@@ -115,8 +122,10 @@ def evaluate(subscription, grant, now=None):
         evaluated_at=now)
 
 
+# Resolve subscription state using a row lock so the caller can coordinate concurrent changes.
 def subscription_state(db, business_id, current=False):
     if current:
+        # Resolve row using a row lock so the caller can coordinate concurrent changes.
         def row(model):
             return db.scalar(select(model).where(model.business_id==business_id).with_for_update(read=True).execution_options(populate_existing=True))
         return evaluate(row(BusinessSubscription),row(SubscriptionTrialGrant))
@@ -157,6 +166,7 @@ def enforce_customer_capacity(db,business_id):
         if len(rows)>=limit:raise HTTPException(403,'Free plan supports 30 credit customers. Upgrade to Pro.',headers={'Cache-Control':'no-store'})
 
 
+# Check new credit account capacity and stop callers when the required conditions are not met.
 def enforce_new_credit_account_capacity(db,business_id):
     from app.models import CreditAccount
     db.scalar(select(Business).where(Business.business_id==business_id).with_for_update())

@@ -1,3 +1,4 @@
+// Purpose: Render the driver dashboard screen and connect its user interactions to shared application state and services.
 import {money} from '../../utils/shopping';
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { DriverJobsPanel } from "./AvailableJobs";
@@ -10,9 +11,12 @@ import { createDriverDashboardReader, formatAssignedTime } from '../../utils/dri
 
 const card='min-w-0 rounded-2xl border border-[#D4E2EE] bg-white p-5 shadow-sm sm:p-6';
 const button='inline-flex items-center gap-2 rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm font-semibold text-[#36517B] focus-visible:outline-2 focus-visible:outline-[#12B8A6] disabled:opacity-50';
+// Render the loading interface and connect its controls to the state and callbacks defined here.
 function Loading({children}) {return <p role="status" className="flex items-center gap-2 py-5 text-sm text-[#64748B]"><LoaderCircle size={18} aria-hidden="true" className="animate-spin motion-reduce:animate-none"/>{children}</p>;}
+// Render the error state interface and connect its controls to the state and callbacks defined here.
 function ErrorState({message,retry,label}) {
   const { tr } = useAppTranslation();return <div role="alert" className="my-4 space-y-3 border-l-4 border-[#DC4545] pl-3 text-sm"><p>{tr(message)}</p><button type="button" className={button} onClick={retry}>{tr("Retry")}{" "}{tr(label)}</button></div>;}
+// Render the driver dashboard view interface and connect its controls to the state and callbacks defined here.
 export function DriverDashboardView({state,actions,displayName,availableOrders}) {
   const { tr } = useAppTranslation();
  const summary=state.summary.data,profile=state.profile.data,deliveries=state.deliveries.data;
@@ -31,12 +35,15 @@ export function DriverDashboardView({state,actions,displayName,availableOrders})
  </>}
  </div>;
 }
+// Render the driver session interface and connect its controls to the state and callbacks defined here.
 function DriverSession({userId,displayName}) {
  const [reader]=useState(()=>createDriverDashboardReader({profile:getDriverProfile,summary:getDriverSummary,deliveries:getDriverDeliveries},userId));
  const state=useSyncExternalStore(reader.subscribe,reader.getSnapshot,reader.getSnapshot);
+ // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
  useEffect(()=>{reader.start();return()=>reader.dispose();},[reader]);
  return <DriverDashboardView state={state} actions={reader} displayName={displayName} availableOrders={<DriverJobsPanel userId={userId} embedded onAssigned={reader.start}/>}/>;
 }
+// Render the driver dashboard interface and connect its controls to the state and callbacks defined here.
 export default function DriverDashboard() {
  const {user,token,isAuthenticated}=useAuth();
  if(!isAuthenticated||user?.platform_role!=='driver'||user.account_status!=='active')return null;

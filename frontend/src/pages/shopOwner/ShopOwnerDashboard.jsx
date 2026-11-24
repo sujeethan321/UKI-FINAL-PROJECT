@@ -1,3 +1,4 @@
+// Purpose: Render the shop owner dashboard screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import SubscriptionSummary from "../../components/shopOwner/SubscriptionSummary";
 import "./subscription.css";
@@ -20,6 +21,7 @@ import {
   getShopOwnerRecentTransactions,
 } from "../../services/shopOwnerDashboardService";
 
+// Render the shop owner dashboard interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerDashboard() {
   const { tr, statusLabel } = useAppTranslation();
   const [businesses, setBusinesses] = useState([]);
@@ -41,6 +43,7 @@ export default function ShopOwnerDashboard() {
   useEffect(() => {
     let active = true;
 
+    // Load business context within the shop owner dashboard workflow.
     async function loadBusinessContext() {
       setContextLoading(true);
       setContextError("");
@@ -128,6 +131,7 @@ export default function ShopOwnerDashboard() {
       };
     }
 
+    // Load dashboard data within the shop owner dashboard workflow.
     async function loadDashboardData() {
       const [summaryResult, transactionsResult] =
         await Promise.allSettled([
@@ -168,10 +172,12 @@ export default function ShopOwnerDashboard() {
     resultKey,
   ]);
 
+  // Reload dashboard resources so summary cards reflect the latest API state.
   function refreshDashboard() {
     setDataRefresh((value) => value + 1);
   }
 
+  // Reload the owner business context used to scope the current screen.
   function refreshBusinessContext() {
     setContextRefresh((value) => value + 1);
   }

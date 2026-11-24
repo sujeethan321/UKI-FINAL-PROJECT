@@ -1,3 +1,4 @@
+// Purpose: Render the manage customer modal screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useRef, useState } from "react";
@@ -8,6 +9,7 @@ import { customerErrorMessage } from "../../utils/customerError";
 
 const fieldClass = "mt-1.5 w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2.5 text-sm text-[#0D1D47] outline-none focus:border-[#0BAAB4]";
 
+// Render the manage customer modal interface and connect its controls to the state and callbacks defined here.
 export default function ManageCustomerModal({ businessId, details, mode, onClose, onSaved }) {
   const { tr } = useAppTranslation();
   const credit = mode === "credit";
@@ -25,9 +27,11 @@ export default function ManageCustomerModal({ businessId, details, mode, onClose
   const [error, setError] = useState("");
   const lock = useRef(false);
   const title = credit ? (account ? "Manage Credit Account" : "Create Credit Account") : "Edit Customer";
+  // Apply the new state and notify the consumers or handlers registered by this workflow.
   function update(event) {
     setForm(previous => ({ ...previous, [event.target.name]: event.target.value }));
   }
+  // Submit the current form through its workflow and expose pending, success, or error state to the interface.
   async function submit(event) {
     event.preventDefault();
     if (lock.current) return;

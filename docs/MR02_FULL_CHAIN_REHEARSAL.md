@@ -1,0 +1,206 @@
+# MR-02 guarded full-chain rehearsal preparation
+
+Status: OFFLINE CONTRACT/ORCHESTRATION PREPARED; LIVE EXECUTION BLOCKED.
+Maintenance writer/DDL freeze remains ACTIVE. No database, backup, restore,
+migration, service, credential, grant or feature-flag operation is authorized here.
+Historical Step 424 tooling and checkpoints are unchanged.
+
+## Scope and explicit targets
+
+New code: backend/scripts/mr02_rehearsal.py. It imports no application settings,
+MySQL client or Alembic execution API. It never infers targets from environment
+variables. The CLI cannot execute SQL or load an arbitrary adapter/plugin.
+
+- Migration target: lankapex_mr02_rehearsal.
+- Migration account: lankapex_mr02_rehearsal@127.0.0.1.
+- Separate recovery target: lankapex_mr02_recovery.
+- Recovery account: lankapex_mr02_recovery@127.0.0.1.
+- Source is only lankapex_viva_db, through a separate read-only identity in a
+  future reviewed adapter. No source writes may be exposed by that adapter.
+
+These are proposed allowlisted names, NOT provisioned or authorized databases.
+No substitution for old rehearsal/recovery schemas is accepted. Future restore
+must require a freshly verified empty recovery target; never import over the
+populated migration target. Provisioning, restore, upgrade, mutation/concurrency
+tests and recovery each require their own explicit scoped authorization.
+
+## Offline operator command
+
+Use only after the private evidence exists and has been independently reviewed:
+
+```powershell
+$ErrorActionPreference='Stop'
+$manifest=Read-Host 'Approved private MR-02 manifest path'
+$manifestHash=Read-Host 'Independently approved manifest SHA-256'
+$sourceHash=Read-Host 'Approved baseline fingerprint from that review'
+$backup=Read-Host 'Exact approved private backup path'
+.\backend\.venv\Scripts\python.exe -B backend\scripts\mr02_rehearsal.py offline --database lankapex_mr02_rehearsal --account 'lankapex_mr02_rehearsal@127.0.0.1' --manifest $manifest --manifest-sha256 $manifestHash --source-fingerprint $sourceHash --backup $backup
+if($LASTEXITCODE -ne 0){throw 'STOP: preserve evidence; no retry or cleanup'}
+```
+
+Offline mode reads only those files and migration source; it creates no manifest,
+attempt record or checkpoint and makes no database connection. It rejects execution
+flags. Success means PASS_OFFLINE_CONTRACT_ONLY, never MySQL readiness.
+
+The future CLI shape is `execute` with the same binding arguments plus
+`--execute --confirm-target lankapex_mr02_rehearsal --authorization MR02_ONE_ISOLATED_UPGRADE`.
+It intentionally stops with LIVE_ADAPTER_NOT_PREPARED_OR_AUTHORIZED even when
+all offline guards pass. Do not run it as a rehearsal or treat that token as
+authorization. A scratch-only MySQL adapter is a remaining implementation/review
+blocker, not a hidden fallback to normal application Alembic configuration.
+
+## Required private manifest and capture contract
+
+Independently approve the SHA-256 of the exact manifest bytes. No self-approval,
+test fixture, historical manifest or boolean flag alone establishes live evidence.
+The source fingerprint is the deterministic digest of `baseline`, using the
+runner's canonical JSON digest. A separate backup SHA-256 binds exact backup bytes.
+Backup completeness/recovery approval must reference operator-reviewed private
+evidence; the tool does not independently establish those facts.
+
+Required fields are target/account, exact source identity at revision
+9d1a6f4e0c37, source_fingerprint, backup_sha256, backup_complete,
+independent_recovery_approval, disabled features, provenance, revision_sequence,
+baseline and stages. Provenance binds all 22 migration files plus both MR-02 and
+SV-02 tool sources. Any source change requires new review, not silent rebinding.
+If the actual source is already beyond 9d1a6f4e0c37, STOP: this runner cannot use
+that database as its initial baseline. Do not downgrade or stamp it.
+
+Baseline contains all original 32 application tables (excluding alembic_version):
+row counts, content hashes and ordered original projection columns. Include a
+private driver_approval_flags map for EVERY original Driver, keyed by stable opaque
+fingerprints, with whether the original approval status was approved. These flags
+are only an exemption expectation, never fabricated document approvals.
+
+Each independently reviewed stage contract contains revision, schema, triggers,
+views, routines and events. Full schema per table includes ordered column types,
+nullability, defaults, character sets/collations and extra properties; primary key;
+foreign keys and actions; unique constraints; CHECK definitions and ENFORCED=true;
+indexes; table options; and original exact DDL SHA-256. The capture adapter must
+sort inventories consistently, retain complete definitions (including generated
+columns/index options if present), and never manufacture missing metadata.
+Approved expected stage contracts are NOT generated by copying actual post-upgrade
+metadata; that would compare the schema with itself. Derive/review them against
+the migrations/models before execution. Actual database capture is not implemented
+in MR-02; unavailable metadata blocks the future adapter.
+
+| Stage | Expected tables including Alembic | Triggers | Permitted historical data change |
+|---|---:|---:|---|
+| 9d1a6f4e0c37 | 33 | 0 | None |
+| ae2b7c5f1d48 | 35 | 0 | Only legacy_document_exempt derived from original approved Drivers |
+| bf38d2a90176 | 40 | 10 | None; orders.total remains product total |
+| c04d9e7a6201 | 44 | 16 | None |
+| d15a8c902e64 | 45 | 18 | None; new address request columns remain historical NULL |
+
+The prepared checks compare exact stage metadata, trigger definitions/context/
+DEFINERs, original-row projections, exemption map and zero rows in all newly
+created tables. Validate original projections before and after EVERY stage,
+including credit ledgers, repayments, orders, assignments and delivery history.
+The future adapter must capture historical_address_request_values (original row
+count and zero non-NULL keys/hashes); the orchestrator checks this separately.
+No existing address request may be fabricated.
+Do not infer success from revision or counts alone. Exact DDL-text differences
+STOP for independent equivalence review; this runner performs no normalization.
+
+All composite FK orphan checks use NOT EXISTS and require EVERY child key part
+non-NULL (MySQL MATCH SIMPLE). Capture the exact FK check count and zero orphans.
+Foreign keys must point to the intended same-schema parents; the future capture
+adapter must reject cross-schema references before mapping their metadata.
+
+## Future adapter requirements — execution blockers
+
+`execute_prepared` defines the orchestrator and is exercised ONLY with fictional
+in-memory adapters. No live adapter is shipped or selected by the CLI. Before
+adding one, require review of these protections:
+
+1. Hardcoded TCP host/port, account and exact database; pre-connection DBAPI guard;
+   TLS required; server UUID/actual DATABASE()/CURRENT_USER() checks. No normal
+   app engine, .env, arbitrary URL, reconnect/retry, plugin or environment override.
+2. Fresh DBA session/transaction/lock/DDL/event/applier review and continuous
+   application/operator writer freeze; bounded gates immediately before each
+   stage. Advisory locks alone are insufficient. Other sessions require explanation.
+3. Effective global/schema/table/role/default-role/mandatory-role grants reviewed;
+   source/development/test/recovery access denied for the migration identity.
+   Escape underscores in schema privilege patterns where applicable.
+4. A dedicated Alembic environment accepting ONLY the supplied scratch connection,
+   no offline/normal-engine fallback. Fixed one-step transitions only; disallow
+   upgrade head, arbitrary revisions, stamp, downgrade, database creation/drop,
+   source-qualified writes, GRANT/REVOKE and reset operations. Pin reviewed SQL
+   statements per stage, not a regex that can overlook executable comments.
+5. Private operator/SYSTEM evidence directory verified for ownership, ACLs and
+   reparse safety. New exclusive attempt marker AFTER all fresh baseline guards;
+   never overwrite an earlier marker or readback record. Revalidate backup bytes,
+   source provenance and metadata contracts immediately before execution.
+6. Per-stage actual snapshot capture, before/after original content projections,
+   exact backfill/initialization checks, CHECK enforcement and trigger inspection.
+   At failure record sanitized category, attempted revision and one read-only
+   inventory of actual partial state where possible; preserve the original error
+   if diagnostics fail. No mutation retry, DROP, rollback claim for DDL or cleanup.
+
+The orchestration calls each pinned upgrade once, verifies previous/current
+states and original source fingerprints, records stage results, and stops on
+the first mismatch/exception/interruption. Migration-stage PASS explicitly is
+NOT recovery/concurrency verification. It cannot sandbox an unreviewed adapter;
+therefore arbitrary adapter loading is prohibited and execution remains blocked.
+
+## Privilege and recovery checklist
+
+- Dedicated scratch migrator: only schema-scoped SELECT, INSERT, UPDATE, DELETE,
+  CREATE, ALTER, INDEX, REFERENCES and TRIGGER needed by reviewed operations.
+  No global write privileges, GRANT OPTION, source grants or inherited broad roles.
+- Separate runtime identity: only reviewed per-table DML; immutable history tables
+  should receive SELECT/INSERT as needed, not UPDATE/DELETE. No CREATE, ALTER,
+  DROP, TRIGGER or GRANT authority. Never elevate runtime for metadata inspection.
+- Backup: reviewed SELECT and applicable SHOW VIEW/TRIGGER/EVENT/routine inspection
+  privileges for actual objects. DBA supplies independent process/lock visibility;
+  do not grant privileged monitoring to runtime. MySQL version, binary logging
+  and DEFINER requirements must be checked, not bypassed with broad grants.
+- Restore: dedicated recovery-only identity and approved trigger DEFINER handling.
+  Do not remove triggers, rewrite DEFINERs silently or grant global privileges to
+  satisfy imports. Prefer an isolated MySQL instance if same-server source denial
+  cannot coexist with original DEFINER dependencies.
+- Use SV-02's complete trigger-aware dump procedure only after separate backup
+  authorization. Preserve stored-object bodies, SQL mode, creation charset,
+  collation, DEFINER dependencies, exact DDL, all row/content hashes and checksums.
+  Unexpected views/routines/events fail closed until separately reviewed.
+- `verify_recovery` compares independently captured source and recovery snapshots:
+  all tables/rows/hashes, exact schema, triggers/DEFINER/context, revisions and FK
+  counts/orphans. It neither captures data nor restores anything. Require a fresh
+  source-preservation comparison and separately authorized runtime denial tests
+  before declaring full recovery PASS.
+- Runtime denial rehearsal must target a real fictional row on every protected
+  table, expecting SQLSTATE 45000 for UPDATE and DELETE and unchanged contents.
+  Zero-row updates do not test row triggers. Separately test inability to DROP or
+  disable protection objects. Never use source/customer/real document rows.
+
+## Two-session fictional test cases — NOT EXECUTED
+
+Before each case assert both independently opened connections have the exact
+scratch identity, TLS and no source access. Seed uniquely named fictional fixtures
+only under separate mutation authorization, AFTER preservation verification. Use
+barriers, bounded lock waits and deterministic assertions; no automatic retries.
+Keep feature flags disabled globally: invoke isolated service adapters with
+explicit fixture configuration rather than enabling the running application.
+
+| Case | Session A / Session B | Required result |
+|---|---|---|
+| Finance completion | Complete the same assigned job concurrently | One earning tied to correct completion/Driver; safe replay/conflict; product ledger unchanged |
+| Finance collection | Two Admins verify one full declaration; also replay identical request key | One direct settlement/audit sequence; no available platform payout; conflicting evidence rejected |
+| Support assignment | Admin A assigns B while B assigns A on controlled cases | Ascending participating User locks; no lock inversion; valid case versions and no duplicate events |
+| Support stale write | Same case/version receives two incompatible actions | One success, one stale conflict; private notes remain private |
+| Address create/default/archive | Same user/version, competing operations and replayed create key | Bounded address count, one default, safe replay/conflict, no lost updates |
+| Address checkout | Checkout races address edit/archive | Locked consistent version or conflict; immutable accepted destination matches Customer/order |
+| Profile | Same revision submits incompatible name/language edits | One success, one PROFILE_STALE conflict; unrelated security/account fields unchanged |
+
+Repeat ownership-negative cases with distinct fictional users/businesses. Record
+SQLSTATE/error categories, lock order, final immutable event counts and row hashes;
+never print customer data, passwords, prompts or raw DB exceptions. A deadlock,
+timeout, partial DDL or unexplained mismatch stops the batch for DBA review.
+
+## Minimum next step
+
+Review the new offline contracts/tests. Separately authorize implementation and
+offline testing of the missing scratch-only capture/execution/evidence adapter
+and independently reviewed real stage manifests. Only afterward request actual
+DBA inspection and scoped rehearsal authorization. Do not provision, dump, restore
+or migrate based on this offline preparation. Feature gates and freeze are unchanged.

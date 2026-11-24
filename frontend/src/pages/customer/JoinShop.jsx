@@ -1,3 +1,4 @@
+// Purpose: Render the join shop screen and connect its user interactions to shared application state and services.
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { LoaderCircle, Store } from "lucide-react";
@@ -20,15 +21,18 @@ const button = "inline-flex min-h-11 items-center justify-center rounded-lg bg-[
 const secondary = "inline-flex min-h-11 items-center justify-center rounded-lg border border-[#DAE5F3] bg-white px-5 py-2.5 text-sm font-semibold text-[#10243E] focus-visible:outline-2 focus-visible:outline-[#12B8A6]";
 const pageSize = 20;
 
+// Accept only the supported public join-code shape before building the request.
 export function validPublicCode(value) {
   return typeof value === "string" && codePattern.test(value);
 }
 
+// Translate preview outcomes into display text for the interface.
 export function previewError(error) {
   if (error?.response?.status === 404) return "This shop link is unavailable. Ask the shop for its current QR code.";
   return "The shop could not be loaded. Check your connection and try again.";
 }
 
+// Translate request outcomes into display text for the interface.
 export function requestError(error) {
   const status = error?.response?.status;
   if (status === 401) return "Your session expired. Sign in again to request to join.";
@@ -38,6 +42,7 @@ export function requestError(error) {
   return "Your request could not be confirmed. Check your requests below before trying again.";
 }
 
+// Present the current shop-join request status and the next action supported by that state.
 export function requestStatus(status) {
   return {
     none: "No request yet. You can ask to join this shop.",
@@ -49,6 +54,7 @@ export function requestStatus(status) {
   }[status] || "Status unavailable";
 }
 
+// Check join status before the surrounding workflow uses it.
 export function validateJoinStatus(data) {
   if (!data || !["none", "pending", "approved", "rejected", "cancelled", "already_linked"].includes(data.status) ||
       (data.request_id !== null && (!Number.isSafeInteger(data.request_id) || data.request_id <= 0)) ||
@@ -58,10 +64,12 @@ export function validateJoinStatus(data) {
   return { request_id: data.request_id, status: data.status };
 }
 
+// Check request join before the surrounding workflow uses it.
 export function canRequestJoin(status) {
   return ["none", "rejected", "cancelled"].includes(status);
 }
 
+// Translate status lookup outcomes into display text for the interface.
 export function statusLookupError(error) {
   const status = error?.response?.status;
   if (status === 401) return "Your session expired. Sign in again to check this shop.";
@@ -72,6 +80,7 @@ export function statusLookupError(error) {
   return "Your join status could not be loaded. Check your connection and retry.";
 }
 
+// Submit join request within the join shop workflow.
 export async function submitJoinRequest(publicCode, send = requestToJoinShop) {
   if (!validPublicCode(publicCode)) throw new TypeError("Invalid shop code");
   const data = await send(publicCode);
@@ -81,6 +90,7 @@ export async function submitJoinRequest(publicCode, send = requestToJoinShop) {
   return { status: data.status };
 }
 
+// Render the join shop view interface and connect its controls to the state and callbacks defined here.
 export function JoinShopView({ codeValid, preview, previewLoading, previewFailure, onRetry,
   authLoading, isAuthenticated, user, notice, joinStatus, statusLoading, statusError, onRetryStatus,
   acting, actionError, onSubmit, onCancel,
@@ -109,6 +119,7 @@ export function JoinShopView({ codeValid, preview, previewLoading, previewFailur
   </main>;
 }
 
+// Render the join shop session interface and connect its controls to the state and callbacks defined here.
 function JoinShopSession({ publicCode }) {
   const { user, token, loading: authLoading, isAuthenticated, notice } = useAuth();
   const codeValid = validPublicCode(publicCode);
@@ -132,8 +143,10 @@ function JoinShopSession({ publicCode }) {
   const identityRef = useRef(identityKey);
   const currentStatus = statusState?.identityKey === identityKey && statusState?.retry === statusRetry ? statusState : null;
 
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => { identityRef.current = identityKey; }, [identityKey]);
 
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     if (!codeValid) return;
     let active = true;
@@ -148,6 +161,7 @@ function JoinShopSession({ publicCode }) {
     return () => { active = false; };
   }, [publicCode, codeValid, previewRetry]);
 
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     if (!customer || !preview || previewLoading || previewFailure || !codeValid) return;
     let active = true;
@@ -160,6 +174,7 @@ function JoinShopSession({ publicCode }) {
     return () => { active = false; };
   }, [customer, preview, previewLoading, previewFailure, codeValid, publicCode, identityKey, statusRetry]);
 
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     if (!customer || !preview) return;
     let active = true;
@@ -177,6 +192,7 @@ function JoinShopSession({ publicCode }) {
     return () => { active = false; };
   }, [customer, preview, requestPage, requestsRetry, token, user?.user_id]);
 
+  // Run the selected join-flow action using the current account and request context.
   async function performAction(kind) {
     if (!customer || !preview || actionLock.current || !codeValid || !currentStatus?.value ||
         (kind === "submit" && !canRequestJoin(currentStatus.value.status)) ||
@@ -213,6 +229,7 @@ function JoinShopSession({ publicCode }) {
     onRetryRequests={() => { setRequestsLoading(true); setRequestsRetry(value => value + 1); }} />;
 }
 
+// Render the join shop interface and connect its controls to the state and callbacks defined here.
 export default function JoinShop() {
   const { publicCode } = useParams();
   return <JoinShopSession key={publicCode} publicCode={publicCode} />;

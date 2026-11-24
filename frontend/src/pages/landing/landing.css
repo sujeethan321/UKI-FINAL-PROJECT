@@ -1,3 +1,4 @@
+/* Purpose: Define landing layout, spacing, colors, and responsive presentation separately from component behavior. */
 .landing-page {
   --navy:#10243e;
   --teal:#00bfa8;

@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner customer manage operations behind the HTTP layer so related business rules are shared by their callers.
 """Customer maintenance without rewriting financial history."""
 from decimal import Decimal
 
@@ -10,6 +11,7 @@ from app.services.ledger_service import ZERO, account_balances, load_ledger_entr
 from app.services.shop_owner_customer_create_service import normalize_phone
 
 
+# Lock customer rows before the calling operation proceeds.
 def lock_customer(db: Session, business_id: int, customer_id: int):
     # Serialize phone checks and account creation within the business, including
     # the case where no credit account exists yet.
@@ -23,6 +25,7 @@ def lock_customer(db: Session, business_id: int, customer_id: int):
     return customer
 
 
+# Update customer for the shop owner customer manage workflow.
 def update_customer(db, business_id, customer_id, payload):
     customer = lock_customer(db, business_id, customer_id)
     changes = payload.model_dump(exclude_unset=True)
@@ -40,6 +43,7 @@ def update_customer(db, business_id, customer_id, payload):
     db.flush()
 
 
+# Resolve manage credit account using a row lock so the caller can coordinate concurrent changes.
 def manage_credit_account(db, business_id, customer_id, payload, create=False):
     lock_customer(db, business_id, customer_id)
     account = db.scalar(select(CreditAccount).where(

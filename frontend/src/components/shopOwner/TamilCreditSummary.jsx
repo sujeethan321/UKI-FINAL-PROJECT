@@ -1,3 +1,4 @@
+// Purpose: Render the reusable tamil credit summary interface and keep its presentation and interactions together.
 import usePlanAccess from '../../hooks/usePlanAccess';
 import {PlanLockNotice} from './PlanFeatureNotice';
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
@@ -11,12 +12,14 @@ const SOURCES = new Set(["generated", "fallback"]);
 const PROVIDER_STATES = new Set(["available", "unavailable"]);
 const FAILURE_CATEGORIES = new Set(["configuration", "invalid_request", "authentication", "rate_limited", "timeout", "connection", "provider_error", "invalid_response"]);
 
+// Check tamil summary response before the surrounding workflow uses it.
 export function validateTamilSummaryResponse(data) {
   const captured = typeof data?.captured_at === "string" ? Date.parse(data.captured_at) : NaN;
   const requiredMoney = [data?.total_credit_purchases, data?.total_repayments, data?.outstanding_balance];
   if (!data || typeof data.summary !== "string" || !data.summary.trim() || data.summary.length > 2000 ||
       !SOURCES.has(data.source) || !PROVIDER_STATES.has(data.provider_status) || data.currency !== "LKR" ||
       !requiredMoney.every(value => typeof value === "string" && MONEY.test(value)) ||
+      (data.advance_balance !== undefined && (typeof data.advance_balance !== "string" || !MONEY.test(data.advance_balance))) ||
       (data.overdue_balance !== null && (typeof data.overdue_balance !== "string" || !MONEY.test(data.overdue_balance))) ||
       (data.failure_category !== null && !FAILURE_CATEGORIES.has(data.failure_category)) || !Number.isFinite(captured)) {
     throw new Error("Invalid Tamil summary response");
@@ -24,6 +27,7 @@ export function validateTamilSummaryResponse(data) {
   return Object.freeze({ ...data, summary: data.summary.trim() });
 }
 
+// Translate tamil summary outcomes into display text for the interface.
 export function tamilSummaryError(error) {
   if (error?.code === "ERR_CANCELED") return { message: "", retry: false };
   const status = error?.response?.status;
@@ -35,11 +39,13 @@ export function tamilSummaryError(error) {
   return { message: "Tamil summary generation is temporarily unavailable.", retry: true };
 }
 
+// Render the fact interface and connect its controls to the state and callbacks defined here.
 function Fact({ label, value }) {
   const { tr } = useAppTranslation();
   return <div className="rounded-lg border border-[#DCE8F3] bg-white p-3"><dt className="text-xs font-semibold text-[#587098]">{tr(label)}</dt><dd className="mt-1 break-words text-base font-extrabold text-[#0D1D47]">{value}</dd></div>;
 }
 
+// Render the tamil credit summary view interface and connect its controls to the state and callbacks defined here.
 export function TamilCreditSummaryView({ state, onGenerate, onCopy }) {
   const { tr } = useAppTranslation();
   const { loading, data, error, retryable, copyStatus } = state;
@@ -48,18 +54,21 @@ export function TamilCreditSummaryView({ state, onGenerate, onCopy }) {
     <p className="mt-3 flex items-start gap-2 rounded-lg bg-[#EAF2F9] p-3 text-xs text-[#36517B]"><ShieldCheck size={16} className="mt-0.5 shrink-0" aria-hidden="true" />{tr("The amounts below come from LankaPex ledger calculations. The Tamil paragraph is explanatory and does not approve credit or change balances.")}</p>
     {loading && !data && <p role="status" className="mt-4 text-sm text-[#587098]" aria-live="polite">{tr("Preparing the authoritative ledger snapshot and Tamil explanation...")}</p>}
     {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3"><p role="alert" className="text-sm text-red-700">{tr(error)}</p>{retryable && <button type="button" onClick={onGenerate} disabled={loading} className="mt-2 text-sm font-semibold text-[#087D78] underline disabled:opacity-50">{tr("Retry summary")}</button>}</div>}
-    {data && <div className="mt-4 space-y-4"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${data.source === "generated" ? "bg-[#E4F4FF] text-[#1265D6]" : "bg-[#FFF3D9] text-[#8A6415]"}`}>{data.source === "generated" ? tr("AI-generated explanation") : tr("Deterministic fallback")}</span><span className="text-xs text-[#587098]">{tr("Authoritative snapshot ·")} {new Date(data.captured_at).toLocaleString("en-LK")}</span></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Fact label={tr("Credit purchases")} value={`LKR ${data.total_credit_purchases}`} /><Fact label={tr("Repayments")} value={`LKR ${data.total_repayments}`} /><Fact label={tr("Outstanding balance")} value={`LKR ${data.outstanding_balance}`} /><Fact label={tr("Overdue balance")} value={data.overdue_balance === null ? tr("Not authoritatively available") : `LKR ${data.overdue_balance}`} /></div><div className="rounded-xl border border-[#BFE2DF] bg-white p-4"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h4 className="font-bold text-[#0D1D47]">{tr("Tamil explanation")}</h4><button type="button" onClick={onCopy} className="inline-flex items-center gap-2 rounded-lg border border-[#8BCDC8] px-3 py-2 text-xs font-semibold text-[#087D78]"><Copy size={15} aria-hidden="true" />{tr("Copy summary")}</button></div><p lang="ta" dir="ltr" className="whitespace-pre-wrap break-words text-[15px] leading-7 text-[#20395E]">{data.summary}</p>{copyStatus && <p role="status" aria-live="polite" className="mt-2 text-xs text-[#587098]">{tr(copyStatus)}</p>}</div></div>}
+    {data && <div className="mt-4 space-y-4"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${data.source === "generated" ? "bg-[#E4F4FF] text-[#1265D6]" : "bg-[#FFF3D9] text-[#8A6415]"}`}>{data.source === "generated" ? tr("AI-assisted verified explanation") : tr("Deterministic fallback")}</span><span className="text-xs text-[#587098]">{tr("Authoritative snapshot ·")} {new Date(data.captured_at).toLocaleString("en-LK")}</span></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Fact label={tr("Credit purchases")} value={`LKR ${data.total_credit_purchases}`} /><Fact label={tr("Repayments")} value={`LKR ${data.total_repayments}`} /><Fact label={tr("Outstanding balance")} value={`LKR ${data.outstanding_balance}`} /><Fact label={tr("Customer advance")} value={data.advance_balance === undefined ? tr("Not authoritatively available") : `LKR ${data.advance_balance}`} /><Fact label={tr("Overdue balance")} value={data.overdue_balance === null ? tr("Not authoritatively available") : `LKR ${data.overdue_balance}`} /></div><div className="rounded-xl border border-[#BFE2DF] bg-white p-4"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h4 className="font-bold text-[#0D1D47]">{tr("Tamil explanation")}</h4><button type="button" onClick={onCopy} className="inline-flex items-center gap-2 rounded-lg border border-[#8BCDC8] px-3 py-2 text-xs font-semibold text-[#087D78]"><Copy size={15} aria-hidden="true" />{tr("Copy summary")}</button></div><p lang="ta" dir="ltr" className="whitespace-pre-wrap break-words text-[15px] leading-7 text-[#20395E]">{data.summary}</p>{copyStatus && <p role="status" aria-live="polite" className="mt-2 text-xs text-[#587098]">{tr(copyStatus)}</p>}</div></div>}
   </section>;
 }
 
+// Render the tamil credit summary interface and connect its controls to the state and callbacks defined here.
 export default function TamilCreditSummary({ businessId, customerId, creditAccountId }) {
   const access=usePlanAccess(businessId,'ai_summaries');
   const {tr}=useAppTranslation();
   const [state, setState] = useState({ loading: false, data: null, error: "", retryable: false, copyStatus: "" });
   const requestRef = useRef(null);
   const lockedRef = useRef(false);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => () => requestRef.current?.abort(), []);
 
+  // Request the summary for the current authorized context and publish its loading or error state.
   async function generate() {
     if (lockedRef.current || !creditAccountId || access.locked) return;
     lockedRef.current = true;
@@ -81,6 +90,7 @@ export default function TamilCreditSummary({ businessId, customerId, creditAccou
     }
   }
 
+  // Copy the generated summary to the clipboard after checking a summary is available.
   async function copySummary() {
     if (!state.data?.summary) return;
     try {

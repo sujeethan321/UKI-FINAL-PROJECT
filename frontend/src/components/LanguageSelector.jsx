@@ -1,9 +1,11 @@
+// Purpose: Render the reusable language selector interface and keep its presentation and interactions together.
 import Select from "./ui/Select";
 import { Globe2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import "./LanguageSelector.css";
 
+// Render the language selector interface and connect its controls to the state and callbacks defined here.
 export default function LanguageSelector() {
   const { t, i18n } = useTranslation();
   return <label className="landing-language lankapex-language-selector">

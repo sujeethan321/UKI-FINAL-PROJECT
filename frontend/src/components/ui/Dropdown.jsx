@@ -1,7 +1,9 @@
+// Purpose: Render the reusable dropdown interface and keep its presentation and interactions together.
 import { useCallback, useId, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import Popover from "./Popover";
 
+// Render the dropdown interface and connect its controls to the state and callbacks defined here.
 export default function Dropdown({ label, trigger, children, className = "", panelClassName = "", disabled = false }) {
   const [open, setOpen] = useState(false), [edge, setEdge] = useState("first");
   const anchor = useRef(null), id = useId();

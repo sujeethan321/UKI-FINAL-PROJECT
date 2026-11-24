@@ -1,3 +1,4 @@
+// Purpose: Render the shop owner credit sales screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -11,9 +12,12 @@ import { formatCreditMoney, sessionSaleStore } from "../../utils/creditSale";
 import { createCreditSaleWorkflow } from "./creditSaleWorkflow";
 
 const fieldClass = "mt-1.5 w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2.5 text-sm text-[#0D1D47] outline-none focus:border-[#0BAAB4] focus:ring-2 focus:ring-[#0BAAB4]/15";
-const api = { businesses: getShopOwnerBusinessContext, customers: getShopOwnerCustomers,
-  details: getShopOwnerCustomerDetails, record: createShopOwnerCreditSale };
+const api = {
+  businesses: getShopOwnerBusinessContext, customers: getShopOwnerCustomers,
+  details: getShopOwnerCustomerDetails, record: createShopOwnerCreditSale
+};
 
+// Render the money card interface and connect its controls to the state and callbacks defined here.
 function MoneyCard({ icon: Icon, label, value, palette }) {
   const { tr } = useAppTranslation();
   return <div className="flex items-center gap-4 rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm">
@@ -22,11 +26,13 @@ function MoneyCard({ icon: Icon, label, value, palette }) {
   </div>;
 }
 
+// Format date label for display so screens use a consistent representation.
 function dateLabel(value) {
   const date = value ? new Date(value) : null;
   return date && !Number.isNaN(date.getTime()) ? date.toLocaleString("en-LK") : "Not recorded";
 }
 
+// Render the credit sales view interface and connect its controls to the state and callbacks defined here.
 export function CreditSalesView({ state, actions }) {
   const { tr } = useAppTranslation();
   const business = state.businesses.find(b => String(b.business_id) === String(state.businessId));
@@ -66,43 +72,43 @@ export function CreditSalesView({ state, actions }) {
     </section>}
     {approved && !state.contextError && <>
       <section className="owner-transaction rounded-xl border border-[#E1EAF4] bg-white p-5 space-y-4"><h3 className="text-xl font-bold">{tr("New Credit Sale")}</h3>
-      <section className="rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5">
-        <label htmlFor="sale-customer" className="text-sm font-semibold text-[#0D1D47]">{tr("Customer")}</label>
-        <Select id="sale-customer" value={state.customerId} disabled={busy || state.customersLoading || !!state.customersError || !state.customers.length} onChange={event => actions.selectCustomer(event.target.value)} className={fieldClass}>
-          <option value="">{tr("Select a customer")}</option>
-          {state.customers.map(customer => <option key={customer.customer_id} value={customer.customer_id}>{customer.customer_name}{customer.phone ? ` | ${customer.phone}` : ""}</option>)}
-        </Select>
-        {state.customersLoading && <p role="status" className="mt-2 text-sm text-[#587098]">{tr("Loading customers...")}</p>}
-        {state.customersError && <p role="alert" className="mt-2 text-sm text-red-700">{tr(state.customersError)}</p>}
-        {!state.customersLoading && !state.customersError && !state.customers.length && <p className="mt-2 text-sm text-[#587098]">{tr("No customers in this business.")} <Link to="/shop-owner/customers" className="text-[#1265D6] underline">{tr("Add a customer")}</Link> {tr("first.")}</p>}
-      </section>
-      {state.detailsLoading && <p role="status" className="text-sm text-[#587098]">{tr("Loading customer credit account...")}</p>}
-      {state.detailsError && <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{tr(state.detailsError)}{success ? tr(" The sale is confirmed; refreshed ledger data is temporarily unavailable.") : ""}</p>}
-      {details && <>
-        <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-bold text-[#0D1D47]">{details.customer.customer_name}</h3><span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${account?.account_status === "active" ? "bg-[#E5F8EF] text-[#118456]" : "bg-[#FFF1DD] text-[#9B6817]"}`}>{account?.account_status ? tr(account.account_status) : tr("No credit account")}</span></div>
-        <div className="grid gap-3 md:grid-cols-3">
-          <MoneyCard icon={Wallet} label={tr("Outstanding Balance")} value={details.outstanding_balance} palette="bg-[#EAF6FF] text-[#1265D6]" />
-          <MoneyCard icon={CreditCard} label={tr("Credit Limit")} value={account?.credit_limit} palette="bg-[#EAF2F9] text-[#36517B]" />
-          <MoneyCard icon={Coins} label={tr("Available Credit")} value={details.available_credit} palette="bg-[#E7F9F6] text-[#0BAAB4]" />
-        </div>
-        {!account && <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">{tr("This customer has no credit account.")} <Link to="/shop-owner/customers" className="font-semibold underline">{tr("Manage customer credit accounts")}</Link> {tr("before recording a sale.")}</p>}
-        {account && account.account_status !== "active" && <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">{tr("This account is")} {tr(account.account_status)}{tr(". New credit sales require an active account.")}{state.uncertain ? tr(" You may still retry the unchanged original request to confirm its result.") : ""}</p>}
-      </>}
-      <section className="rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5">
-        <h3 className="mb-4 text-lg font-bold text-[#0D1D47]">{tr("Record Credit Sale")}</h3>
-        <form noValidate onSubmit={event => { event.preventDefault(); void actions.submit(); }} className="space-y-4">
-          <fieldset disabled={state.saving || !approved || !account || state.detailsLoading} className="space-y-4 disabled:opacity-60">
-            <label className="block text-sm font-semibold text-[#36517B]" htmlFor="sale-amount">{tr("Sale amount (LKR)")}<input id="sale-amount" name="amount" type="text" inputMode="decimal" autoComplete="off" required maxLength={20} value={state.amount} onChange={event => actions.edit("amount", event.target.value)} placeholder="0.00" aria-describedby="sale-amount-help" className={fieldClass} /></label>
-            <p id="sale-amount-help" className="text-xs text-[#587098]">{tr("Enter a positive amount with at most two decimal places. The server checks available credit before recording.")}</p>
-            <label className="block text-sm font-semibold text-[#36517B]" htmlFor="sale-notes">{tr("Notes (optional)")}<textarea id="sale-notes" name="notes" rows={3} maxLength={2000} value={state.notes} onChange={event => actions.edit("notes", event.target.value)} className={fieldClass} /></label>
-            <p className="text-xs text-[#587098]">{tr("The receipt reference and due date are assigned by the server using this account's payment terms.")}</p>
-          </fieldset>
-          <div className="flex flex-wrap justify-end gap-3">
-            <button type="button" disabled={state.saving} onClick={() => actions.newSale()} className="rounded-lg border border-[#DAE5F3] px-4 py-2.5 text-sm font-semibold text-[#36517B] disabled:opacity-50">{state.uncertain || state.storageError ? tr("After Checking Ledger, Start New Sale") : tr("Clear Form")}</button>
-            <button type="submit" disabled={blocked} className="inline-flex items-center gap-2 rounded-lg bg-[#0BAAB4] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0997A0] disabled:cursor-not-allowed disabled:opacity-60"><Plus size={17} />{state.saving ? tr("Recording...") : state.uncertain ? tr("Retry Same Sale") : tr("Record Credit Sale")}</button>
+        <section className="rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5">
+          <label htmlFor="sale-customer" className="text-sm font-semibold text-[#0D1D47]">{tr("Customer")}</label>
+          <Select id="sale-customer" value={state.customerId} disabled={busy || state.customersLoading || !!state.customersError || !state.customers.length} onChange={event => actions.selectCustomer(event.target.value)} className={fieldClass}>
+            <option value="">{tr("Select a customer")}</option>
+            {state.customers.map(customer => <option key={customer.customer_id} value={customer.customer_id}>{customer.customer_name}{customer.phone ? ` | ${customer.phone}` : ""}</option>)}
+          </Select>
+          {state.customersLoading && <p role="status" className="mt-2 text-sm text-[#587098]">{tr("Loading customers...")}</p>}
+          {state.customersError && <p role="alert" className="mt-2 text-sm text-red-700">{tr(state.customersError)}</p>}
+          {!state.customersLoading && !state.customersError && !state.customers.length && <p className="mt-2 text-sm text-[#587098]">{tr("No customers in this business.")} <Link to="/shop-owner/customers" className="text-[#1265D6] underline">{tr("Add a customer")}</Link> {tr("first.")}</p>}
+        </section>
+        {state.detailsLoading && <p role="status" className="text-sm text-[#587098]">{tr("Loading customer credit account...")}</p>}
+        {state.detailsError && <p role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{tr(state.detailsError)}{success ? tr(" The sale is confirmed; refreshed ledger data is temporarily unavailable.") : ""}</p>}
+        {details && <>
+          <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-bold text-[#0D1D47]">{details.customer.customer_name}</h3><span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${account?.account_status === "active" ? "bg-[#E5F8EF] text-[#118456]" : "bg-[#FFF1DD] text-[#9B6817]"}`}>{account?.account_status ? tr(account.account_status) : tr("No credit account")}</span></div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <MoneyCard icon={Wallet} label={tr("Outstanding Balance")} value={details.outstanding_balance} palette="bg-[#EAF6FF] text-[#1265D6]" />
+            <MoneyCard icon={CreditCard} label={tr("Credit Limit")} value={account?.credit_limit} palette="bg-[#EAF2F9] text-[#36517B]" />
+            <MoneyCard icon={Coins} label={tr("Available Credit")} value={details.available_credit} palette="bg-[#E7F9F6] text-[#0BAAB4]" />
           </div>
-        </form>
-      </section>
+          {!account && <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">{tr("This customer has no credit account.")} <Link to="/shop-owner/customers" className="font-semibold underline">{tr("Manage customer credit accounts")}</Link> {tr("before recording a sale.")}</p>}
+          {account && account.account_status !== "active" && <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">{tr("This account is")} {tr(account.account_status)}{tr(". New credit sales require an active account.")}{state.uncertain ? tr(" You may still retry the unchanged original request to confirm its result.") : ""}</p>}
+        </>}
+        <section className="rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5">
+          <h3 className="mb-4 text-lg font-bold text-[#0D1D47]">{tr("Record Credit Sale")}</h3>
+          <form noValidate onSubmit={event => { event.preventDefault(); void actions.submit(); }} className="space-y-4">
+            <fieldset disabled={state.saving || !approved || !account || state.detailsLoading} className="space-y-4 disabled:opacity-60">
+              <label className="block text-sm font-semibold text-[#36517B]" htmlFor="sale-amount">{tr("Sale amount (LKR)")}<input id="sale-amount" name="amount" type="text" inputMode="decimal" autoComplete="off" required maxLength={20} value={state.amount} onChange={event => actions.edit("amount", event.target.value)} placeholder="0.00" aria-describedby="sale-amount-help" className={fieldClass} /></label>
+              <p id="sale-amount-help" className="text-xs text-[#587098]">{tr("Enter a positive amount with at most two decimal places. The server checks available credit before recording.")}</p>
+              <label className="block text-sm font-semibold text-[#36517B]" htmlFor="sale-notes">{tr("Notes (optional)")}<textarea id="sale-notes" name="notes" rows={3} maxLength={2000} value={state.notes} onChange={event => actions.edit("notes", event.target.value)} className={fieldClass} /></label>
+              <p className="text-xs text-[#587098]">{tr("The receipt reference and due date are assigned by the server using this account's payment terms.")}</p>
+            </fieldset>
+            <div className="flex flex-wrap justify-end gap-3">
+              <button type="button" disabled={state.saving} onClick={() => actions.newSale()} className="rounded-lg border border-[#DAE5F3] px-4 py-2.5 text-sm font-semibold text-[#36517B] disabled:opacity-50">{state.uncertain || state.storageError ? tr("After Checking Ledger, Start New Sale") : tr("Clear Form")}</button>
+              <button type="submit" disabled={blocked} className="inline-flex items-center gap-2 rounded-lg bg-[#0BAAB4] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0997A0] disabled:cursor-not-allowed disabled:opacity-60"><Plus size={17} />{state.saving ? tr("Recording...") : state.uncertain ? tr("Retry Same Sale") : tr("Record Credit Sale")}</button>
+            </div>
+          </form>
+        </section>
       </section>
       {details && <section className="overflow-hidden rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5">
         <h3 className="text-lg font-bold text-[#0D1D47]">{tr("Credit Sales History")}</h3><p className="mb-4 text-xs text-[#587098]">{tr("Effective credit sales from this customer's current ledger. Reversed sales are excluded.")}</p>
@@ -115,11 +121,14 @@ export function CreditSalesView({ state, actions }) {
   </div>;
 }
 
+// Render the credit sales page interface and connect its controls to the state and callbacks defined here.
 function CreditSalesPage({ userId, initialBusinessId }) {
   const [workflow] = useState(() => createCreditSaleWorkflow({ api, store: sessionSaleStore(userId), initialBusinessId }));
   const state = useSyncExternalStore(workflow.subscribe, workflow.getSnapshot, workflow.getSnapshot);
+  // Attach browser listeners for this mounted resource and remove them during effect cleanup.
   useEffect(() => {
     void workflow.loadBusinesses();
+    // Explain that the previous write still needs confirmation before a new operation can start.
     const warnPending = event => {
       const current = workflow.getSnapshot();
       if (current.saving || current.uncertain) { event.preventDefault(); event.returnValue = ""; }
@@ -130,6 +139,7 @@ function CreditSalesPage({ userId, initialBusinessId }) {
   return <CreditSalesView state={state} actions={workflow} />;
 }
 
+// Render the shop owner credit sales interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerCreditSales() {
   const { user } = useAuth();
   const location = useLocation();

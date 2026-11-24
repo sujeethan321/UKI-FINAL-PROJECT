@@ -1,7 +1,11 @@
+// Purpose: Keep repayment workflow data handling and workflow helpers separate from React rendering so callers use consistent rules.
 import { repaymentError, decimalAmount, minorUnits, repaymentFingerprint, secureRepaymentKey, repaymentValidation } from "../../utils/repayment.js";
 
+// Check identifier shape and range before the caller uses it as a record reference.
 const validId = value => Number.isSafeInteger(value) && value > 0;
+// Compare normalized record identifiers so a response is matched to the requested record.
 const sameId = (left, right) => String(left) === String(right);
+// Handle a cancelled workflow attempt without treating it as a successful operation.
 const cancelled = error => error?.code === "ERR_CANCELED" || error?.name === "AbortError";
 
 // This store drives the React view and is tested with controlled API promises.
@@ -23,17 +27,21 @@ export function createRepaymentWorkflow({ api, store, makeKey = secureRepaymentK
   let customerAbort, detailAbort;
   let submitLock = false;
   const listeners = new Set();
+  // Replace the store snapshot and notify subscribers so React can render the new state.
   const publish = patch => {
     if (!active) return;
     state = { ...state, ...patch };
     listeners.forEach(listener => listener());
   };
+  // Check whether the selected business is approved before enabling owner operations.
   const approved = () => state.businesses.some(b => sameId(b.business_id, state.businessId) && b.approval_status === "approved");
+  // Clear intent within the repayment workflow workflow.
   const clearIntent = () => {
     if (state.uncertain) return;
     try { store.clear(); } catch { publish({ storageError: "Browser session storage is unavailable. Enable it before recording a payment." }); }
   };
 
+  // Select customer within the repayment workflow workflow.
   async function selectCustomer(customerId, { refresh = false } = {}) {
     if (state.saving && !refresh) return;
     const customer = state.customers.find(c => sameId(c.customer_id, customerId));
@@ -69,6 +77,7 @@ export function createRepaymentWorkflow({ api, store, makeKey = secureRepaymentK
     }
   }
 
+  // Load customers within the repayment workflow workflow.
   async function loadCustomers({ refresh = false } = {}) {
     customerAbort?.abort();
     const version = ++readVersion;
@@ -99,6 +108,7 @@ export function createRepaymentWorkflow({ api, store, makeKey = secureRepaymentK
     }
   }
 
+  // Select business within the repayment workflow workflow.
   async function selectBusiness(businessId) {
     if (state.saving) return;
     const business = state.businesses.find(b => sameId(b.business_id, businessId));
@@ -111,6 +121,7 @@ export function createRepaymentWorkflow({ api, store, makeKey = secureRepaymentK
     await loadCustomers();
   }
 
+  // Load businesses within the repayment workflow workflow.
   async function loadBusinesses() {
     active = true;
     const version = ++contextVersion;
@@ -135,24 +146,28 @@ export function createRepaymentWorkflow({ api, store, makeKey = secureRepaymentK
     }
   }
 
+  // Populate the editable form from the selected record instead of starting a new record.
   function edit(field, value) {
     if (state.saving || !["amount", "notes", "payment_method", "receipt_number"].includes(field)) return;
     if (value !== state[field]) clearIntent();
     publish({ [field]: value, error: "", success: null });
   }
 
+  // Reset the repayment workflow for a new payment after the earlier request has been resolved.
   function newRepayment() {
     if (state.saving) return;
     try { store.clear(); } catch { publish({ error: "Unable to reset saved request state. Browser session storage must be enabled." }); return; }
     publish({ amount: "", notes: "", payment_method: "cash", receipt_number: "", error: "", success: null, uncertain: false, storageError: "" });
   }
 
+  // Load the current resource data and update the state consumed by the interface.
   async function refresh() {
     if (state.saving) return;
     if (!approved()) { await loadBusinesses(); return; }
     await loadCustomers({ refresh: true });
   }
 
+  // Submit the current form through its workflow and expose pending, success, or error state to the interface.
   async function submit() {
     if (submitLock) return;
     if (!approved() || state.contextLoading || state.customersLoading || state.detailsLoading ||
@@ -224,10 +239,14 @@ export function createRepaymentWorkflow({ api, store, makeKey = secureRepaymentK
   }
 
   return {
+    // Register a state listener and return cleanup so consumers can unsubscribe.
     subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener); },
+    // Expose the current store snapshot to subscribers without starting a request.
     getSnapshot: () => state,
     loadBusinesses, selectBusiness, selectCustomer, edit, submit, refresh, newRepayment,
+    // Populate the repayment amount from the current outstanding debt.
     fullPayment: () => { if (state.details && !state.saving) edit("amount", decimalAmount(state.details.outstanding_balance) || ""); },
+    // Release pending work and subscriptions when this resource reader is no longer used.
     dispose: () => { active = false; ++contextVersion; ++readVersion; ++detailVersion; customerAbort?.abort(); detailAbort?.abort(); },
   };
 }

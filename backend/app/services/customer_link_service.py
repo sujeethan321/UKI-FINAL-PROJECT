@@ -1,3 +1,4 @@
+# Purpose: Implement customer link operations behind the HTTP layer so related business rules are shared by their callers.
 """Owner invitation plus authenticated Customer consent; no contact-only linking."""
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
@@ -13,14 +14,17 @@ from app.models import Business, BusinessMember, CustomerLinkInvitation, Custome
 CODE_LIFETIME = timedelta(minutes=15)
 
 
+# Hash the invitation token so raw invitation secrets do not need to be stored for lookup.
 def _digest(code):
     return hmac_new(settings.JWT_SECRET_KEY.encode(), code.encode('ascii'), sha256).hexdigest()
 
 
+# Return a consistent unavailable-resource error for an inaccessible or invalid link.
 def unavailable():
     return HTTPException(404, "Invitation is invalid or unavailable")
 
 
+# Resolve profile within the access scope checked by this service.
 def owned_profile(db, owner, business_id, customer_id):
     # Lock business first; acceptance takes the same lock before profile.
     business = db.scalar(select(Business).where(Business.business_id == business_id).with_for_update())
@@ -42,6 +46,7 @@ def owned_profile(db, owner, business_id, customer_id):
     return profile
 
 
+# Query invite data for the customer link workflow.
 def invite(db, owner, business_id, customer_id, recipient_email):
     owned_profile(db, owner, business_id, customer_id)
     recipient = db.scalar(select(User).where(User.email == str(recipient_email).lower()))
@@ -68,6 +73,7 @@ def invite(db, owner, business_id, customer_id, recipient_email):
     return {'invitation': code, 'expires_at': row.expires_at.replace(tzinfo=timezone.utc)}
 
 
+# Resolve accept using a row lock so the caller can coordinate concurrent changes.
 def accept(db, customer, invitation):
     if customer.platform_role != 'customer' or customer.account_status != 'active':
         raise unavailable()

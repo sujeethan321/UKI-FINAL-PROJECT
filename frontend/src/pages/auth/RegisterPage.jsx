@@ -1,3 +1,4 @@
+// Purpose: Render the register page screen and connect its user interactions to shared application state and services.
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -11,6 +12,7 @@ import LoginBrandPanel from "./LoginBrandPanel";
 
 
 
+// Render the register page interface and connect its controls to the state and callbacks defined here.
 export default function RegisterPage() {
   const { role = "shop-owner" } = useParams();
   const navigate = useNavigate();
@@ -20,6 +22,7 @@ export default function RegisterPage() {
     role,
     services: { "shop-owner": registerShopOwner, customer: registerCustomer, driver: registerDriver },
     errorMessage: getApiErrorMessage,
+    // Apply the confirmed operation result to the calling screen state.
     onSuccess: () => {
       const state = registrationLoginState(role, joinReturnTo);
       if (state.joinReturnTo) navigate("/login", { replace: true, state });
@@ -27,6 +30,7 @@ export default function RegisterPage() {
     },
   }));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => {
     controller.resetRole(role);
     return () => controller.cancel();

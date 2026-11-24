@@ -1,3 +1,4 @@
+// Purpose: Render the financial documents screen and connect its user interactions to shared application state and services.
 import PlanFeatureNotice from '../../components/shopOwner/PlanFeatureNotice';
 import usePlanAccess from '../../hooks/usePlanAccess';
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
@@ -11,24 +12,31 @@ import "./financialDocuments.css";
 
 const button = "rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm font-semibold text-[#36517B] disabled:opacity-50";
 const field = "rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm text-[#0D1D47]";
+// Format method label for display so screens use a consistent representation.
 const methodLabel = value => PAYMENT_METHODS.find(([method]) => method === value)?.[1] || value || "Not recorded";
 // Stored financial timestamps have no offset; show their recorded wall time,
 // avoiding the browser silently shifting historical transactions across dates.
 const recordedDate = value => value ? value.replace("T", " ") : "Not recorded";
+// Derive the current calendar-date value used by the form.
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
+// Share reader state and lifecycle behavior between React consumers.
 function useReader(api, validate) {
   const [reader] = useState(() => createFinancialReader(api, validate));
   const state = useSyncExternalStore(reader.subscribe, reader.getSnapshot, reader.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => () => reader.dispose(), [reader]);
   return [reader, state];
 }
 
+// Render the document modal interface and connect its controls to the state and callbacks defined here.
 function DocumentModal({ title, onClose, printable, children }) {
   const { tr } = useAppTranslation();
   const modal = useRef(null);
+  // Attach browser listeners for this mounted resource and remove them during effect cleanup.
   useEffect(() => {
     const previous = document.activeElement;
+    // Close the open interface and reset the state defined by this handler.
     const close = event => {
       const overlays = document.querySelectorAll(".lpx-document-overlay");
       if (overlays[overlays.length - 1] !== modal.current?.parentElement) return;
@@ -51,11 +59,13 @@ function DocumentModal({ title, onClose, printable, children }) {
   </div>, document.body);
 }
 
+// Render the document identity interface and connect its controls to the state and callbacks defined here.
 function DocumentIdentity({ business, customer, title }) {
   const { tr } = useAppTranslation();
   return <header className="mb-6 space-y-1 border-b border-[#DAE5F3] pb-5"><BrandLogo /><h2 className="pt-3 text-xl font-bold">{tr(title)}</h2><p className="font-semibold">{business.business_name}</p>{business.address && <p>{business.address}</p>}{business.phone && <p>{tr("Shop phone:")} {business.phone}</p>}<p className="pt-3">{tr("Customer:")} <strong>{customer.customer_name}</strong> {tr("(ID")} {customer.customer_id})</p>{customer.phone && <p>{tr("Customer phone:")} {customer.phone}</p>}</header>;
 }
 
+// Render the receipt content interface and connect its controls to the state and callbacks defined here.
 export function ReceiptContent({ receipt }) {
   const { tr } = useAppTranslation();
   return <article>
@@ -68,13 +78,16 @@ export function ReceiptContent({ receipt }) {
   </article>;
 }
 
+// Render the receipt actions interface and connect its controls to the state and callbacks defined here.
 export function ReceiptActions({ businessId, entryId }) {
   const { tr } = useAppTranslation();
   const [reader, state] = useReader(getRepaymentReceipt, validateReceipt);
   const [open, setOpen] = useState(false);
   const [printRequested, setPrintRequested] = useState(false);
   const close = useCallback(() => { setOpen(false); setPrintRequested(false); reader.clear(); }, [reader]);
+  // Open the selected record or document in the current workflow.
   const show = print => { setOpen(true); setPrintRequested(print); void reader.load(businessId, entryId); };
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     if (!open || !state.data || !printRequested) return;
     const handle = requestAnimationFrame(() => { setPrintRequested(false); window.print(); });
@@ -90,6 +103,7 @@ export function ReceiptActions({ businessId, entryId }) {
   </>;
 }
 
+// Render the statement content interface and connect its controls to the state and callbacks defined here.
 export function StatementContent({ statement }) {
   const { tr } = useAppTranslation();
   return <article>
@@ -104,6 +118,7 @@ export function StatementContent({ statement }) {
   </article>;
 }
 
+// Render the outstanding view interface and connect its controls to the state and callbacks defined here.
 export function OutstandingView({ state, onSelectCustomer }) {
   const { tr } = useAppTranslation();
   if (state.loading) return <p role="status" className="text-sm text-[#587098]">{tr("Loading outstanding payments...")}</p>;
@@ -117,6 +132,7 @@ export function OutstandingView({ state, onSelectCustomer }) {
   </>;
 }
 
+// Render the financial documents interface and connect its controls to the state and callbacks defined here.
 export default function FinancialDocuments({ businessId, customerId, refreshToken, onSelectCustomer }) {
   const statementAccess=usePlanAccess(businessId,'statement_exports');
   const { tr } = useAppTranslation();
@@ -130,11 +146,14 @@ export default function FinancialDocuments({ businessId, customerId, refreshToke
   const [statementScope, setStatementScope] = useState(null);
   const showStatement = statementScope?.businessId === businessId && statementScope?.customerId === customerId && statementScope?.refreshToken === refreshToken;
   const [revision, setRevision] = useState(0);
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     void outstandingReader.load(businessId, { search, outstanding_only: outstandingOnly, page, page_size: 10 });
   }, [outstandingReader, businessId, search, outstandingOnly, page, revision, refreshToken]);
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => { statementReader.clear(); }, [statementReader, businessId, customerId, refreshToken]);
   const closeStatement = useCallback(() => { setStatementScope(null); statementReader.clear(); }, [statementReader]);
+  // Load statement within the financial documents workflow.
   const loadStatement = () => { if(statementAccess.locked)return; setStatementScope({ businessId, customerId, refreshToken }); void statementReader.load(businessId, customerId, { start_date: start, end_date: end }); };
   const invalidRange = !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || start > end;
   return <section className="space-y-4 rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5">

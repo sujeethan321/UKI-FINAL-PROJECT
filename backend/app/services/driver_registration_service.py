@@ -1,3 +1,4 @@
+# Purpose: Implement driver registration operations behind the HTTP layer so related business rules are shared by their callers.
 """Two validated documents precede a single caller-owned registration commit."""
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -10,6 +11,7 @@ from app.services.driver_document_service import append_version
 from app.models.delivery import utc_now
 
 
+# Register driver application for the driver registration workflow.
 def register_driver_application(db, data, vehicle, licence, ownership):
     store=None
     try:

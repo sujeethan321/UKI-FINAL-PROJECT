@@ -1,3 +1,4 @@
+// Purpose: Render the dashboard placeholder screen and connect its user interactions to shared application state and services.
 import BrandLogo from "../../components/BrandLogo";
 
 import { useNavigate } from "react-router-dom";
@@ -12,10 +13,12 @@ const titles = {
   admin: "Administrator Dashboard",
 };
 
+// Render the dashboard placeholder interface and connect its controls to the state and callbacks defined here.
 export default function DashboardPlaceholder() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  // Respond to the logout interaction using the current component state.
   function handleLogout() {
     logout();
     navigate("/select-role", { replace: true });

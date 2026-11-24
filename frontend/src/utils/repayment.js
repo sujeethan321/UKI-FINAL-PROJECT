@@ -1,7 +1,9 @@
+// Purpose: Validate repayments and preserve opaque request fingerprints and keys so retries can confirm the same payment operation.
 import { decimalAmount, minorUnits } from "./creditSale.js";
 export { decimalAmount, minorUnits, formatCreditMoney } from "./creditSale.js";
 export const PAYMENT_METHODS = [["cash", "Cash"], ["bank_transfer", "Bank transfer"], ["card", "Card"]];
 
+// Check repayment validation before the surrounding workflow uses it.
 export function repaymentValidation(state) {
   const amount = decimalAmount(state.amount);
   if (!amount || minorUnits(amount) === 0n) return "Enter a positive amount with at most two decimal places.";
@@ -17,6 +19,7 @@ export function repaymentValidation(state) {
   return "";
 }
 
+// Translate repayment outcomes into display text for the interface.
 export function repaymentError(error) {
   const status = error?.response?.status;
   if (status === 401) return "Your session has expired. Please sign in again.";
@@ -34,6 +37,7 @@ export function repaymentError(error) {
   return "The payment result is uncertain. Verify the customer ledger before starting another payment, or retry the identical payment to confirm its result.";
 }
 
+// Generate a cryptographically random request key so an identical repayment retry can retain its identity.
 export function secureRepaymentKey() {
   if (globalThis.crypto?.randomUUID) return `repayment:${globalThis.crypto.randomUUID()}`;
   if (!globalThis.crypto?.getRandomValues) throw new Error("Secure request identifiers are unavailable.");
@@ -41,6 +45,7 @@ export function secureRepaymentKey() {
   return `repayment:${Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
+// Hash the operation payload so saved retry state can recognize the same payment without storing customer details.
 export async function repaymentFingerprint(operation) {
   if (!globalThis.crypto?.subtle) throw new Error("Secure request verification is unavailable.");
   const bytes = new TextEncoder().encode(JSON.stringify(operation));
@@ -52,6 +57,7 @@ export async function repaymentFingerprint(operation) {
 // Scope by authenticated user; sessionStorage is isolated to this browser tab.
 export function sessionRepaymentStore(userId) {
   const storageKey = `lankapex_repayment_request_${userId}`;
+  // Read the saved or current resource state used by this workflow.
   const read = () => {
     const raw = sessionStorage.getItem(storageKey);
     if (!raw) return null;
@@ -64,8 +70,11 @@ export function sessionRepaymentStore(userId) {
   };
   return {
     read,
+    // Persist the request metadata used by the workflow recovery path.
     write: record => sessionStorage.setItem(storageKey, JSON.stringify(record)),
+    // Remove saved state only within the scope checked by this storage adapter.
     clear: key => { if (!key || read()?.key === key) sessionStorage.removeItem(storageKey); },
+    // Record a rejected result so the workflow does not present it as a completed success.
     reject: key => { const record = read(); if (record?.key === key) sessionStorage.setItem(storageKey, JSON.stringify({ ...record, pending: false })); },
   };
 }

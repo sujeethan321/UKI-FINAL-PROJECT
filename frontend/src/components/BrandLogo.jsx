@@ -1,5 +1,7 @@
+// Purpose: Render the reusable brand logo interface and keep its presentation and interactions together.
 import logo from "../assets/lankapex-logo.png";
 
+// Render the brand logo interface and connect its controls to the state and callbacks defined here.
 export default function BrandLogo({ className = "", tone = "light", alt = "LankaPex — Business Connects Everyone" }) {
   const imageStyle = { position: "absolute", width: "126%", maxWidth: "none", height: "auto", top: 0, left: 0, margin: "-5.5% 0 0 -12.5%" };
   return (

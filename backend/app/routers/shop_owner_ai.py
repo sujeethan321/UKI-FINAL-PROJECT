@@ -1,3 +1,4 @@
+# Purpose: Expose shop owner ai HTTP endpoints and connect request validation and dependencies to the application services.
 """Authenticated, read-only Shop Owner AI explanation endpoints."""
 from collections.abc import AsyncIterator
 from decimal import Decimal
@@ -27,11 +28,14 @@ router = APIRouter(prefix="/shop-owner", tags=["Shop Owner AI"])
 require_shop_owner = require_roles("shop_owner")
 
 
+# Group the state and operations for disabled ai client in the shop owner ai module.
 class _DisabledAIClient:
+    # Run the configured AI generation contract and apply this adapter output or failure handling.
     async def generate(self, request: GenerationRequest):
         raise AIClientError(AIFailureCategory.CONFIGURATION)
 
 
+# Get owner snapshot service for the shop owner ai workflow.
 def get_owner_snapshot_service(db: Session = Depends(get_db)):
     return ShopOwnerFinancialSnapshotService(
         SQLAlchemyOwnerCustomerAccountScopeRepository(db),
@@ -40,6 +44,7 @@ def get_owner_snapshot_service(db: Session = Depends(get_db)):
     )
 
 
+# Get tamil summary service for the shop owner ai workflow.
 async def get_tamil_summary_service() -> AsyncIterator[TamilCreditSummaryService]:
     if not settings.AI_ENABLED:
         yield TamilCreditSummaryService(_DisabledAIClient())
@@ -48,10 +53,12 @@ async def get_tamil_summary_service() -> AsyncIterator[TamilCreditSummaryService
         yield TamilCreditSummaryService(GroqAIClient(settings, client))
 
 
+# Convert a financial value to the decimal representation required by this module.
 def _money(value: Decimal) -> str:
     return format(value, ".2f")
 
 
+# Handle POST /businesses/{business_id}/customers/{customer_id}/credit-accounts/{credit_account_id}/tamil-credit-summary through the declared request and dependency contract.
 @router.post(
     "/businesses/{business_id}/customers/{customer_id}/credit-accounts/"
     "{credit_account_id}/tamil-credit-summary",
@@ -86,6 +93,7 @@ async def generate_tamil_credit_summary(
         total_credit_purchases=_money(snapshot.total_credit_purchases),
         total_repayments=_money(snapshot.total_repayments),
         outstanding_balance=_money(snapshot.outstanding_balance),
+        advance_balance=_money(snapshot.advance_balance),
         overdue_balance=(_money(snapshot.overdue_balance)
                          if snapshot.overdue_balance is not None else None),
         captured_at=snapshot.captured_at,

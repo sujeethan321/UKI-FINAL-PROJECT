@@ -1,3 +1,4 @@
+/* Purpose: Define language selector layout, spacing, colors, and responsive presentation separately from component behavior. */
 .lankapex-language-selector { display:inline-flex; align-items:center; gap:8px; min-width:0; color:inherit }
 .lankapex-language-selector > svg { flex-shrink:0 }
 .lankapex-language-selector .lp-select { min-width:112px; max-width:100%; font-weight:500 }

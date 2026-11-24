@@ -1,3 +1,4 @@
+// Purpose: Keep customer error data handling and workflow helpers separate from React rendering so callers use consistent rules.
 // Only display expected API errors. Never render internal server diagnostics.
 export function customerErrorMessage(error) {
   const status = error?.response?.status;

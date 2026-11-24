@@ -1,3 +1,4 @@
+// Purpose: Render the shop owner products screen and connect its user interactions to shared application state and services.
 import PlanFeatureNotice from '../../components/shopOwner/PlanFeatureNotice';
 import usePlanAccess from '../../hooks/usePlanAccess';
 import Dropdown from "../../components/ui/Dropdown";
@@ -14,19 +15,24 @@ const card='min-w-0 rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm
 const button='inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-lg border border-[#DAE5F3] bg-white px-4 py-2 text-sm font-semibold text-[#10243E] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12B8A6] disabled:opacity-50';
 const primary=button+' border-[#12B8A6] bg-[#12B8A6]';
 const field='mt-1.5 w-full min-w-0 rounded-lg border border-[#DAE5F3] bg-white px-3 py-2.5 text-sm text-[#10243E] outline-none focus:border-[#12B8A6] focus:ring-2 focus:ring-[#12B8A6]/15 disabled:opacity-50';
+// Render the product menu items interface and connect its controls to the state and callbacks defined here.
 export function ProductMenuItems({ row, actions, blocked, editor, tr }) {
   return <><button role="menuitem" className={button} disabled={blocked||!!editor} onClick={()=>actions.changeProduct(row,{availability_status:row.availability_status==='available'?'unavailable':'available'})}>{row.availability_status==='available'?tr("Mark Unavailable"):tr("Mark Available")}</button><button role="menuitem" className={button} disabled={blocked||!!editor} onClick={()=>actions.changeProduct(row,{publication_status:row.publication_status==='published'?'draft':'published'})}>{row.publication_status==='published'?tr("Unpublish Product"):tr("Publish Product")}</button><button role="menuitem" className={button+' text-[#DC4545]'} disabled={blocked||!!editor} onClick={()=>actions.confirmArchive(row)}>{tr("Archive Product")}</button></>;
 }
 
+// Render the badge interface and connect its controls to the state and callbacks defined here.
 function Badge({value}){
   const { tr } = useAppTranslation();return <span className={'inline-block rounded-full px-3 py-1 text-xs font-semibold '+(value==='published'||value==='available'?'bg-[#22C55E]/10 text-[#10243E]':value==='archived'||value==='unavailable'?'bg-[#DC4545]/10 text-[#DC4545]':'bg-[#F5B544]/15 text-[#10243E]')}>{tr(publicationLabels[value]||availabilityLabels[value])}</span>;}
+// Render the pagination interface and connect its controls to the state and callbacks defined here.
 function Pagination({page,total,disabled,onPage,label}){
   const { tr } = useAppTranslation();return <nav aria-label={tr(label)} className="mt-4 flex flex-wrap items-center gap-3"><button type="button" className={button} disabled={disabled||page===1} onClick={()=>onPage(page-1)}>{tr("Previous")}</button><p className="text-sm">{tr("Page")} {page}{total!==undefined?tr(" · {{total}} records", { total }):''}</p><button type="button" className={button} disabled={disabled||total===undefined||page*10>=total} onClick={()=>onPage(page+1)}>{tr("Next")}</button></nav>;}
+// Render the category options interface and connect its controls to the state and callbacks defined here.
 function CategoryOptions({state,selected='',baseline=null}){
   const { tr } = useAppTranslation();
   const rows=state.knownCategories;
   return <><option value="">{tr("Uncategorized")}</option>{selected&&baseline?.category_id===Number(selected)&&!rows.some(row=>row.category_id===Number(selected))&&<option value={selected}>{baseline.category_name}</option>}{rows.map(row=><option key={row.category_id} value={row.category_id}>{row.name}{row.is_active?'':tr(" (inactive)")}</option>)}</>;
 }
+// Render the filters interface and connect its controls to the state and callbacks defined here.
 function Filters({state,actions}){
   const { tr } = useAppTranslation();
   const [search,setSearch]=useState(state.filters.q);
@@ -38,10 +44,12 @@ function Filters({state,actions}){
     <button className={button} disabled={state.busy} type="submit">{tr("Search products")}</button><p className="text-xs text-[#64748B]">{tr("Category choices come from visited category pages below. Search and filters apply across all product pages.")}</p>
   </form>;
 }
+// Render the editor interface and connect its controls to the state and callbacks defined here.
 function Editor({kind,state,actions}){
   const { tr } = useAppTranslation();
   const product=kind==='product',editor=product?state.editor:state.categoryEditor;if(!editor)return null;
   const name=product?'Product':'Category',form=editor.form,disabled=state.busy||state.uncertain;
+  // Populate the editable form from the selected record instead of starting a new record.
   const edit=(key,value)=>actions.edit(kind,key,value);
   return <section className={card} aria-labelledby={kind+'-editor-heading'}><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-bold" id={kind+'-editor-heading'}>{editor.id===null?tr("Add"):tr("Edit")} {tr(name)}</h3><button type="button" className={button} disabled={state.busy} onClick={product?actions.closeProduct:actions.closeCategory}>{tr("Close")} {tr(kind)} {tr("form")}</button></div>
     {editor.loading?<p role="status" className="mt-4">{tr("Loading current product details...")}</p>:editor.error?<p role="alert" className="mt-4">{tr(editor.error)} {tr("Close and reopen this form to retry.")}</p>:<form className="mt-5 space-y-4" onSubmit={event=>{event.preventDefault();(product?actions.saveProduct:actions.saveCategory)();}}>
@@ -60,6 +68,7 @@ function Editor({kind,state,actions}){
     </form>}
   </section>;
 }
+// Render the shop owner products view interface and connect its controls to the state and callbacks defined here.
 export function ShopOwnerProductsView({state,actions,planLocked=false}){
   const { tr } = useAppTranslation();
   const business=state.businesses.find(row=>row.business_id===state.businessId),approved=business?.approval_status==='approved';
@@ -95,13 +104,16 @@ export function ShopOwnerProductsView({state,actions,planLocked=false}){
   </>}
   </div>;
 }
+// Render the catalogue session interface and connect its controls to the state and callbacks defined here.
 function CatalogueSession({userId}){
   const [workflow]=useState(()=>createCatalogueWorkflow({businesses:catalogueApi.getCatalogueBusinesses,summary:catalogueApi.getCatalogueSummary,...catalogueApi},userId));
   const state=useSyncExternalStore(workflow.subscribe,workflow.getSnapshot,workflow.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(()=>{workflow.start();return()=>workflow.dispose();},[workflow]);
   const access=usePlanAccess(state.businessId,'catalogue');
   return <ShopOwnerProductsView state={state} actions={workflow} planLocked={access.locked}/>;
 }
+// Render the shop owner products interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerProducts(){const {user,token,isAuthenticated}=useAuth();
   if(!isAuthenticated||user?.platform_role!=='shop_owner'||user.account_status!=='active')return null;
   return <CatalogueSession key={user.user_id+':'+token} userId={user.user_id}/>;

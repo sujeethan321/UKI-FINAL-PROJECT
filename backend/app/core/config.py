@@ -1,3 +1,4 @@
+# Purpose: Validate backend environment settings before startup, including database, CORS, TLS, rate limits, and integration configuration.
 """Backend-only settings; production never reads local dotenv files."""
 import json
 import ipaddress
@@ -7,6 +8,7 @@ from typing import Annotated, Literal
 from urllib.parse import urlsplit
 from pydantic import Field, SecretStr, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict, SettingsError
+from app.core.viva_runtime_policy import dotenv_disabled as viva_runtime_dotenv_disabled
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 OriginList = Annotated[list[str], NoDecode]
@@ -41,6 +43,7 @@ def isolated_browser_dotenv_disabled():
     return True
 
 
+# Recognize local hostnames and IP addresses when validating environment-specific configuration.
 def local_host(host):
     host = host.lower().strip('[]').rstrip('.')
     if host == 'localhost' or host.endswith('.localhost'):
@@ -52,20 +55,33 @@ def local_host(host):
         return False
 
 
+# Group the state and operations for settings in the config module.
 class Settings(BaseSettings):
+    ADDRESS_BOOK_ENABLED: bool = False
+    ADDRESS_CHECKOUT_ENABLED: bool = False
+    ADDRESS_DBA_ATTESTED_REVISION: str | None = None
+    SUPPORT_ENABLED: bool = False
+    SUPPORT_DBA_ATTESTED_REVISION: str | None = None
+    DRIVER_FINANCE_ENABLED: bool = False
+    DRIVER_FINANCE_DBA_ATTESTED_REVISION: str | None = None
+    # Keep uploaded driver evidence outside publicly served application paths.
     DRIVER_DOCUMENT_PRIVATE_ROOT: Path | None = None
     APP_ENV: Literal['development', 'testing', 'ai_snapshot_testing',
                      'ai_snapshot_migration', 'production'] = 'development'
+    # Validate the database endpoint and connection/probe time budgets before constructing SQLAlchemy engines.
     MYSQL_HOST: str = 'localhost'
     MYSQL_PORT: int = Field(default=3306, ge=1, le=65535)
     MYSQL_CONNECT_TIMEOUT_SECONDS: int = Field(default=5, ge=1, le=30)
     READINESS_DB_TIMEOUT_SECONDS: int = Field(default=2, ge=1, le=10)
     READINESS_TIMEOUT_SECONDS: float = Field(default=3, ge=0.1, le=10)
+    # Load credentials from backend settings; repr=False prevents accidental disclosure in settings representations.
     MYSQL_USER: str
     MYSQL_PASSWORD: str = Field(repr=False)
     MYSQL_DATABASE: str
+    # Select trusted TLS settings, with a separate explicit mode for the constrained local viva environment.
     MYSQL_SSL_CA: Path | None = None
     MYSQL_TLS_MODE: Literal['default', 'local_viva_required'] = 'default'
+    # Use a backend-only signing key and a positive token lifetime for time-limited authentication.
     JWT_SECRET_KEY: str = Field(repr=False)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, gt=0)
     REMINDER_COOLDOWN_SECONDS: int = Field(default=86400, ge=0, le=31536000)
@@ -84,6 +100,11 @@ class Settings(BaseSettings):
     MAX_INTERACTIVE_CUSTOMERS: int = Field(default=1000, ge=1, le=10000)
     MAX_READ_LEDGER_ENTRIES: int = Field(default=5000, ge=1, le=100000)
     AI_ENABLED: bool = False
+    REQUEST_BODY_TIMEOUT_SECONDS: float = Field(default=15, ge=1, le=60)
+    AI_MAX_CONCURRENT_GENERATIONS: int = Field(default=2, ge=1, le=2)
+    AI_MAX_GENERATIONS_PER_WINDOW: int = Field(default=60, ge=1, le=10000)
+    AI_USAGE_WINDOW_SECONDS: int = Field(default=3600, ge=60, le=86400)
+    GROQ_MAX_RESPONSE_BYTES: int = Field(default=65536, ge=1024, le=262144)
     STRIPE_SANDBOX_ENABLED: bool = False
     STRIPE_TEST_SECRET_KEY: SecretStr | None = Field(default=None, repr=False)
     STRIPE_WEBHOOK_SECRET: SecretStr | None = Field(default=None, repr=False)
@@ -98,6 +119,7 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = 'openai/gpt-oss-120b'
     GROQ_TIMEOUT_SECONDS: float = Field(default=10.0, ge=1.0, le=30.0)
     GROQ_MAX_OUTPUT_TOKENS: int = Field(default=400, ge=64, le=1000)
+    # Browser origins include scheme, hostname, and port; localhost and 127.0.0.1 must be allowed separately.
     CORS_ALLOWED_ORIGINS: OriginList = ['http://localhost:5173', 'http://127.0.0.1:5173']
     ALLOWED_HOSTS: OriginList = ['localhost', '127.0.0.1', 'testserver']
 
@@ -106,6 +128,7 @@ class Settings(BaseSettings):
         hide_input_in_errors=True,
     )
 
+    # Select the allowed settings sources so environment isolation and production dotenv rules remain explicit.
     @classmethod
     def settings_customise_sources(cls, settings_cls, init_settings, env_settings,
                                   dotenv_settings, file_secret_settings):
@@ -115,7 +138,7 @@ class Settings(BaseSettings):
             raise ValueError('Dotenv isolation cannot be combined with another environment')
         if mode == 'production':
             return init_settings, env_settings, file_secret_settings
-        if dotenv_isolated:
+        if dotenv_isolated or viva_runtime_dotenv_disabled():
             # Also protects direct Settings() construction in this process;
             # application startup and request handling share this singleton.
             return init_settings, env_settings, file_secret_settings
@@ -123,6 +146,7 @@ class Settings(BaseSettings):
             raise ValueError('Select production through the process environment, not dotenv')
         return init_settings, env_settings, dotenv_settings, file_secret_settings
 
+    # Validate parse list before the schema accepts the value.
     @field_validator('CORS_ALLOWED_ORIGINS', 'ALLOWED_HOSTS', mode='before')
     @classmethod
     def parse_list(cls, value):
@@ -132,6 +156,7 @@ class Settings(BaseSettings):
             return [item.strip() for item in value.split(',') if item.strip()]
         return value
 
+    # Validate mysql username before the schema accepts the value.
     @field_validator('MYSQL_USER')
     @classmethod
     def validate_mysql_username(cls, value):
@@ -139,6 +164,7 @@ class Settings(BaseSettings):
             raise ValueError('MySQL username must be a local account name of at most 32 characters')
         return value
 
+    # Validate origins before the schema accepts the value.
     @field_validator('CORS_ALLOWED_ORIGINS')
     @classmethod
     def validate_origins(cls, values):
@@ -155,6 +181,7 @@ class Settings(BaseSettings):
                 raise ValueError('CORS origins must be exact HTTP origins without paths')
         return values
 
+    # Validate hosts before the schema accepts the value.
     @field_validator('ALLOWED_HOSTS')
     @classmethod
     def validate_hosts(cls, values):
@@ -162,6 +189,7 @@ class Settings(BaseSettings):
             raise ValueError('ALLOWED_HOSTS requires exact hostnames without ports')
         return values
 
+    # Validate groq base url before the schema accepts the value.
     @field_validator('GROQ_BASE_URL')
     @classmethod
     def validate_groq_base_url(cls, value):
@@ -179,6 +207,7 @@ class Settings(BaseSettings):
             raise ValueError('Groq base URL must be the approved HTTPS API endpoint')
         return value.rstrip('/')
 
+    # Validate environment before the schema accepts the value.
     @model_validator(mode='after')
     def validate_environment(self):
         if self.STRIPE_SANDBOX_ENABLED:
@@ -201,8 +230,8 @@ class Settings(BaseSettings):
                 or self.MYSQL_HOST != '127.0.0.1'
                 or self.MYSQL_PORT != 3306
                 or self.MYSQL_DATABASE != 'lankapex_viva_db'
-                or self.MYSQL_SSL_CA is not None):
-            raise ValueError('Local viva TLS requires the exact development loopback target and no CA configuration')
+                or (self.MYSQL_SSL_CA is not None and self.MYSQL_SSL_CA != Path(r'C:\Program Files\LankaPex-TLS-Trust\ca.pem'))):
+            raise ValueError('Local viva TLS requires the exact development loopback target and protected CA')
         if self.AI_ENABLED:
             secret = self.GROQ_API_KEY.get_secret_value().strip() if self.GROQ_API_KEY else ''
             lowered = secret.lower()
@@ -260,9 +289,10 @@ class Settings(BaseSettings):
         return self
 
 
+# Load and validate settings before application services use them.
 def load_settings(**kwargs):
     try:
-        if isolated_browser_dotenv_disabled():
+        if isolated_browser_dotenv_disabled() or viva_runtime_dotenv_disabled():
             # Make the intent explicit for the application singleton in
             # addition to removing dotenv from all customized sources above.
             kwargs['_env_file'] = None

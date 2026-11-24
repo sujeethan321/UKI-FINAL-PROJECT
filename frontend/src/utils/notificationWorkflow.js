@@ -1,6 +1,8 @@
+// Purpose: Keep notification workflow data handling and workflow helpers separate from React rendering so callers use consistent rules.
 import {NOTIFICATION_CHANGE_EVENT} from './notificationChange.js';
 import { NOTIFICATION_TYPES, notificationError, validCount, validNotification, validNotificationId, validNotificationPage } from "./notification.js";
 
+// Build initial workflow state before resource loading or user interaction begins.
 const initialState = () => ({ count: null, countLoading: false, countError: "", authError: "",
   open: false, recent: null, recentLoading: false, recentError: "", list: null, listLoading: false, listError: "",
   readFilter: "all", typeFilter: "", page: 1, pageSize: 20, mutating: false, markingId: null, actionError: "" });
@@ -11,20 +13,26 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
   let countVersion = 0, listVersion = 0, recentVersion = 0, countAbort, listAbort, recentAbort, writeAbort;
   let countTask = null, timer = null, failures = 0, locked = false, lastReturn = -Infinity, pendingChange = false;
   const listeners = new Set();
+  // Replace the store snapshot and notify subscribers so React can render the new state.
   const publish = patch => { if (alive) { state = { ...state, ...patch }; listeners.forEach(fn => fn()); } };
+  // Check whether this request still belongs to the active workflow generation.
   const current = epoch => alive && generation === epoch && !state.authError;
+  // Clear timer within the notification workflow workflow.
   const clearTimer = () => { if (timer !== null) timers.clearTimeout(timer); timer = null; };
+  // Advance the read generation and cancel work that belongs to the previous context.
   function invalidateReads() {
     ++countVersion; ++listVersion; ++recentVersion;
     countAbort?.abort(); listAbort?.abort(); recentAbort?.abort(); countTask = null;
     clearTimer();
   }
+  // Recognize authentication or authorization failures before deciding how the reader should recover.
   function authFailure(error) {
     if (![401, 403].includes(error?.response?.status)) return false;
     invalidateReads(); writeAbort?.abort(); ++generation; locked = false;
     publish({ ...initialState(), authError: notificationError(error) });
     return true;
   }
+  // Schedule the next resource refresh using the lifecycle rules defined by this reader.
   function schedule() {
     clearTimer();
     if (!alive || !visible || state.authError || locked || state.countLoading) return;
@@ -34,6 +42,7 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
       if (current(epoch) && visible) void loadCount();
     }, Math.min(pollMs * (2 ** Math.min(failures, 3)), 300000));
   }
+  // Load count within the notification workflow workflow.
   function loadCount(force = false) {
     if (!alive || state.authError || (locked && !force)) return Promise.resolve();
     if (countTask) return countTask;
@@ -57,6 +66,7 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
     })();
     return countTask;
   }
+  // Load feed within the notification workflow workflow.
   async function loadFeed(kind, force = false) {
     if (!alive || state.authError || (locked && !force)) return;
     const isList = kind === "list";
@@ -70,6 +80,7 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
     if (isList && state.readFilter !== "all") filters.is_read = state.readFilter === "read";
     if (isList && state.typeFilter) filters.notification_type = state.typeFilter;
     publish(isList ? { listLoading: true, listError: "", list: null } : { recentLoading: true, recentError: "", recent: null });
+    // Create independent initial resource state so new readers do not inherit another instance state.
     const fresh = () => current(epoch) && !signal.aborted && version === (isList ? listVersion : recentVersion);
     try {
       const data = await api.list(filters, { signal });
@@ -86,10 +97,12 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
       if (fresh()) publish(isList ? { listLoading: false } : { recentLoading: false });
     }
   }
+  // Load the current resource data and update the state consumed by the interface.
   async function refresh(force = false) {
     if (!alive || state.authError || (locked && !force)) return;
     await Promise.all([loadCount(force), loadFeed("recent", force), loadFeed("list", force)]);
   }
+  // Refresh related resources after a confirmed change so badges and lists stay consistent.
   async function refreshAfterChange() {
     if (!alive || state.authError) return;
     if (locked) { pendingChange = true; return; }
@@ -97,6 +110,7 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
     publish({ countLoading: false, listLoading: false, recentLoading: false });
     return refresh();
   }
+  // Change the inbox filter and reload notification data for the new selection.
   async function setFilter(field, value) {
     if (locked || !alive || state.authError) return;
     if (field === "readFilter" && !["all", "read", "unread"].includes(value)) return;
@@ -106,16 +120,19 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
     publish({ [field]: value, ...(field !== "page" ? { page: 1 } : {}), actionError: "" });
     await loadFeed("list");
   }
+  // Toggle dropdown within the notification workflow workflow.
   async function toggleDropdown() {
     if (!alive || state.authError) return;
     if (state.open) { closeDropdown(); return; }
     publish({ open: true });
     await loadFeed("recent");
   }
+  // Close dropdown within the notification workflow workflow.
   function closeDropdown() {
     recentAbort?.abort(); ++recentVersion;
     publish({ open: false, recent: null, recentLoading: false, recentError: "" });
   }
+  // Mark the selected notification read and reconcile inbox and unread-count state.
   async function markRead(notificationId = null) {
     if (!alive || state.authError || locked) return;
     const all = notificationId === null;
@@ -129,6 +146,7 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
       const result = all ? await api.markAll({ signal }) : await api.markOne(notificationId, { signal });
       if (!current(epoch) || signal.aborted) return;
       if (all ? !validCount(result?.updated_count) : !validNotification(result) || result.notification_id !== notificationId || !result.is_read || result.notification_type !== original.notification_type || result.business_id !== original.business_id || result.related_entity_id !== original.related_entity_id || result.related_entity_type !== original.related_entity_type) throw new Error("Unconfirmed read response");
+      // Apply the new state and notify the consumers or handlers registered by this workflow.
       const update = feed => feed ? { ...feed, notifications: feed.notifications.map(row =>
         (all || row.notification_id === notificationId) ? (all ? { ...row, is_read: true } : result) : row) } : null;
       // Confirmed changes appear immediately; count and filtered pagination come
@@ -143,6 +161,7 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
       if (current(epoch)) { locked = false; publish({ mutating: false, markingId: null }); if (pendingChange) { pendingChange = false; await refreshAfterChange(); } else schedule(); }
     }
   }
+  // Start the reader by loading the context and resource sections needed by the screen.
   function start(isVisible = true) {
     if (alive) return;
     alive = true; ++generation; visible = isVisible; locked = false; failures = 0;
@@ -150,29 +169,38 @@ export function createNotificationWorkflow({ api, timers = globalThis, now = () 
     if (visible) void loadCount();
     if (pageActive) void loadFeed("list");
   }
+  // Update reader visibility so background notification work follows the active screen.
   function setVisible(value) {
     visible = value;
     if (!value) { clearTimer(); return; }
     returnToTab();
   }
+  // Refresh notification state after the user returns to the application tab.
   function returnToTab() {
     if (!alive || !visible || state.authError || locked || now() - lastReturn < 5000) { schedule(); return; }
     lastReturn = now(); void refresh();
   }
+  // Invalidate or release this workflow instance so old work cannot keep updating its consumers.
   function dispose() {
     alive = false; ++generation; invalidateReads(); writeAbort?.abort(); locked = false; pageActive = false; pendingChange = false;
     state = initialState(); // No listener notifications after unmount.
   }
-  return { subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); }, getSnapshot: () => state,
-    start, dispose, refresh, refreshAfterChange, loadCount, loadRecent: () => loadFeed("recent"), loadList: () => loadFeed("list"),
-    toggleDropdown, closeDropdown, setFilter, markRead, markAllRead: () => markRead(), setVisible, returnToTab,
+  return { /* Register a state listener and return cleanup so consumers can unsubscribe. */ subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); }, /* Expose the current store snapshot to subscribers without starting a request. */ getSnapshot: () => state,
+    start, dispose, refresh, refreshAfterChange, loadCount, /* Load recent records separately from the other resource sections. */ loadRecent: () => loadFeed("recent"), /* Reload the list for the current resource context and filters. */ loadList: () => loadFeed("list"),
+    toggleDropdown, closeDropdown, setFilter, markRead, /* Request a bulk read-state update and reconcile the inbox and unread count. */ markAllRead: () => markRead(), setVisible, returnToTab,
+    // Open the notification inbox view.
     openInbox: () => { pageActive = true; void loadFeed("list"); },
+    // Close the notification inbox view.
     closeInbox: () => { pageActive = false; listAbort?.abort(); ++listVersion; publish({ list: null, listLoading: false, listError: "" }); } };
 }
 
+// Bind visibility, focus, and application-change events to notification refresh and expose cleanup.
 export function bindNotificationLifecycle(workflow, browserWindow, browserDocument) {
+  // React to an application notification-change event by refreshing the reader.
   const changed = () => { if (!browserDocument.hidden) void workflow.refreshAfterChange(); };
+  // Refresh notification state when document visibility changes.
   const visibility = () => workflow.setVisible(!browserDocument.hidden);
+  // Refresh the relevant resource when the browser window regains focus.
   const focus = () => { if (!browserDocument.hidden) workflow.returnToTab(); };
   workflow.start(!browserDocument.hidden);
   browserDocument.addEventListener("visibilitychange", visibility);

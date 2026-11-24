@@ -1,3 +1,4 @@
+// Purpose: Render the reusable notification bell interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useId, useRef } from "react";
 import { Link } from "react-router-dom";
@@ -7,6 +8,7 @@ import { notificationInboxPath } from "../../utils/notification";
 import Popover from "../ui/Popover";
 import NotificationItem from "./NotificationItem";
 
+// Render the notification bell view interface and connect its controls to the state and callbacks defined here.
 export function NotificationBellView({ state, actions, role }) {
   const { tr } = useAppTranslation();
   const trigger = useRef(null);
@@ -32,6 +34,7 @@ export function NotificationBellView({ state, actions, role }) {
     </Popover>
   </div>;
 }
+// Render the notification bell interface and connect its controls to the state and callbacks defined here.
 export default function NotificationBell() {
   const context = useNotifications();
   return context ? <NotificationBellView {...context} /> : null;

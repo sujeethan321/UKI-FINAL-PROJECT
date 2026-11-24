@@ -1,3 +1,4 @@
+# Purpose: Implement customer join operations behind the HTTP layer so related business rules are shared by their callers.
 """Customer-initiated shop links. The ledger is deliberately untouched."""
 from datetime import datetime, timezone
 from secrets import token_urlsafe
@@ -8,14 +9,17 @@ from sqlalchemy import func, select
 from app.models import Business, BusinessJoinLink, BusinessMember, CustomerJoinRequest, CustomerProfile, User
 
 
+# Return a consistent unavailable-resource error for an inaccessible or invalid link.
 def unavailable():
     return HTTPException(404, "Join resource unavailable")
 
 
+# Use timezone-aware UTC timestamps so application comparisons share one time reference.
 def now_utc():
     return datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0)
 
 
+# Resolve approved business using a row lock so the caller can coordinate concurrent changes.
 def approved_business(db, business_id, lock=False):
     query = select(Business).where(Business.business_id == business_id)
     if lock:
@@ -26,6 +30,7 @@ def approved_business(db, business_id, lock=False):
     return business
 
 
+# Query owner business data for the customer join workflow.
 def owner_business(db, owner, business_id, lock=False):
     business = approved_business(db, business_id, lock)
     member = db.scalar(select(BusinessMember.membership_id).where(
@@ -52,6 +57,7 @@ def issue_link(db, owner, business_id):
     return {"public_code": link.public_code}
 
 
+# Expose only the approved business name and type for a valid public join link.
 def preview(db, code):
     row = db.execute(select(Business.business_name, Business.business_type).join(
         BusinessJoinLink, BusinessJoinLink.business_id == Business.business_id,
@@ -83,6 +89,7 @@ def customer_request_status(db, customer, code):
     return {"request_id": None, "status": "already_linked" if linked else "none"}
 
 
+# Resolve profile exists using a row lock so the caller can coordinate concurrent changes.
 def profile_exists(db, business_id, user_id):
     return db.scalar(select(CustomerProfile.customer_id).where(
         CustomerProfile.business_id == business_id,
@@ -90,12 +97,14 @@ def profile_exists(db, business_id, user_id):
     ).limit(1).with_for_update(read=True)) is not None
 
 
+# Project the join request into the fields returned by the public API contract.
 def response(row, business_name, customer_name=None, customer_email=None):
     return dict(request_id=row.request_id, status=row.status, business_name=business_name,
                 created_at=row.created_at, customer_name=customer_name,
                 customer_email=customer_email)
 
 
+# Resolve submit using a row lock so the caller can coordinate concurrent changes.
 def submit(db, customer, code):
     link = db.scalar(select(BusinessJoinLink).where(BusinessJoinLink.public_code == code))
     if link is None:
@@ -127,6 +136,7 @@ def submit(db, customer, code):
     return response(row, business.business_name)
 
 
+# Query customer requests data for the customer join workflow.
 def customer_requests(db, customer, page, page_size):
     query = select(CustomerJoinRequest, Business.business_name).join(
         Business, Business.business_id == CustomerJoinRequest.business_id,
@@ -139,6 +149,7 @@ def customer_requests(db, customer, page, page_size):
                 requests=[response(row, name) for row, name in rows])
 
 
+# Query owner requests data for the customer join workflow.
 def owner_requests(db, owner, business_id, page, page_size, status):
     owner_business(db, owner, business_id)
     query = select(CustomerJoinRequest, Business.business_name, User.full_name, User.email).join(
@@ -156,6 +167,7 @@ def owner_requests(db, owner, business_id, page, page_size, status):
                           for row, business_name, customer_name, customer_email in rows])
 
 
+# Resolve decide using a row lock so the caller can coordinate concurrent changes.
 def decide(db, owner, business_id, request_id, decision):
     business = owner_business(db, owner, business_id, lock=True)
     row = db.scalar(select(CustomerJoinRequest).where(
@@ -189,6 +201,7 @@ def decide(db, owner, business_id, request_id, decision):
     return response(row, business.business_name, customer.full_name, customer.email)
 
 
+# Resolve cancel using a row lock so the caller can coordinate concurrent changes.
 def cancel(db, customer, request_id):
     candidate = db.scalar(select(CustomerJoinRequest).where(
         CustomerJoinRequest.request_id == request_id,

@@ -1,3 +1,4 @@
+// Purpose: Render the my shops screen and connect its user interactions to shared application state and services.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useCustomerRead } from "../../hooks/useCustomerRead";
 import { useEffect, useState } from "react";
@@ -10,16 +11,19 @@ import { parseCustomerPage } from "../../utils/customerAccounts";
 import { CustomerDataState, CustomerPagination, customerButton, customerCard } from "../../components/customer/CustomerData";
 import CustomerJoinRequests from "../../components/customer/CustomerJoinRequests";
 
+// Render the shop account choices interface and connect its controls to the state and callbacks defined here.
 export function ShopAccountChoices({ state, retry, page, onPage }) {
   const { tr } = useAppTranslation();
   return <div className="mt-4 border-t border-[#E1EAF4] pt-4"><CustomerDataState state={state} retry={retry} label={tr("shop accounts")}>
     {state.data && (state.data.items.length ? <><p className="mb-3 text-sm text-[#64748B]">{tr("Choose the credit account you want to view. Account status and available credit come from your shop's current credit records.")}</p><ul className="space-y-3">{state.data.items.map(account => <li key={account.credit_account_id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-lg border border-[#E1EAF4] p-3"><div className="min-w-0"><p className="font-semibold">{tr("Account #")}{account.credit_account_id}</p><p className="mt-1 break-words text-xs capitalize text-[#64748B]">{tr("Status:")} {tr(account.account_status)}</p><p className="mt-2 break-words text-sm [overflow-wrap:anywhere]">{tr("Outstanding:")} {formatCustomerMoney(account.outstanding_balance)}</p><p className="mt-1 break-words text-sm [overflow-wrap:anywhere]">{tr("Available credit:")} {formatCustomerMoney(account.available_credit)}</p></div><Link to={"/customer/credit/" + account.credit_account_id} className={customerButton}>{tr("View account #")}{account.credit_account_id}</Link></li>)}</ul></> : <p className="py-3 text-sm text-[#64748B]">{tr("No credit accounts are available for this shop.")}</p>)}
   </CustomerDataState><CustomerPagination page={page} total={state.data?.total ?? null} loading={state.loading} onPage={onPage} /></div>;
 }
+// Render the shop account page interface and connect its controls to the state and callbacks defined here.
 function ShopAccountPage({ businessId, page, onPage, onDenied }) {
   const [state, reader] = useCustomerRead(options => getShopCreditAccounts(businessId, page, options), data => parseCustomerPage("accounts", data, page, { businessId }), onDenied);
   return <ShopAccountChoices state={state} retry={reader.load} page={page} onPage={onPage} />;
 }
+// Render the shop card interface and connect its controls to the state and callbacks defined here.
 function ShopCard({ shop, onDenied }) {
   const { tr } = useAppTranslation();
   const [expanded, setExpanded] = useState(false), [page, setPage] = useState(1);
@@ -28,6 +32,7 @@ function ShopCard({ shop, onDenied }) {
     {expanded && <div id={"shop-accounts-" + shop.business_id}><ShopAccountPage key={page} businessId={shop.business_id} page={page} onPage={setPage} onDenied={onDenied} /></div>}
   </article>;
 }
+// Render the my shops view interface and connect its controls to the state and callbacks defined here.
 export function MyShopsView({ summary, shops, retrySummary, retryShops, page, onPage, onDenied }) {
   const { tr } = useAppTranslation();
   return <div className="space-y-6 pb-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-2xl font-bold">{tr("My Shops")}</h2><p className="mt-2 text-sm text-[#64748B]">{tr("Businesses securely linked to your customer account.")}</p></div><button type="button" className={customerButton} onClick={() => { retryShops(); retrySummary(); }}>{tr("Refresh shops")}</button></div>
@@ -35,10 +40,14 @@ export function MyShopsView({ summary, shops, retrySummary, retryShops, page, on
     <section aria-label={tr("Linked shops")}><CustomerDataState state={shops} retry={retryShops} label={tr("linked shops")}>{shops.data && (shops.data.items.length ? <div className="grid min-w-0 items-start gap-5 xl:grid-cols-2">{shops.data.items.map(shop => <ShopCard key={shop.business_id} shop={shop} onDenied={onDenied} />)}</div> : <p className={customerCard + " text-sm text-[#64748B]"}>{shops.data.total === 0 ? tr("No shops are linked to your account yet.") : tr("No shops on this page. Use Previous to return to your shops.")}</p>)}</CustomerDataState><CustomerPagination page={page} total={shops.data?.total ?? null} loading={shops.loading} onPage={onPage} /></section>
   </div>;
 }
+// Render the shop list page interface and connect its controls to the state and callbacks defined here.
 function ShopListPage({ summary, retrySummary, page, onPage, onDenied }) {
   const [shops, reader] = useCustomerRead(options => getMyShops(page, options), data => parseCustomerPage("shops", data, page), onDenied);
+  // Attach browser listeners for this mounted resource and remove them during effect cleanup.
   useEffect(() => {
+    // Load the current resource data and update the state consumed by the interface.
     const refresh = () => { reader.load(); retrySummary(); };
+    // Run the scheduled resource work only when the page is visible.
     const whenVisible = () => { if (document.visibilityState === "visible") refresh(); };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", whenVisible);
@@ -46,6 +55,7 @@ function ShopListPage({ summary, retrySummary, page, onPage, onDenied }) {
   }, [reader, retrySummary]);
   return <MyShopsView summary={summary} shops={shops} retrySummary={retrySummary} retryShops={reader.load} page={page} onPage={onPage} onDenied={onDenied} />;
 }
+// Render the my shops session interface and connect its controls to the state and callbacks defined here.
 function MyShopsSession() {
   const { tr } = useAppTranslation();
   const [page, setPage] = useState(1), [accessError, setAccessError] = useState("");
@@ -53,6 +63,7 @@ function MyShopsSession() {
   if (accessError) return <p role="alert" className={customerCard + " border-l-4 border-l-[#DC4545]"}>{tr(accessError)}</p>;
   return <div className="space-y-6"><ShopListPage key={page} summary={summary} retrySummary={reader.load} page={page} onPage={setPage} onDenied={setAccessError} /><CustomerJoinRequests /></div>;
 }
+// Render the my shops interface and connect its controls to the state and callbacks defined here.
 export default function MyShops() {
   const { user, token, isAuthenticated } = useAuth();
   return isAuthenticated && user?.platform_role === "customer" ? <MyShopsSession key={user.user_id + ":" + token} /> : null;

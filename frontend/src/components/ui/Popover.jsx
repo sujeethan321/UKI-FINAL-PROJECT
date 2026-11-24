@@ -1,11 +1,14 @@
+// Purpose: Render the reusable popover interface and keep its presentation and interactions together.
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { bindFloatingPanel } from "../../utils/floatingPanel";
 import "./dropdown.css";
 
+// Render the popover interface and connect its controls to the state and callbacks defined here.
 export default function Popover({ open, onClose, triggerRef, id, label, menu = false,
   initialFocus = "first", className = "", children }) {
   const panel = useRef(null);
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     if (!open || !panel.current || !triggerRef.current) return;
     const element = panel.current;

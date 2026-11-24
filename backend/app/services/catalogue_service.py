@@ -1,3 +1,4 @@
+# Purpose: Implement catalogue operations behind the HTTP layer so related business rules are shared by their callers.
 """Catalogue isolation and publication rules. Caller owns commit/rollback."""
 from fastapi import HTTPException
 from sqlalchemy import case, func, or_, select
@@ -6,6 +7,7 @@ from app.models import Business, BusinessMember, Product, ProductCategory, User
 from app.models.catalogue import utc_now
 
 
+# Resolve owner business using a row lock so the caller can coordinate concurrent changes.
 def owner_business(db, user, business_id):
     # Current/shared reads keep approval, membership and account restrictions
     # authoritative throughout a write without modifying financial helpers.
@@ -25,6 +27,7 @@ def owner_business(db, user, business_id):
     return business
 
 
+# Query public business data for the catalogue workflow.
 def public_business(db, business_id):
     business = db.scalar(select(Business.business_id).where(
         Business.business_id == business_id, Business.approval_status == 'approved'))
@@ -32,6 +35,7 @@ def public_business(db, business_id):
         raise HTTPException(404, 'Shop not found')
 
 
+# Resolve category using a row lock so the caller can coordinate concurrent changes.
 def category(db, business_id, category_id, write=False):
     query = select(ProductCategory).where(ProductCategory.business_id == business_id,
                                             ProductCategory.category_id == category_id)
@@ -42,6 +46,7 @@ def category(db, business_id, category_id, write=False):
     return row
 
 
+# Resolve product using a row lock so the caller can coordinate concurrent changes.
 def product(db, business_id, product_id, write=False):
     query = select(Product).where(Product.business_id == business_id, Product.product_id == product_id)
     if write:
@@ -52,12 +57,14 @@ def product(db, business_id, product_id, write=False):
     return row
 
 
+# Query paged data for the catalogue workflow.
 def paged(db, query, page, page_size, key, order):
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     rows = list(db.scalars(query.order_by(order).offset((page - 1) * page_size).limit(page_size)))
     return dict(page=page, page_size=page_size, total=total, **{key: rows})
 
 
+# Create category for the catalogue workflow.
 def create_category(db, user, business_id, payload):
     owner_business(db, user, business_id)
     row = ProductCategory(business_id=business_id, **payload.model_dump())
@@ -66,6 +73,7 @@ def create_category(db, user, business_id, payload):
     return row
 
 
+# Update category for the catalogue workflow.
 def update_category(db, user, business_id, category_id, payload):
     owner_business(db, user, business_id)
     row = category(db, business_id, category_id, write=True)
@@ -79,6 +87,7 @@ def update_category(db, user, business_id, category_id, payload):
     return row
 
 
+# List categories for the catalogue workflow.
 def list_categories(db, business_id, page, page_size, user=None):
     if user is not None:
         owner_business(db, user, business_id)
@@ -90,6 +99,7 @@ def list_categories(db, business_id, page, page_size, user=None):
     return paged(db, query, page, page_size, 'categories', ProductCategory.category_id)
 
 
+# Create product for the catalogue workflow.
 def create_product(db, user, business_id, payload):
     owner_business(db, user, business_id)
     if payload.category_id is not None:
@@ -102,6 +112,7 @@ def create_product(db, user, business_id, payload):
     return product_data(db, [row], owner=True)[0]
 
 
+# Update product for the catalogue workflow.
 def update_product(db, user, business_id, product_id, payload):
     owner_business(db, user, business_id)
     row = product(db, business_id, product_id, write=True)
@@ -136,6 +147,7 @@ def product_data(db, rows, owner=False):
     return [dict(**{key: getattr(row, key) for key in fields}, category_name=names.get(row.category_id)) for row in rows]
 
 
+# Query summary data for the catalogue workflow.
 def summary(db, user, business_id):
     owner_business(db, user, business_id)
     total, available, unpublished = db.execute(select(func.count(),
@@ -148,12 +160,14 @@ def summary(db, user, business_id):
                 categories_count=categories, unpublished_products_count=unpublished)
 
 
+# Apply publication and availability rules before exposing catalogue products to customers.
 def visible_products():
     return select(Product).outerjoin(ProductCategory, ProductCategory.category_id == Product.category_id).where(
         Product.publication_status == 'published',
         or_(Product.category_id.is_(None), ProductCategory.is_active.is_(True)))
 
 
+# List products for the catalogue workflow.
 def list_products(db, business_id, page, page_size, q=None, category_id=None,
                   availability_status=None, publication_status=None, user=None):
     if user is not None:
@@ -176,6 +190,7 @@ def list_products(db, business_id, page, page_size, q=None, category_id=None,
     return result
 
 
+# Query product detail data for the catalogue workflow.
 def product_detail(db, business_id, product_id, user=None):
     if user is not None:
         owner_business(db, user, business_id)
@@ -187,6 +202,7 @@ def product_detail(db, business_id, product_id, user=None):
     return product_data(db, [row])[0]
 
 
+# Query shops data for the catalogue workflow.
 def shops(db, page, page_size, q=None):
     counts = visible_products().with_only_columns(
         Product.business_id, func.count().label('product_count')).group_by(Product.business_id).subquery()
@@ -199,6 +215,7 @@ def shops(db, page, page_size, q=None):
     return dict(page=page, page_size=page_size, total=total, shops=rows)
 
 
+# Query shop detail data for the catalogue workflow.
 def shop_detail(db, business_id):
     public_business(db, business_id)
     name = db.scalar(select(Business.business_name).where(Business.business_id == business_id))

@@ -1,3 +1,4 @@
+# Purpose: Expose auth HTTP endpoints and connect request validation and dependencies to the application services.
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -30,6 +31,7 @@ from app.services.registration_service import (
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+# Reuse public registration and translate its result into the registration response contract.
 def _register(db: Session, data, role: str):
     try:
         user = register_user(db, data, role)
@@ -50,6 +52,7 @@ def _register(db: Session, data, role: str):
     )
 
 
+# Handle POST /register/customer through the declared request and dependency contract.
 @router.post(
     "/register/customer",
     dependencies=[Depends(registration_limit)],
@@ -63,6 +66,7 @@ def register_customer(
     return _register(db, data, "customer")
 
 
+# Handle POST /register/shop-owner through the declared request and dependency contract.
 @router.post(
     "/register/shop-owner",
     dependencies=[Depends(registration_limit)],
@@ -76,6 +80,7 @@ def register_shop_owner(
     return _register(db, data, "shop_owner")
 
 
+# Handle POST /register/driver through the declared request and dependency contract.
 @router.post(
     "/register/driver",
     dependencies=[Depends(registration_limit)],
@@ -86,6 +91,7 @@ def register_driver(data: DriverRegister, db: Session = Depends(get_db)):
     return _register(db, data, "driver")
 
 
+# Handle POST /login through the declared request and dependency contract.
 @router.post(
     "/login",
     dependencies=[Depends(login_limit)],
@@ -133,6 +139,7 @@ def login(
     )
 
 
+# Handle GET /me through the declared request and dependency contract.
 @router.get(
     "/me",
     response_model=CurrentUserResponse,
@@ -146,4 +153,6 @@ def read_current_user(
         email=current_user.email,
         platform_role=current_user.platform_role,
         account_status=current_user.account_status,
+        phone=current_user.phone,
+        preferred_language=current_user.preferred_language,
     )

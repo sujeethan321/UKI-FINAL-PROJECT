@@ -1,11 +1,14 @@
+# Purpose: Check database targets and identities before maintenance operations so a mistaken connection is rejected.
 """Pure identity guards. Hostnames alone never establish database safety."""
 import re
 
 
+# Distinguish maintenance safety error failures so callers can handle this condition explicitly.
 class MaintenanceSafetyError(ValueError):
     pass
 
 
+# Check target and stop callers when the required conditions are not met.
 def validate_target(environment, database, purpose='inspect'):
     if (environment == 'ai_snapshot_migration' and purpose == 'migration'
             and database == 'lankapex_ai_snapshot_test_db'):
@@ -27,12 +30,14 @@ def validate_target(environment, database, purpose='inspect'):
     return database
 
 
+# Verify identity for the db maintenance workflow.
 def verify_identity(connection, expected):
     from sqlalchemy import text
     if connection.engine.url.database != expected or connection.scalar(text('SELECT DATABASE()')) != expected:
         raise MaintenanceSafetyError('Actual database identity does not match the explicit target')
 
 
+# Check empty and stop callers when the required conditions are not met.
 def require_empty(connection):
     from sqlalchemy import inspect
     inspector = inspect(connection)

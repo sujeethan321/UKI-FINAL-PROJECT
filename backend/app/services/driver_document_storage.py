@@ -1,3 +1,4 @@
+# Purpose: Validate and store driver documents in private storage with explicit path and resource checks.
 """Opt-in private storage. Construction never provisions directories or ACLs."""
 from dataclasses import dataclass, field
 import hashlib
@@ -24,10 +25,12 @@ class DocumentError(Exception):
     """Only fixed classifications cross the service boundary."""
 
 
+# Raise a classified document error immediately when a storage or validation condition fails.
 def require(ok, code='DOCUMENT_REJECTED'):
     if not ok: raise DocumentError(code)
 
 
+# Check storage permissions so driver documents remain private to the intended operating-system account.
 def private_acl(root):
     if os.name=='nt':
         # Read-only ACL inspection; no permission changes. Capture all errors.
@@ -45,6 +48,7 @@ def private_acl(root):
         require(info.st_uid==os.getuid() and stat.S_IMODE(info.st_mode)==0o700,'PRIVATE_STORAGE_UNAVAILABLE')
 
 
+# Resolve and validate the private document root before constructing storage paths.
 def safe_root(root):
     root=Path(root)
     require(root.is_absolute() and root.is_dir() and not root.is_symlink(),'PRIVATE_STORAGE_UNAVAILABLE')
@@ -57,14 +61,18 @@ def safe_root(root):
     return resolved
 
 
+# Group the state and operations for upload budget in the driver document storage module.
 class UploadBudget:
+    # Initialize the dependencies and state this instance needs for later operations.
     def __init__(self): self.total=0; self.lock=Lock()
+    # Consume the shared resource budget and reject work when the configured limit is exceeded.
     def consume(self, count):
         with self.lock:
             self.total+=count
             require(self.total<=MAX_REQUEST,'REQUEST_TOO_LARGE')
 
 
+# Group the state and operations for validated document in the driver document storage module.
 @dataclass(repr=False, frozen=True)
 class ValidatedDocument:
     storage_key: str = field(repr=False)
@@ -73,11 +81,14 @@ class ValidatedDocument:
     content_sha256: str = field(repr=False)
 
 
+# Group the state and operations for private document store in the driver document storage module.
 class PrivateDocumentStore:
+    # Initialize the dependencies and state this instance needs for later operations.
     def __init__(self, root):
         try: self.root=safe_root(root)
         except Exception: raise DocumentError('PRIVATE_STORAGE_UNAVAILABLE') from None
 
+    # Accept only opaque storage keys before resolving a file beneath the private document root.
     def _path(self, key):
         require(isinstance(key,str) and re.fullmatch(r'[0-9a-f]{64}',key) is not None)
         return self.root/key
@@ -142,11 +153,29 @@ class PrivateDocumentStore:
             self._remove_owned(owned)
             raise DocumentError('DOCUMENT_STORAGE_OR_PROTECTION_UNAVAILABLE') from None
 
+    # Remove only the files tracked as owned by this storage operation during cleanup.
     def _remove_owned(self, paths):
         for path in paths:
             try: path.unlink(missing_ok=True)
             except OSError:
                 raise DocumentError('STAGING_CLEANUP_REQUIRES_REVIEW') from None
+
+    def discard_unsubmitted(self, candidates):
+        """Caller must prove rollback and absence of persisted references first.
+
+        Only exact validated candidates created by this request are accepted.
+        Changed files, links and uncertain filesystem outcomes require review.
+        """
+        safe_root(self.root)
+        for candidate in candidates:
+            require(isinstance(candidate,ValidatedDocument),'STAGING_CLEANUP_REQUIRES_REVIEW')
+            path=self._path(candidate.storage_key)
+            info=path.lstat()
+            require(stat.S_ISREG(info.st_mode) and not path.is_symlink() and not (getattr(info,'st_file_attributes',0)&0x400),'STAGING_CLEANUP_REQUIRES_REVIEW')
+            require(info.st_size==candidate.size_bytes and 0<info.st_size<=MAX_FILE,'STAGING_CLEANUP_REQUIRES_REVIEW')
+            with path.open('rb') as stream:content=stream.read(MAX_FILE+1)
+            require(len(content)==candidate.size_bytes and hashlib.sha256(content).hexdigest()==candidate.content_sha256,'STAGING_CLEANUP_REQUIRES_REVIEW')
+            path.unlink()
 
     # No generic delete/read/download endpoint: retention and Admin delivery are
     # separately scoped. An uncertain DB commit MUST leave returned candidates.

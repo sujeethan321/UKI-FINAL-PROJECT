@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner aging operations behind the HTTP layer so related business rules are shared by their callers.
 """Bounded, reporting-only FIFO. Never persists repayment allocations."""
 from collections import defaultdict
 from datetime import datetime
@@ -9,6 +10,7 @@ from app.services.ledger_service import ZERO, account_balances, effective_entrie
 BUCKETS = ('current', 'days_1_30', 'days_31_60', 'days_61_90', 'days_91_plus')
 
 
+# Group outstanding balances into aging buckets using effective financial records.
 def aging(entries, now, max_entries):
     if len(entries) > max_entries:
         raise HTTPException(422, 'Aging exceeds the interactive ledger limit')

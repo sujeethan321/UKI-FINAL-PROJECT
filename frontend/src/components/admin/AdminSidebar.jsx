@@ -1,3 +1,4 @@
+// Purpose: Render the reusable admin sidebar interface and keep its presentation and interactions together.
 import MobileNavigation from "../ui/MobileNavigation";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import BrandLogo from "../BrandLogo";
@@ -48,14 +49,17 @@ const navigation = [
     enabled: true,
   },
   { label: "Activity Logs", path: "/admin/dashboard#recent-admin-activity", icon: History, enabled: true },
-  { label: "Platform Reports", icon: ChartNoAxesCombined, enabled: false },
+  { label: "Platform Reports", path: "/admin/reports", icon: ChartNoAxesCombined, enabled: true },
+  { label: "Support & Disputes", path: "/admin/support", icon: History, enabled: true },
   { label: "Notifications", path: "/admin/notifications", icon: Bell, enabled: true },
 ];
 
+// Render the admin sidebar interface and connect its controls to the state and callbacks defined here.
 export default function AdminSidebar() {
   const { tr } = useAppTranslation();
   const [open, setOpen] = useState(false);
   const { pathname, hash } = useLocation();
+  // Close the open interface and reset the state defined by this handler.
   function close() { setOpen(false); }
 
   const menu = (

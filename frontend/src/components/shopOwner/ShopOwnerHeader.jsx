@@ -1,3 +1,4 @@
+// Purpose: Render the reusable shop owner header interface and keep its presentation and interactions together.
 import AccountMenu from "../ui/AccountMenu";
 import LanguageSelector from "../LanguageSelector";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
@@ -11,6 +12,7 @@ import NotificationBell from "../notifications/NotificationBell";
 
 import { useAuth } from "../../context/useAuth";
 
+// Render the shop owner header interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerHeader({
   title = "Dashboard",
   business,
@@ -23,6 +25,7 @@ export default function ShopOwnerHeader({
 
   const displayName = user?.full_name || tr("Shop Owner");
 
+  // Respond to the logout interaction using the current component state.
   function handleLogout() {
     logout();
     navigate("/login/shop-owner", {

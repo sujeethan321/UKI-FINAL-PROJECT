@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner reports operations behind the HTTP layer so related business rules are shared by their callers.
 """Bounded customer-credit reports in the stored ledger wall clock. No writes."""
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -6,13 +7,14 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from app.core.config import settings
 from app.models import CreditAccount, CustomerProfile
-from app.services.ledger_service import ZERO, load_ledger_entries
+from app.services.ledger_service import ZERO, load_ledger_entries, account_balances
 from app.services.shop_owner_dashboard_service import get_dashboard_summary
 from app.services.shop_owner_aging_service import aging
 
 MAX_DAYS = 366
 
 
+# Validate and bound the requested reporting interval before running report queries.
 def period(start, end, today):
     end = end or today
     if start is None:
@@ -56,6 +58,7 @@ def trends(entries, start, end, today):
              for day, values in days.items()], f'{collected:.2f}')
 
 
+# Query report data for the shop owner reports workflow.
 def report(db, business_id, start_date=None, end_date=None):
     now = db.scalar(select(func.now()))  # Same MySQL session clock as NOW()-generated ledger values.
     if not isinstance(now, datetime) or now.tzinfo is not None:
@@ -73,6 +76,8 @@ def report(db, business_id, start_date=None, end_date=None):
     summary = get_dashboard_summary(db, business_id)  # Preserve existing current-position semantics.
     summary['total_outstanding'] = f"{summary['total_outstanding']:.2f}"
     summary['collected_today'] = collected
+    # Preserve each account's debt/advance independently; no cross-customer netting.
+    summary['customer_advances'] = f"{sum((max(-value, ZERO) for value in account_balances(entries).values()), ZERO):.2f}"
     if aging_data['reconciliation'] == 'matched':
         aged_total = sum((Decimal(v) for v in aging_data['buckets'].values()), ZERO) + Decimal(aging_data['unclassified'])
         if aged_total != Decimal(summary['total_outstanding']):

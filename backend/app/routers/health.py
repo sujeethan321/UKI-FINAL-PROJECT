@@ -1,9 +1,11 @@
+# Purpose: Expose health HTTP endpoints and connect request validation and dependencies to the application services.
 
 from fastapi import APIRouter, HTTPException, Response, status
 
 router = APIRouter(tags=["Health"])
 
 
+# Handle GET /health through the declared request and dependency contract.
 @router.get("/health")
 def health_check(response: Response):
     response.headers['Cache-Control'] = 'no-store'
@@ -14,6 +16,7 @@ def health_check(response: Response):
     }
 
 
+# Handle GET /health/database through the declared request and dependency contract.
 @router.get("/health/database", include_in_schema=False)
 async def database_health(response: Response):
     response.headers['Cache-Control'] = 'no-store'

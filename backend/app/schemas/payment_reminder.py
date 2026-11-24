@@ -1,9 +1,11 @@
+# Purpose: Define typed payment reminder API payloads so incoming data is validated and outgoing fields have an explicit contract.
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+# Define the payment reminder create field contract used when validating or serializing API data.
 class PaymentReminderCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     customer_id: int = Field(gt=0, le=9223372036854775807, strict=True)
@@ -12,6 +14,7 @@ class PaymentReminderCreate(BaseModel):
     note: str | None = Field(default=None, max_length=1000)
     idempotency_key: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 
+    # Validate clean note before the schema accepts the value.
     @field_validator("note")
     @classmethod
     def clean_note(cls, value):
@@ -20,6 +23,7 @@ class PaymentReminderCreate(BaseModel):
         return value.strip() or None if value is not None else None
 
 
+# Define the payment reminder response field contract used when validating or serializing API data.
 class PaymentReminderResponse(BaseModel):
     reminder_id: int
     business_id: int
@@ -42,6 +46,7 @@ class PaymentReminderResponse(BaseModel):
     replayed: bool = False
 
 
+# Define the payment reminder history field contract used when validating or serializing API data.
 class PaymentReminderHistory(BaseModel):
     business_id: int
     page: int

@@ -1,3 +1,4 @@
+// Purpose: Compose the shop owner layout shell and nested screen area so related pages share navigation and presentation.
 import useSubscription from '../hooks/useSubscription';
 import { useAppTranslation } from "../i18n/useAppTranslation.js";
 
@@ -28,10 +29,12 @@ const pageTitles = {
   "/shop-owner/business/register": "Business Registration",
 };
 
+// Render the shop owner layout interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerLayout() {
   const { tr } = useAppTranslation();
   const { pathname } = useLocation();
   const [businesses, setBusinesses] = useState([]);
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     let active = true;
     getShopOwnerBusinessContext().then(data => {

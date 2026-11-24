@@ -1,3 +1,4 @@
+# Purpose: Map ledger entry records to database tables so SQLAlchemy can persist and relate application data.
 
 from datetime import datetime
 from decimal import Decimal
@@ -19,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 
+# Map ledger entry to the ledger_entries table for ORM queries and persistence.
 class LedgerEntry(Base):
     __tablename__ = "ledger_entries"
 
@@ -54,12 +56,14 @@ class LedgerEntry(Base):
         ),
     )
 
+    # Use entry id as the unique row identity for ORM lookups and related records.
     entry_id: Mapped[int] = mapped_column(
         BigInteger,
         primary_key=True,
         autoincrement=True,
     )
 
+    # Link credit account id to credit_accounts.credit_account_id so the database enforces the record relationship.
     credit_account_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey(
@@ -75,6 +79,7 @@ class LedgerEntry(Base):
     nullable=True,
 )
 
+    # Link created by to users.user_id so the database enforces the record relationship.
     created_by: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey(
@@ -84,6 +89,7 @@ class LedgerEntry(Base):
         nullable=False,
     )
 
+    # Link reverses entry id to ledger_entries.entry_id so the database enforces the record relationship.
     reverses_entry_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey(
@@ -98,6 +104,7 @@ class LedgerEntry(Base):
         nullable=False,
     )
 
+    # Store amount as an exact decimal so persisted financial values avoid binary floating-point rounding.
     amount: Mapped[Decimal] = mapped_column(
         Numeric(14, 2),
         nullable=False,
@@ -118,6 +125,7 @@ class LedgerEntry(Base):
         nullable=True,
     )
 
+    # Identify a logical request so retries can be checked against the original operation.
     idempotency_key: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
@@ -128,6 +136,7 @@ class LedgerEntry(Base):
         nullable=True,
     )
 
+    # Retain recorded at for history, ordering, and time-based queries.
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

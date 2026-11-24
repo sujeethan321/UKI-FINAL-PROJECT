@@ -1,11 +1,14 @@
+// Purpose: Render the reusable api connection test interface and keep its presentation and interactions together.
 
 import { useState } from "react";
 import api from "../services/api";
 
+// Render the api connection test interface and connect its controls to the state and callbacks defined here.
 export default function ApiConnectionTest() {
   const [status, setStatus] = useState("Not tested");
   const [loading, setLoading] = useState(false);
 
+  // Call the API health endpoint so the development screen can display connection status.
   const testConnection = async () => {
     setLoading(true);
     setStatus("Connecting...");

@@ -44,11 +44,27 @@ backups/
 *.dump
 *.backup
 
-# Test files
-/backend/tests/
-/backend/offline_tests/
+# Reviewable test source only; generated/private fixtures remain excluded.
+/backend/tests/**
+!/backend/tests/**/
+!/backend/tests/**/*.py
+/backend/offline_tests/**
+!/backend/offline_tests/**/
+!/backend/offline_tests/**/*.py
 /backend/ai_snapshot_integration/
-/frontend/tests/
+/frontend/tests/**
+!/frontend/tests/**/
+!/frontend/tests/**/*.js
+!/frontend/tests/**/*.jsx
+# These exclusions take precedence over source allowlists above.
+.env
+.env.*
+!.env.example
+*credentials*
+**/private/**
+**/evidence/**
+**/checkpoints/**
+**/uploads/**
 
 # Temporary frontend files
 .vite/
@@ -65,3 +81,16 @@ backups/
 
 # Accidental temporary file
 /, database migrations and viva setup
+
+# Reviewable VIVA credential tooling contains code only, never credential data.
+!/backend/scripts/viva_runtime_credentials.ps1
+!/backend/scripts/provision_viva_runtime_credentials.ps1
+!/backend/offline_tests/viva_runtime_launcher_suite.ps1
+
+# Local review/build/render output; preserve on disk but never publish.
+/tmp/
+*.dpapi
+
+# Reviewed source-only PowerShell regressions and CHECK-expression fixture.
+!/backend/offline_tests/**/*.ps1
+!/backend/offline_tests/fixtures/viva_check_constraints_89.txt

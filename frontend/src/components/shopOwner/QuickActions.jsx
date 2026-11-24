@@ -1,3 +1,4 @@
+// Purpose: Render the reusable quick actions interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { Link } from "react-router-dom";
 import { CreditCard, Wallet, Package, ArrowRight } from "lucide-react";
@@ -7,6 +8,7 @@ const actions = [
   {label:"Record Repayment", path:"repayments", icon:Wallet},
   {label:"Manage Products", path:"products", icon:Package},
 ];
+// Render the quick actions interface and connect its controls to the state and callbacks defined here.
 export default function QuickActions({businessId}) {
   const { tr } = useAppTranslation();
   return <section aria-labelledby="quick-actions-title" className="rounded-xl border border-[#E1EAF4] bg-white p-5">

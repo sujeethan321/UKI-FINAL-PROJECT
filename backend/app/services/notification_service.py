@@ -1,3 +1,4 @@
+# Purpose: Implement notification operations behind the HTTP layer so related business rules are shared by their callers.
 """Internal event notifications. Every write belongs to the caller's transaction.
 
 Recipients and content come from verified database events, never API payloads.
@@ -15,6 +16,11 @@ from app.models import (Business, BusinessApprovalAudit, BusinessMember, CreditA
 from app.schemas.notification import NotificationResponse, NotificationType
 
 CONTENT = {
+    'support_created': ('Support case created', 'Your support case was recorded. Open Support to review its status.'),
+    'support_replied': ('Support reply', 'An Administrator replied to a support case you can access.'),
+    'support_awaiting_user': ('Support information requested', 'More information was requested for a support case you can access.'),
+    'support_resolved': ('Support case resolved', 'A support case was resolved. This does not confirm a financial correction or payment.'),
+    'support_reopened': ('Support case reopened', 'A support case was reopened for investigation.'),
     "driver_approved": ("Driver application approved", "Your Driver application was approved. Check your dashboard for current eligibility."),
     "driver_rejected": ("Driver application rejected", "Your Driver application was rejected. Review your application status on your dashboard."),
 "order_submitted": ("Shopping order updated", "Your shopping order status is submitted."),
@@ -37,11 +43,13 @@ CONTENT = {
 }
 
 
+# Use timezone-aware UTC timestamps so application comparisons share one time reference.
 def utc_now():
     # Existing MySQL DATETIME columns store naive UTC with second precision.
     return datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0)
 
 
+# Shape notification fields for the response contract.
 def notification_response(row):
     values = {key: getattr(row, key) for key in NotificationResponse.model_fields}
     for key in ("created_at", "read_at"):
@@ -50,6 +58,7 @@ def notification_response(row):
     return NotificationResponse(**values)
 
 
+# Resolve active owners using a row lock so the caller can coordinate concurrent changes.
 def active_owners(db, business_id, actor_id):
     return list(db.scalars(select(User.user_id).join(
         BusinessMember, BusinessMember.user_id == User.user_id,
@@ -60,6 +69,7 @@ def active_owners(db, business_id, actor_id):
             User.user_id != actor_id).order_by(User.user_id).with_for_update(read=True)))
 
 
+# Resolve current recipient row using a row lock so the caller can coordinate concurrent changes.
 def current_recipient_row(db, model, row_id):
     # Recipient links/status must reflect current committed rows, rather than
     # the older MySQL REPEATABLE READ snapshot established by JWT checks.
@@ -77,6 +87,8 @@ def notify_event(db, notification_type: NotificationType, entity_id: int):
     """
     if notification_type not in get_args(NotificationType):
         raise ValueError("Unsupported notification type")
+    if notification_type.startswith('support_'):
+        raise ValueError('Support notifications require the persisted support-event dispatcher')
     if type(entity_id) is not int or entity_id <= 0:
         raise ValueError("Invalid event identifier")
     if notification_type in {'driver_approved','driver_rejected'}:
@@ -190,6 +202,36 @@ def notify_event(db, notification_type: NotificationType, entity_id: int):
     return ids
 
 
+def notify_support_event(db,case,event,kind):
+    """Only flushed, public support events; transaction and idempotency owned by case service.
+
+    Payload is generic. No case descriptions, internal notes or financial facts.
+    A replay never calls this dispatcher; the existing unique key is final defense.
+    """
+    from app.models.support import SupportEvent
+    expected={'created':'support_created','message':'support_replied','reopened':'support_reopened'}
+    if event.action=='status':expected_kind={'awaiting_user':'support_awaiting_user','resolved':'support_resolved'}.get(event.new_value)
+    else:expected_kind=expected.get(event.action)
+    persisted=db.get(SupportEvent,event.event_id)
+    if persisted is None or persisted.case_id!=case.case_id or persisted.visibility!='public' or expected_kind!=kind:
+        raise ValueError('Support notification requires a matching persisted public event')
+    if kind=='support_replied':
+        author=db.get(User,event.actor_id)
+        if author is None or author.platform_role!='admin' or author.account_status!='active':raise ValueError('Support reply notification requires an active Admin')
+    recipients={case.creator_id}
+    if kind!='support_created':recipients.discard(event.actor_id)
+    if case.business_shared and kind!='support_created':recipients.update(active_owners(db,case.business_id,event.actor_id))
+    if kind=='support_reopened' and case.assigned_admin_id is not None:recipients.add(case.assigned_admin_id)
+    if kind!='support_created':recipients.discard(event.actor_id)
+    title,message=CONTENT[kind]
+    for ident in sorted(recipients):
+        recipient=current_recipient_row(db,User,ident)
+        if recipient is None or recipient.account_status!='active':continue
+        db.add(Notification(recipient_user_id=ident,business_id=None,notification_type=kind,title=title,message=message,
+            related_entity_type='support_case',related_entity_id=case.case_id,event_key=kind+':'+str(event.event_id),is_read=False,created_at=utc_now()))
+
+
+# List notifications for the notification workflow.
 def list_notifications(db, user_id, filters):
     predicates = [Notification.recipient_user_id == user_id]
     if filters.unread_only or filters.is_read is not None:
@@ -204,12 +246,14 @@ def list_notifications(db, user_id, filters):
                 notifications=[notification_response(row) for row in rows])
 
 
+# Query unread count data for the notification workflow.
 def unread_count(db, user_id):
     return db.scalar(select(func.count()).select_from(Notification).where(
         Notification.recipient_user_id == user_id, Notification.is_read.is_(False),
     ))
 
 
+# Mark read for the notification workflow.
 def mark_read(db, user_id, notification_id):
     db.execute(update(Notification).where(
         Notification.notification_id == notification_id,
@@ -224,6 +268,7 @@ def mark_read(db, user_id, notification_id):
     return notification_response(row)
 
 
+# Mark all read for the notification workflow.
 def mark_all_read(db, user_id):
     result = db.execute(update(Notification).where(
         Notification.recipient_user_id == user_id, Notification.is_read.is_(False),

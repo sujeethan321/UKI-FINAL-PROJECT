@@ -1,8 +1,11 @@
+// Purpose: Keep admin driver documents data handling and workflow helpers separate from React rendering so callers use consistent rules.
 export const DOCUMENT_KINDS = ['DRIVING_LICENCE', 'VEHICLE_OWNERSHIP_PROOF'];
+// Clear document preview within the admin driver documents workflow.
 export function clearDocumentPreview(reference, urls = URL) {
   if (reference.current) urls.revokeObjectURL(reference.current);
   reference.current = null;
 }
+// Check driver verification before the surrounding workflow uses it.
 export function parseDriverVerification(value, driverId) {
   if (!value || value.driver_user_id !== driverId || typeof value.legacy_exempt !== 'boolean' || typeof value.approval_ready !== 'boolean' || !Array.isArray(value.documents) || value.documents.length !== 2) throw Error('Invalid document response');
   const documents = DOCUMENT_KINDS.map(kind => {

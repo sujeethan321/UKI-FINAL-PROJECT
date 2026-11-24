@@ -1,3 +1,4 @@
+// Purpose: Wrap admin business API calls so components use a shared request interface instead of building HTTP requests themselves.
 
 import api from "./api";
 

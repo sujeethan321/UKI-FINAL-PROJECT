@@ -1,12 +1,16 @@
+// Purpose: Keep customer history data handling and workflow helpers separate from React rendering so callers use consistent rules.
 import { parseCustomerPage, customerAccountError } from './customerAccounts.js';
+// Reject impossible calendar dates rather than accepting a date parser rollover.
 export function validCalendarDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < '0001-01-01' || value > '9999-12-30') return false;
   const stamp=new Date(value + 'T00:00:00Z');
   return !Number.isNaN(stamp.getTime()) && stamp.toISOString().slice(0, 10) === value;
 }
+// Check the report period before sending or displaying date-filtered results.
 export function validPeriod(start, end, required = false) {
   return (!required || !!start && !!end) && (!start || validCalendarDate(start)) && (!end || validCalendarDate(end)) && (!start || !end || start <= end);
 }
+// Build the transaction-history filters expected by the API.
 export function historyParams(filters, accountId) {
   if (!validPeriod(filters.start_date, filters.end_date)) throw Error('Invalid period');
   return { ...(filters.business_id ? {business_id: Number(filters.business_id)} : {}),
@@ -14,14 +18,18 @@ export function historyParams(filters, accountId) {
     ...(filters.start_date ? {start_date: filters.start_date} : {}), ...(filters.end_date ? {end_date: filters.end_date} : {}),
     ...(accountId ? {credit_account_id: accountId} : {}) };
 }
+// Check history before the surrounding workflow uses it.
 export function parseHistory(data, page, filters, accountId) {
   const result = parseCustomerPage('transactions', data, page, {businessId: filters.business_id ? Number(filters.business_id) : undefined, accountId: accountId || undefined});
   if (result.items.some(row => filters.entry_type && row.entry_type !== filters.entry_type || filters.start_date && row.recorded_at.slice(0,10) < filters.start_date || filters.end_date && row.recorded_at.slice(0,10) > filters.end_date)) throw Error('Mismatched filters');
   return result;
 }
+// Validate or format decimal monetary data at the interface boundary without changing the ledger.
 const money = value => typeof value === 'string' && /^-?\d+\.\d{2}$/.test(value);
+// Convert the monetary value to minor units for exact financial comparisons.
 const units = value => BigInt(value.replace('.', ''));
 const keys = ['opening_balance','total_credit_sales','total_repayments','reversal_impact','closing_balance','outstanding_balance','advance_balance'];
+// Check credit statement before the surrounding workflow uses it.
 export function parseCreditStatement(data, accountId, period) {
   if (data?.currency !== 'LKR' || data.credit_account_id !== accountId || !Number.isSafeInteger(data.business_id) || data.business_id <= 0 ||
     !['business_name','customer_name','time_basis','reversal_policy','historical_limitations'].every(key => typeof data[key] === 'string' && data[key].trim()) ||
@@ -49,15 +57,19 @@ export function parseCreditStatement(data, accountId, period) {
     units(data.opening_balance)+sales-repayments+reversals!==balance || units(data.outstanding_balance)!==(balance>0n?balance:0n) || units(data.advance_balance)!==(balance<0n?-balance:0n))throw Error('Statement totals mismatch');
   return {...Object.fromEntries(['currency','credit_account_id','business_id','business_name','customer_name','start_date','end_date','time_basis','reversal_policy','historical_limitations',...keys].map(key=>[key,data[key]])),transactions};
 }
+// Create statement download for the customer history workflow.
 export function createStatementDownload(api, save, onDenied = () => {}) {
   let state={loading:false,error:''},active=true,version=0,controller;const listeners=new Set();
+  // Replace the store snapshot and notify subscribers so React can render the new state.
   const publish=next=>{state=next;if(active)listeners.forEach(fn=>fn());};
-  return {getSnapshot:()=>state,subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},
+  return {/* Expose the current store snapshot to subscribers without starting a request. */ getSnapshot:()=>state,/* Register a state listener and return cleanup so consumers can unsubscribe. */ subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},
+    // Load the requested resource section and publish its loading or result state.
     async load(){active=true;controller?.abort();controller=new AbortController();const {signal}=controller,current=++version;publish({loading:true,error:''});
       try{const blob=await api({signal});if(active&&!signal.aborted&&current===version){save(blob);publish({loading:false,error:''});}}
       catch(error){if(active&&!signal.aborted&&current===version){if([401,403,404].includes(error?.response?.status))onDenied(customerAccountError(error));publish({loading:false,error:'Unable to download this statement PDF. Please retry.'});}}
-    },dispose(){active=false;version++;controller?.abort();state={loading:false,error:''};}};
+    },/* Release pending work and subscriptions when this resource reader is no longer used. */ dispose(){active=false;version++;controller?.abort();state={loading:false,error:''};}};
 }
+// Save statement pdf within the customer history workflow.
 export function saveStatementPdf(blob, filename) {
   const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=filename;
   try{document.body.appendChild(link);link.click();}finally{link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}

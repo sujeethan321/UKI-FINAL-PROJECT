@@ -1,3 +1,4 @@
+# Purpose: Implement communication operations behind the HTTP layer so related business rules are shared by their callers.
 """Manual WhatsApp handoff only: no provider calls or financial writes."""
 import re
 from datetime import timezone
@@ -10,6 +11,7 @@ from app.services.ledger_service import ZERO, account_balances, load_ledger_entr
 from app.services.notification_service import utc_now
 
 
+# Normalize whatsapp phone for the communication workflow.
 def normalize_whatsapp_phone(value):
     if not isinstance(value, str) or not value.strip():
         return None
@@ -21,6 +23,7 @@ def normalize_whatsapp_phone(value):
     return None
 
 
+# Resolve customer in business using a row lock so the caller can coordinate concurrent changes.
 def customer_in_business(db, business_id, customer_id, lock=False):
     statement = select(CustomerProfile).where(CustomerProfile.business_id == business_id, CustomerProfile.customer_id == customer_id)
     if lock:
@@ -31,6 +34,7 @@ def customer_in_business(db, business_id, customer_id, lock=False):
     return customer
 
 
+# Resolve latest consent using a row lock so the caller can coordinate concurrent changes.
 def latest_consent(db, business_id, customer_id, lock=False):
     statement = select(CommunicationConsent).where(CommunicationConsent.business_id == business_id,
         CommunicationConsent.customer_id == customer_id, CommunicationConsent.channel == "whatsapp").order_by(CommunicationConsent.consent_id.desc()).limit(1)
@@ -39,12 +43,14 @@ def latest_consent(db, business_id, customer_id, lock=False):
     return db.scalar(statement)
 
 
+# Shape consent fields for the response contract.
 def consent_response(row, replayed=False):
     return ConsentResponse(consent_id=row.consent_id, business_id=row.business_id, customer_id=row.customer_id,
         channel=row.channel, consent_status=row.consent_status, recorded_by=row.recorded_by,
         created_at=row.created_at.replace(tzinfo=timezone.utc), replayed=replayed)
 
 
+# Record consent for the communication workflow.
 def record_consent(db, business_id, customer_id, user_id, payload):
     customer = customer_in_business(db, business_id, customer_id, lock=True)
     existing = db.scalar(select(CommunicationConsent).where(CommunicationConsent.business_id == business_id,
@@ -65,6 +71,7 @@ def record_consent(db, business_id, customer_id, user_id, payload):
     return consent_response(row)
 
 
+# Resolve reminder within the access scope checked by this service.
 def scoped_reminder(db, business_id, customer_id, reminder_id):
     row = db.scalar(select(PaymentReminder).where(PaymentReminder.reminder_id == reminder_id,
         PaymentReminder.business_id == business_id, PaymentReminder.customer_id == customer_id))
@@ -73,6 +80,7 @@ def scoped_reminder(db, business_id, customer_id, reminder_id):
     return row
 
 
+# Evaluate the current state required to allow this workflow operation.
 def eligibility(db, business_id, customer_id, reminder_id, lock=False):
     reminder = scoped_reminder(db, business_id, customer_id, reminder_id)
     # Same account-before-customer lock order as the existing reminder writer.
@@ -98,6 +106,7 @@ def eligibility(db, business_id, customer_id, reminder_id, lock=False):
     return reminder, consent, phone, status, reason
 
 
+# Query communication preview data for the communication workflow.
 def communication_preview(db, business_id, customer_id, reminder_id):
     reminder, consent, phone, status, reason = eligibility(db, business_id, customer_id, reminder_id)
     rows = db.scalars(select(CommunicationAttempt).where(CommunicationAttempt.business_id == business_id,
@@ -109,6 +118,7 @@ def communication_preview(db, business_id, customer_id, reminder_id):
         attempts=[AttemptSummary(attempt_id=row.attempt_id, status=row.status, created_at=row.created_at.replace(tzinfo=timezone.utc)) for row in rows])
 
 
+# Shape handoff fields for the response contract.
 def handoff_response(row, reminder, replayed=False):
     # Official WhatsApp click-to-chat format. Encode the unmodified saved message.
     url = "https://wa.me/" + row.phone + "?text=" + quote(reminder.message, safe="")
@@ -117,6 +127,7 @@ def handoff_response(row, reminder, replayed=False):
         handoff_url=url, status=row.status, created_at=row.created_at.replace(tzinfo=timezone.utc), replayed=replayed)
 
 
+# Request handoff for the communication workflow.
 def request_handoff(db, business_id, reminder_id, user_id, payload):
     reminder, consent, phone, status, reason = eligibility(db, business_id, payload.customer_id, reminder_id, lock=True)
     # Always recheck current permission and balance, even on an idempotent replay.

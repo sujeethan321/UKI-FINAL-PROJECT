@@ -1,3 +1,4 @@
+// Purpose: Render the reminder communication screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { getReminderCommunication, recordCustomerCommunicationConsent, requestWhatsAppHandoff } from "../../services/communicationService";
@@ -8,6 +9,7 @@ const api = { preview: getReminderCommunication, consent: recordCustomerCommunic
 const button = "rounded-lg border border-[#DAE5F3] px-3 py-2 text-sm font-semibold text-[#36517B] disabled:opacity-50";
 const field = "mt-1 block w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm text-[#10243E]";
 
+// Render the reminder communication view interface and connect its controls to the state and callbacks defined here.
 export function ReminderCommunicationView({ state, actions }) {
   const id = useId();
   const preview = state.preview;
@@ -38,9 +40,11 @@ export function ReminderCommunicationView({ state, actions }) {
     </>}
   </section>;
 }
+// Render the reminder communication interface and connect its controls to the state and callbacks defined here.
 export default function ReminderCommunication({ businessId, customerId, reminderId, userId }) {
   const [workflow] = useState(() => createCommunicationWorkflow({ api, store: sessionCommunicationStore(userId), scope: { businessId, customerId, reminderId } }));
   const state = useSyncExternalStore(workflow.subscribe, workflow.getSnapshot, workflow.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => { void workflow.load(); return () => workflow.dispose(); }, [workflow]);
   return <ReminderCommunicationView state={state} actions={workflow} />;
 }

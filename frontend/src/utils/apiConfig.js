@@ -1,3 +1,4 @@
+// Purpose: Validate the public API base URL and permitted Vite variables before the frontend sends requests.
 // Shared by the Vite build and Axios. Values are deliberately omitted from errors.
 export function validateApiUrl(value, production = false) {
   let url;
@@ -17,6 +18,7 @@ export function validateApiUrl(value, production = false) {
   return url.href.replace(/\/$/, '');
 }
 
+// Check public environment before the surrounding workflow uses it.
 export function validatePublicEnvironment(env, production = false) {
   if (Object.keys(env).some((name) => name.startsWith('VITE_') && name !== 'VITE_API_URL')) {
     throw new Error('Only VITE_API_URL is approved for public frontend configuration');

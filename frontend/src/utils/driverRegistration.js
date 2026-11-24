@@ -1,6 +1,8 @@
+// Purpose: Keep driver registration data handling and workflow helpers separate from React rendering so callers use consistent rules.
 export const DRIVER_FILE_LIMIT = 5 * 1024 * 1024;
 export const DRIVER_FIELDS = ['driving_licence', 'vehicle_ownership_proof'];
 
+// Project driver form state into the fields expected by public registration.
 export function driverRegistrationPayload(form) {
   for (const name of ['vehicle_type', 'registration_reference']) {
     const value = form[name]?.trim();

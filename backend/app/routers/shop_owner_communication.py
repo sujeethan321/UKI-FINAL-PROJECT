@@ -1,3 +1,4 @@
+# Purpose: Expose shop owner communication HTTP endpoints and connect request validation and dependencies to the application services.
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -11,6 +12,7 @@ from app.services.communication_service import communication_preview, record_con
 router = APIRouter(prefix="/shop-owner", tags=["Customer Communication"])
 
 
+# Wrap the service call at the HTTP boundary with cache policy and transaction/error handling.
 def operation(db, user, business_id, response, callback, write=False):
     response.headers["Cache-Control"] = "no-store"
     for attempt in range(3):
@@ -38,6 +40,7 @@ def operation(db, user, business_id, response, callback, write=False):
             raise HTTPException(500, "Unable to process customer communication") from None
 
 
+# Handle GET /payment-reminders/{reminder_id}/communication through the declared request and dependency contract.
 @router.get("/payment-reminders/{reminder_id}/communication", response_model=CommunicationPreview)
 def preview_communication(
     response: Response, customer_id: int = Query(gt=0, le=9223372036854775807),
@@ -47,6 +50,7 @@ def preview_communication(
     return operation(db, user, business_id, response, lambda: communication_preview(db, business_id, customer_id, reminder_id))
 
 
+# Handle POST /customers/{customer_id}/communication/consent through the declared request and dependency contract.
 @router.post("/customers/{customer_id}/communication/consent", response_model=ConsentResponse, status_code=201)
 def save_consent(
     payload: ConsentCreate, response: Response, customer_id: int = Path(gt=0, le=9223372036854775807),
@@ -56,6 +60,7 @@ def save_consent(
     return operation(db, user, business_id, response, lambda: record_consent(db, business_id, customer_id, user.user_id, payload), write=True)
 
 
+# Handle POST /payment-reminders/{reminder_id}/whatsapp-handoff through the declared request and dependency contract.
 @router.post("/payment-reminders/{reminder_id}/whatsapp-handoff", response_model=HandoffResponse, status_code=201)
 def prepare_whatsapp_handoff(
     payload: HandoffCreate, response: Response, reminder_id: int = Path(gt=0, le=9223372036854775807),

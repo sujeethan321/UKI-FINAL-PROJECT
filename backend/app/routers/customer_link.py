@@ -1,3 +1,4 @@
+# Purpose: Expose customer link HTTP endpoints and connect request validation and dependencies to the application services.
 """Authenticated owner-issued and Customer-accepted profile invitations."""
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,6 +16,7 @@ owner_router = APIRouter(prefix="/shop-owner/customers", tags=["Customer Account
 customer_router = APIRouter(prefix="/customer", tags=["Customer Account Linking"])
 
 
+# Handle POST /{customer_id}/link-invitations through the declared request and dependency contract.
 @owner_router.post("/{customer_id}/link-invitations", response_model=LinkInvitation)
 def create_invitation(
     payload: LinkInvitationRequest,
@@ -37,6 +39,7 @@ def create_invitation(
         raise HTTPException(503, "Invitation could not be prepared") from None
 
 
+# Handle POST /link-invitations/accept through the declared request and dependency contract.
 @customer_router.post("/link-invitations/accept", response_model=LinkedProfile)
 def accept_invitation(
     payload: LinkAcceptance,

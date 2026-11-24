@@ -1,3 +1,4 @@
+// Purpose: Render the shop owner notifications screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -15,9 +16,12 @@ const api = { businesses: getShopOwnerBusinessContext, customers: getShopOwnerCu
 const field = "mt-1.5 w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2.5 text-sm text-[#10243E] outline-none focus:border-[#12B8A6]";
 const button = "rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm font-semibold text-[#36517B] disabled:opacity-50";
 const card = "space-y-4 rounded-xl border border-[#E1EAF4] bg-white p-4 shadow-sm sm:p-5";
+// Format date label for display so screens use a consistent representation.
 const dateLabel = value => new Date(value).toLocaleString("en-LK", { timeZone: "Asia/Colombo" });
+// Format channel label for display so screens use a consistent representation.
 const channelLabel = value => CHANNELS.find(([v]) => v === value)?.[1] || value;
 
+// Render the notifications view interface and connect its controls to the state and callbacks defined here.
 export function NotificationsView({ state, actions, inbox, onReviewReminder, communicationPanel }) {
   const business = state.businesses.find(b => String(b.business_id) === state.businessId);
   const approved = business?.approval_status === "approved";
@@ -82,10 +86,12 @@ export function NotificationsView({ state, actions, inbox, onReviewReminder, com
     </>}
   </div>;
 }
+// Render the notifications page interface and connect its controls to the state and callbacks defined here.
 function NotificationsPage({ userId, initialBusinessId, initialCustomerId }) {
   const [workflow] = useState(() => createReminderWorkflow({ api, store: sessionReminderStore(userId), initialBusinessId, initialCustomerId }));
   const state = useSyncExternalStore(workflow.subscribe, workflow.getSnapshot, workflow.getSnapshot);
   const [reviewed, setReviewed] = useState(null);
+  // Load or confirm the selected reminder before the communication step.
   const reviewReminder = row => {
     if (state.saving || !state.customers.some(customer => customer.customer_id === row.customer_id)) return;
     if (String(row.customer_id) !== state.customerId) void workflow.selectCustomer(String(row.customer_id));
@@ -93,14 +99,17 @@ function NotificationsPage({ userId, initialBusinessId, initialCustomerId }) {
   };
   const communicationPanel = reviewed && String(reviewed.business_id) === state.businessId && String(reviewed.customer_id) === state.customerId
     ? <ReminderCommunication key={reviewed.business_id + ":" + reviewed.reminder_id} businessId={reviewed.business_id} customerId={reviewed.customer_id} reminderId={reviewed.reminder_id} userId={userId} /> : null;
+  // Attach browser listeners for this mounted resource and remove them during effect cleanup.
   useEffect(() => {
     void workflow.loadBusinesses();
+    // Publish a user-facing warning for the current workflow condition.
     const warn = e => { const s = workflow.getSnapshot(); if (s.saving || s.uncertain) { e.preventDefault(); e.returnValue = ""; } };
     window.addEventListener("beforeunload", warn);
     return () => { workflow.dispose(); window.removeEventListener("beforeunload", warn); };
   }, [workflow]);
   return <NotificationsView state={state} actions={workflow} inbox={<NotificationInbox />} onReviewReminder={reviewReminder} communicationPanel={communicationPanel} />;
 }
+// Render the shop owner notifications interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerNotifications() {
   const { user } = useAuth();
   const location = useLocation();

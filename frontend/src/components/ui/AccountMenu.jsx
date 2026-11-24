@@ -1,8 +1,10 @@
+// Purpose: Render the reusable account menu interface and keep its presentation and interactions together.
 import { Link } from "react-router-dom";
 import { LogOut, Settings, UserRound } from "lucide-react";
 import Dropdown from "./Dropdown";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
+// Render the account menu interface and connect its controls to the state and callbacks defined here.
 export default function AccountMenu({ user, roleLabel, links = [], onLogout, logoutLabel = "Log out" }) {
   const { tr } = useAppTranslation();
   const name = user?.full_name || tr(roleLabel);

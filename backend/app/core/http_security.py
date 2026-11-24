@@ -1,3 +1,4 @@
+# Purpose: Apply CORS, host checks, request limits, and safe HTTP error handling consistently across API routes.
 """HTTP hardening without logging request bodies, tokens or exception values."""
 import logging
 from uuid import uuid4
@@ -12,12 +13,15 @@ from app.core.request_limits import RequestBodyLimitMiddleware
 logger = logging.getLogger("lankapex.security")
 
 
+# Configure http security for the http security workflow.
 def configure_http_security(app, settings):
     logger.setLevel(settings.LOG_LEVEL)
     configure_rate_limits(app, settings)
     app.add_middleware(RequestBodyLimitMiddleware,
-                       max_bytes=getattr(settings, 'MAX_REQUEST_BODY_BYTES', 262144))
+                       max_bytes=getattr(settings, 'MAX_REQUEST_BODY_BYTES', 262144),
+                       read_timeout=getattr(settings,'REQUEST_BODY_TIMEOUT_SECONDS',15))
 
+    # Return the safe validation-error representation used at the HTTP boundary.
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, exc):
         # Default validation responses include submitted input, such as passwords.
@@ -26,6 +30,7 @@ def configure_http_security(app, settings):
             for error in exc.errors()
         ]})
 
+    # Apply safe response headers and sanitize error responses at the shared HTTP boundary.
     @app.middleware("http")
     async def safe_errors_and_headers(request, call_next):
         request_id = uuid4().hex
@@ -52,6 +57,6 @@ def configure_http_security(app, settings):
         CORSMiddleware, allow_origins=settings.CORS_ALLOWED_ORIGINS,
         allow_credentials=False,  # Authorization: Bearer authentication, no cookies.
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Accept"],
-        expose_headers=['Retry-After', 'X-Request-ID'],
+        allow_headers=["Authorization", "Content-Type", "Accept", "If-Match"],
+        expose_headers=['Retry-After', 'X-Request-ID', 'ETag'],
     )

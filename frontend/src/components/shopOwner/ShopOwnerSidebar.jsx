@@ -1,3 +1,4 @@
+// Purpose: Render the reusable shop owner sidebar interface and keep its presentation and interactions together.
 import MobileNavigation from "../ui/MobileNavigation";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import BrandLogo from "../BrandLogo";
@@ -75,6 +76,8 @@ const navigation = [
     icon: Bell,
     ready: true,
   },
+
+  { label: "Support", path: "/shop-owner/support", icon: Bell, ready: true },
   {
     label: "Settings",
     path: "/shop-owner/settings",
@@ -92,10 +95,12 @@ const navigation = [
 // Keep the reference order, with catalogue after delivery management.
 const orderedNavigation = [navigation[0], navigation[1], navigation[3], navigation[4], navigation[5], navigation[6], navigation[2], ...navigation.slice(7)];
 
+// Render the shop owner sidebar interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerSidebar({entitlements}) {
   const { tr } = useAppTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
+  // Close sidebar within the shop owner sidebar workflow.
   function closeSidebar() {
     setIsOpen(false);
   }

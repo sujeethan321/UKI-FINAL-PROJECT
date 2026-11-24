@@ -1,3 +1,4 @@
+# Purpose: Map admin audit records to database tables so SQLAlchemy can persist and relate application data.
 """Append-only through application APIs; state and audit share a transaction."""
 from datetime import datetime
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, String
@@ -6,6 +7,7 @@ from app.core.database import Base
 from app.models.catalogue import utc_now
 
 
+# Map admin audit to the admin_audits table for ORM queries and persistence.
 class AdminAudit(Base):
     __tablename__ = 'admin_audits'
     __table_args__ = (
@@ -15,7 +17,9 @@ class AdminAudit(Base):
         Index('ix_admin_audit_created', 'created_at', 'audit_id'),
         Index('ix_admin_audit_target', 'target_type', 'target_id', 'audit_id'),
     )
+    # Use audit id as the unique row identity for ORM lookups and related records.
     audit_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # Link admin user id to users.user_id so the database enforces the record relationship.
     admin_user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('users.user_id', ondelete='RESTRICT'))
     target_type: Mapped[str] = mapped_column(String(20))
     target_id: Mapped[int] = mapped_column(BigInteger)
@@ -23,4 +27,5 @@ class AdminAudit(Base):
     previous_state: Mapped[str | None] = mapped_column(String(30), nullable=True)
     new_state: Mapped[str] = mapped_column(String(30))
     reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Retain created at for history, ordering, and time-based queries.
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)

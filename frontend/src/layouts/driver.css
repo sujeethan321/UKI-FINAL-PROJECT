@@ -1,3 +1,4 @@
+/* Purpose: Define driver layout, spacing, colors, and responsive presentation separately from component behavior. */
 .driver-shell {font-family:'Inter',ui-sans-serif,system-ui,sans-serif;color:#10243e;background:radial-gradient(ellipse at top,#effaff,#f5f8fc 75%);}
 .driver-shell > aside > div {background:radial-gradient(ellipse at bottom left,#123b56,transparent 65%),#10243e;}
 .driver-main h2 {font-size:clamp(26px,2.4vw,38px);font-weight:750;letter-spacing:-.035em;line-height:1.25;}

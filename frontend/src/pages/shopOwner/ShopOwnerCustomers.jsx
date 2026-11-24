@@ -1,3 +1,4 @@
+// Purpose: Render the shop owner customers screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useEffect, useMemo, useState } from "react";
@@ -35,6 +36,7 @@ const avatarColors = [
   "bg-[#FFE4EC] text-[#BD426B]",
 ];
 
+// Derive a short display label when a full profile image is not used.
 function initials(name) {
   return String(name || "?")
     .trim()
@@ -44,6 +46,7 @@ function initials(name) {
     .join("");
 }
 
+// Validate the decimal amount representation before using monetary data.
 function amount(value) {
   return `LKR ${Number(value || 0).toLocaleString("en-LK", {
     minimumFractionDigits: 2,
@@ -51,6 +54,7 @@ function amount(value) {
   })}`;
 }
 
+// Render the summary card interface and connect its controls to the state and callbacks defined here.
 function SummaryCard({ icon: Icon, name, number, iconClasses }) {
   const { tr } = useAppTranslation();
   return (
@@ -66,6 +70,7 @@ function SummaryCard({ icon: Icon, name, number, iconClasses }) {
   );
 }
 
+// Render the status pill interface and connect its controls to the state and callbacks defined here.
 function StatusPill({ status }) {
   const { tr } = useAppTranslation();
   const palette = {
@@ -82,6 +87,7 @@ function StatusPill({ status }) {
   );
 }
 
+// Render the shop owner customers interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerCustomers() {
   const { tr } = useAppTranslation();
   const [businesses, setBusinesses] = useState([]);
@@ -100,6 +106,7 @@ const [manageMode, setManageMode] = useState(null);
 const [success, setSuccess] = useState("");
 const [dataReload, setDataReload] = useState(0);
 
+// Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
 useEffect(() => {
   let active = true;
   getShopOwnerBusinessContext().then(data => {
@@ -128,12 +135,14 @@ const customerDetails = currentDetail?.data ?? null;
 const detailsError = currentDetail?.error ?? "";
 const detailsLoading = !!selectedCustomerId && isApproved && !loading && !error && !currentDetail;
 
+// Reload the business or resource context before accepting further actions.
 function refreshContext() {
   setContextLoading(true);
   setContextError("");
   setReload(n => n + 1);
 }
 
+// Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
 useEffect(() => {
   const controller = new AbortController();
   if (!isApproved || !selectedBusinessId || contextLoading || contextError) {

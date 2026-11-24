@@ -1,3 +1,4 @@
+// Purpose: Render the reusable driver inbox interface and keep its presentation and interactions together.
 import Select from "../ui/Select";
 import {useEffect} from 'react';
 import {Truck,PackageSearch,ShieldCheck,CheckCircle,AlertTriangle} from 'lucide-react';
@@ -6,6 +7,7 @@ import {NOTIFICATION_TYPES} from '../../utils/notification';
 import NotificationItem from '../notifications/NotificationItem';
 
 const button='rounded-lg border border-[#DAE5F3] bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50';
+// Render the driver inbox view interface and connect its controls to the state and callbacks defined here.
 export function DriverInboxView({state,actions}) {
   const blocked=state.mutating||!!state.authError;
   const groups=new Map();
@@ -20,4 +22,5 @@ export function DriverInboxView({state,actions}) {
     return <NotificationItem key={row.notification_id} notification={row} role="driver" busy={state.mutating} onRead={actions.markRead} leadingIcon={<span className={'absolute left-4 top-5 rounded-xl p-3 '+tone}><Icon size={23} aria-hidden="true"/></span>}/>;
   })}</ul></div>):<p className="driver-unavailable">{state.readFilter==='all'&&!state.typeFilter?'No notifications yet.':'No notifications match these filters.'}</p>}<nav aria-label="Notification pages" className="flex flex-wrap items-center justify-end gap-3 text-sm"><button className={button} disabled={state.mutating||state.listLoading||state.page<=1} onClick={()=>actions.setFilter('page',state.page-1)}>Previous</button><span>Page {state.page} · {state.list.total} notifications</span><button className={button} disabled={state.mutating||state.listLoading||state.page*state.pageSize>=state.list.total} onClick={()=>actions.setFilter('page',state.page+1)}>Next</button></nav></>}</section>;
 }
+// Render the driver inbox interface and connect its controls to the state and callbacks defined here.
 export default function DriverInbox() {const context=useNotifications(),actions=context?.actions;useEffect(()=>{if(!actions)return;actions.openInbox();return()=>actions.closeInbox();},[actions]);return context?<DriverInboxView state={context.state} actions={actions}/>:null;}

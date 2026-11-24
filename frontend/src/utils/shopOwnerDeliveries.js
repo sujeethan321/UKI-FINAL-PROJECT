@@ -1,16 +1,24 @@
+// Purpose: Keep shop owner deliveries data handling and workflow helpers separate from React rendering so callers use consistent rules.
 import {formatAssignedTime} from './driverDashboard.js';
 
 export const shopDeliveryLabels={available:'Available',assigned:'Assigned',picked_up:'Picked up',in_transit:'In transit',delivered:'Completed',cancelled:'Cancelled'};
+// Accept only supported identifiers before response data is used for lookups or navigation.
 const id=value=>Number.isSafeInteger(value)&&value>0;
+// Validate count values before the interface uses them for totals or pagination.
 const count=value=>Number.isSafeInteger(value)&&value>=0;
+// Validate text values at the response boundary before rendering them.
 const text=value=>typeof value==='string'&&!!value.trim();
+// Check the timestamp representation before it enters delivery view state.
 const time=value=>formatAssignedTime(value)!=='Time unavailable';
 const fields=['delivery_request_id','reference','business_id','pickup_area','delivery_area','status','created_at','updated_at'];
+// Project only the named response fields so unrelated API fields do not enter view state.
 const pick=(data,keys)=>Object.fromEntries(keys.map(key=>[key,data[key]]));
+// Validate and project one response row before adding it to the displayed dataset.
 function row(data,businessId) {
   if(!data||!id(data.delivery_request_id)||data.business_id!==businessId||!['reference','pickup_area','delivery_area'].every(key=>text(data[key]))||!Object.hasOwn(shopDeliveryLabels,data.status)||!time(data.created_at)||!time(data.updated_at))throw Error('Invalid delivery');
   return pick(data,fields);
 }
+// Check shop delivery before the surrounding workflow uses it.
 export function parseShopDelivery(data,businessId,requestId=null) {
   const delivery=row(data,businessId);
   if(requestId!==null&&delivery.delivery_request_id!==requestId)throw Error('Delivery identity mismatch');
@@ -30,17 +38,20 @@ export function parseShopDelivery(data,businessId,requestId=null) {
   if(driver&&(!events.length||events[0].status!=='assigned'||events[0].occurred_at!==driver.assigned_at))throw Error('Invalid assignment event');
   return {...delivery,assigned_driver:driver,events,can_cancel:data.can_cancel};
 }
+// Check shop delivery list before the surrounding workflow uses it.
 export function parseShopDeliveryList(data,businessId,page,status) {
   if(data?.business_id!==businessId||data.page!==page||data.page_size!==10||!count(data.total)||!Array.isArray(data.deliveries)||data.deliveries.length>Math.min(10,data.total))throw Error('Invalid delivery page');
   const deliveries=data.deliveries.map(data=>row(data,businessId));
   if(new Set(deliveries.map(row=>row.delivery_request_id)).size!==deliveries.length||deliveries.some(row=>status&&row.status!==status))throw Error('Invalid filtered deliveries');
   return {total:data.total,deliveries};
 }
+// Check shop delivery summary before the surrounding workflow uses it.
 export function parseShopDeliverySummary(data,businessId) {
   const keys=['total_requests_count','available_requests_count','in_progress_count','completed_count'];
   if(data?.business_id!==businessId||!keys.every(key=>count(data[key]))||data.available_requests_count+data.in_progress_count+data.completed_count>data.total_requests_count)throw Error('Invalid delivery counts');
   return pick(data,['business_id',...keys]);
 }
+// Check delivery areas before the surrounding workflow uses it.
 export function validateDeliveryAreas(fields) {
   const result={};
   for(const [key,label] of [['pickup_area','Pickup area'],['delivery_area','Delivery destination']]){
@@ -52,27 +63,40 @@ export function validateDeliveryAreas(fields) {
 
 // Only an unresolved-attempt flag is stored in this tab, never areas or records.
 export function deliveryIntentStore(userId) {
+  // Build the resource key used to distinguish request contexts.
   const key=businessId=>'lankapex_delivery_attempt:'+userId+':'+businessId;
-  return {read:businessId=>sessionStorage.getItem(key(businessId))!==null,
+  return {/* Read saved request state for this workflow instance. */ read:businessId=>sessionStorage.getItem(key(businessId))!==null,
+    // Apply the selected notification read-state action through the shared mutation path.
     mark:businessId=>sessionStorage.setItem(key(businessId),'unconfirmed'),
+    // Remove saved state only within the scope checked by this storage adapter.
     clear:businessId=>sessionStorage.removeItem(key(businessId))};
 }
+// Create a resource section with its own data, loading, and error state for independent updates.
 const section=()=>({data:null,loading:false,error:''});
+// Build initial workflow state before resource loading or user interaction begins.
 const initial=()=>({businesses:[],businessId:null,contextLoading:true,contextError:'',authError:'',page:1,status:'',
   list:section(),summary:section(),detail:{...section(),id:null},form:{pickup_area:'',delivery_area:''},
   busy:false,confirmCancel:false,uncertain:false,reviewed:false,storageError:'',message:'',error:''});
+// Translate message outcomes into display text for the interface.
 const message=error=>error?.code==='INVALID_RESPONSE'?'This delivery response could not be verified. Refresh to retry.':error?.response?.status===401?'Your session has expired. Please sign in again.':error?.response?.status===403?'Access is unavailable. Check business approval or sign in with an active Shop Owner account.':error?.response?.status===404?'Delivery not found or access is unavailable.':error?.code==='ECONNABORTED'?'This request is taking too long. Please refresh.':'Delivery information is unavailable. Check your connection and refresh.';
 
+// Create shop delivery workflow for the shop owner deliveries workflow.
 export function createShopDeliveryWorkflow(api,userId,store=deliveryIntentStore(userId)) {
   let state=initial(),active=false,generation=0,inFlight=null;
   const listeners=new Set(),controllers={},versions={};
+  // Replace the store snapshot and notify subscribers so React can render the new state.
   const publish=patch=>{if(active){state={...state,...patch};listeners.forEach(fn=>fn());}};
+  // Cancel obsolete reads so their responses cannot update the active resource.
   const abort=()=>Object.values(controllers).forEach(c=>c.abort());
+  // Check whether the selected business is approved before enabling owner operations.
   const approved=()=>state.businesses.some(b=>b.business_id===state.businessId&&b.approval_status==='approved');
+  // Clear protected resource state after access is denied so earlier data is not left visible.
   function deny(error){generation++;abort();publish({...initial(),contextLoading:false,authError:message(error)});}
+  // Read the saved or current resource state used by this workflow.
   async function read(key,fetcher,parse){
     if(!active||state.authError)return null;
     controllers[key]?.abort();const controller=controllers[key]=new AbortController(),version=versions[key]=(versions[key]||0)+1,current=generation;
+    // Check valid before the surrounding workflow uses it.
     const valid=()=>active&&generation===current&&!controller.signal.aborted&&versions[key]===version;
     publish({[key]:{...state[key],data:null,loading:true,error:''}});
     try{const response=await fetcher({signal:controller.signal});if(!valid())return null;let data;
@@ -81,9 +105,13 @@ export function createShopDeliveryWorkflow(api,userId,store=deliveryIntentStore(
     }catch(error){if(!valid())return null;if([401,403].includes(error?.response?.status))deny(error);
       else publish({[key]:{...state[key],data:null,loading:false,error:message(error)}});return null;}
   }
+  // Load the filtered list into its own loading, data, and error section.
   function list(){const {businessId,page,status}=state;if(!approved())return Promise.resolve(null);return read('list',options=>api.list(businessId,{page,status,...options}),data=>parseShopDeliveryList(data,businessId,page,status));}
+  // Load summary data separately from list or detail state so each section can refresh independently.
   function summary(){const {businessId}=state;if(!approved())return Promise.resolve(null);return read('summary',options=>api.summary(businessId,options),data=>parseShopDeliverySummary(data,businessId));}
+  // Load the selected record detail into its resource section.
   function detail(requestId){if(!approved()||!id(requestId))return Promise.resolve(null);const {businessId}=state;publish({detail:{...section(),id:requestId},confirmCancel:false});return read('detail',options=>api.detail(businessId,requestId,options),data=>parseShopDelivery(data,businessId,requestId));}
+  // Select business within the shop owner deliveries workflow.
   async function selectBusiness(businessId){
     if(state.busy||!state.businesses.some(b=>b.business_id===businessId))return;
     generation++;abort();let uncertain=false,storageError='';
@@ -92,6 +120,7 @@ export function createShopDeliveryWorkflow(api,userId,store=deliveryIntentStore(
       confirmCancel:false,uncertain,reviewed:false,storageError,message:'',error:''});
     return Promise.allSettled([list(),summary()]);
   }
+  // Load the owner businesses used to select the scope of delivery requests.
   async function businesses(){
     if(state.busy)return;controllers.context?.abort();const controller=controllers.context=new AbortController(),current=generation;
     publish({contextLoading:true,contextError:''});
@@ -104,11 +133,14 @@ export function createShopDeliveryWorkflow(api,userId,store=deliveryIntentStore(
     }catch(error){if(!active||controller.signal.aborted||current!==generation)return;
       if([401,403].includes(error?.response?.status))deny(error);else publish({contextLoading:false,contextError:message(error),businesses:[],businessId:null,list:section(),summary:section(),detail:{...section(),id:null}});}
   }
+  // Load the current resource data and update the state consumed by the interface.
   async function refresh(){if(state.busy)return;if(state.contextError||!state.businessId)return businesses();
     const results=await Promise.allSettled([list(),summary(),...(state.detail.id?[detail(state.detail.id)]:[])]);
     if(state.uncertain&&state.page===1&&!state.status&&state.list.data)publish({reviewed:true});return results;
   }
+  // Clear intent within the shop owner deliveries workflow.
   function clearIntent(businessId){try{store.clear(businessId);}catch{publish({storageError:'Unable to clear the unresolved-attempt flag. Review requests before starting another delivery.'});}}
+  // Run a resource-changing request while coordinating pending state and the follow-up resource refresh.
   async function mutate(cancelling){
     if(inFlight)return inFlight;
     if(!active||state.authError||state.contextLoading||!approved())return null;
@@ -120,6 +152,7 @@ export function createShopDeliveryWorkflow(api,userId,store=deliveryIntentStore(
       try{store.mark(businessId);}catch{publish({storageError:'Unable to protect this submission in browser session storage. No request was sent.'});return null;}
     }
     const current=generation,controller=controllers.mutation=new AbortController();
+    // Check valid before the surrounding workflow uses it.
     const valid=()=>active&&generation===current&&!controller.signal.aborted;
     controllers.detail?.abort();publish({busy:true,confirmCancel:false,error:'',message:''});
     const operation=(async()=>{try{
@@ -140,17 +173,28 @@ export function createShopDeliveryWorkflow(api,userId,store=deliveryIntentStore(
     }finally{if(valid())publish({busy:false});}})();
     inFlight=operation;try{return await operation;}finally{if(inFlight===operation)inFlight=null;}
   }
-  return {getSnapshot:()=>state,subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},
+  return {/* Expose the current store snapshot to subscribers without starting a request. */ getSnapshot:()=>state,/* Register a state listener and return cleanup so consumers can unsubscribe. */ subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},
+    // Start the resource workflow using its current context and selection.
     start(){active=true;generation++;abort();publish(initial());return businesses();},refresh,selectBusiness,
+    // Update the editable draft while retaining the current operation context.
     edit(key,value){if(!state.busy&&!state.uncertain&&['pickup_area','delivery_area'].includes(key))publish({form:{...state.form,[key]:value},error:''});},
+    // Change the list filters and reload the requested resource page.
     filter(status){if(state.busy||(status&&!Object.hasOwn(shopDeliveryLabels,status)))return;publish({status,page:1,reviewed:false});return list();},
+    // Change the current page and load its resource records.
     page(page){if(state.busy||!id(page)||page>1000000)return;publish({page,reviewed:false});return list();},
+    // Load the selected record details within the current resource context.
     details(requestId){if(!state.busy)return detail(requestId);},
+    // Close the selected detail view and release its resource state.
     closeDetails(){if(!state.busy){controllers.detail?.abort();publish({detail:{...section(),id:null},confirmCancel:false});}},
+    // Apply the explicit cancellation confirmation before issuing the resource change.
     confirmCancel(value){if(!state.busy&&state.detail.data?.can_cancel)publish({confirmCancel:!!value});},
-    create:()=>mutate(false),cancel:()=>mutate(true),
+    // Create the selected resource through this workflow mutation path.
+    create:()=>mutate(false),/* Cancel or invalidate pending work before this workflow is reset or unmounted. */ cancel:()=>mutate(true),
+    // Reload authoritative records before resolving an operation with an uncertain result.
     reviewUncertain(){if(state.busy)return;publish({status:'',page:1});return refresh();},
+    // Acknowledge the workflow result before permitting the next operation.
     acknowledge(){if(!state.uncertain||!state.reviewed||state.busy)return;clearIntent(state.businessId);publish({uncertain:false,reviewed:false,form:{pickup_area:'',delivery_area:''},error:'',message:'You may start a new request. An earlier request may still finish; avoid submitting it again.'});},
+    // Release pending work and subscriptions when this resource reader is no longer used.
     dispose(){active=false;generation++;abort();state=initial();},
   };
 }

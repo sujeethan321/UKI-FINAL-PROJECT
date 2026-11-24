@@ -1,3 +1,4 @@
+# Purpose: Implement admin provisioning operations behind the HTTP layer so related business rules are shared by their callers.
 """Operator-only provisioning helper. Never called by a public route."""
 from sqlalchemy import select
 from app.models import User
@@ -6,6 +7,7 @@ from app.schemas.auth import ShopOwnerRegister
 from app.services.admin_service import audit
 
 
+# Resolve provision admin using a row lock so the caller can coordinate concurrent changes.
 def provision_admin(db,data:ShopOwnerRegister):
     name=data.full_name.strip()
     if len(name)<2 or any(ord(c)<32 or ord(c)==127 for c in name):

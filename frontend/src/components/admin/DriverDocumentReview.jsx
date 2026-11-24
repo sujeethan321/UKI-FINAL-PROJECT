@@ -1,15 +1,20 @@
+// Purpose: Render the reusable driver document review interface and keep its presentation and interactions together.
 import { useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '../../i18n/useAppTranslation';
 import { getDriverDocument, reviewDriverDocument } from '../../services/adminDriverDocumentService';
 import { clearDocumentPreview } from '../../utils/adminDriverDocuments';
 
 const button='min-h-11 rounded-lg border border-[#D4E2EE] bg-white px-3 py-2 text-sm font-semibold text-[#10243E] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[#12B8A6]';
+// Render the driver document review interface and connect its controls to the state and callbacks defined here.
 export default function DriverDocumentReview({ driverId, verification, pending, locked, onChanged }) {
   const { tr } = useAppTranslation();
   const [state,setState]=useState({ busy:false,error:false,preview:null,denied:false });
   const active=useRef(true), request=useRef(null), url=useRef(null);
+  // Clear preview within the driver document review workflow.
   function clearPreview() { clearDocumentPreview(url); }
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => { active.current=true; return () => { active.current=false;request.current?.abort();clearDocumentPreview(url); }; },[]);
+  // Apply the selected document review action and refresh the review state after the request completes.
   async function action(document,mode) {
     if (request.current || locked || state.denied) return;
     const controller=new AbortController();request.current=controller;

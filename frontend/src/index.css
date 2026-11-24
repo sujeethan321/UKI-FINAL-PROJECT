@@ -1,3 +1,4 @@
+/* Purpose: Load Tailwind and select local font fallbacks for Tamil and Sinhala text. */
 @import "tailwindcss";
 
 /* Local system fallbacks for the existing design; no remote font requests. */

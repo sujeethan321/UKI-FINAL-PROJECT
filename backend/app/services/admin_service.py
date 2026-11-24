@@ -1,3 +1,4 @@
+# Purpose: Implement admin operations behind the HTTP layer so related business rules are shared by their callers.
 """Bounded platform management; no financial writes or impersonation."""
 from fastapi import HTTPException
 from sqlalchemy import select, func, or_, literal, union_all
@@ -11,14 +12,17 @@ ROLES=('shop_owner','customer','driver')
 USER_FIELDS=('user_id','full_name','email','platform_role','account_status','created_at')
 
 
+# Reload and lock the administrator identity before performing a management operation.
 def admin_actor(db,user):
     return driver_service.actor(db,user.user_id,'admin',lock=True)
 
 
+# Resolve current using a row lock so the caller can coordinate concurrent changes.
 def current(db,query,shared=True):
     return db.scalar(query.with_for_update(read=shared).execution_options(populate_existing=True))
 
 
+# Escape SQL wildcard characters so a user search string is matched as text rather than as a LIKE pattern.
 def search(query,fields,q):
     if q is not None:
         value=q.replace('\\','\\\\').replace('%','\\%').replace('_','\\_')
@@ -26,10 +30,12 @@ def search(query,fields,q):
     return query
 
 
+# Shape user fields for the response contract.
 def user_data(row):
     return {key:getattr(row,key) for key in USER_FIELDS}
 
 
+# Query managed user data for the admin workflow.
 def managed_user(db,ident,role=None):
     row=db.scalar(select(User).where(User.user_id==ident,User.platform_role.in_(ROLES)))
     if row is None or role and row.platform_role!=role:
@@ -37,12 +43,14 @@ def managed_user(db,ident,role=None):
     return row
 
 
+# Build a filtered query restricted to the platform roles managed by this service.
 def user_query(role=None,status=None,q=None):
     query=select(User).where(User.platform_role==role if role else User.platform_role.in_(ROLES))
     if status: query=query.where(User.account_status==status)
     return search(query,[User.full_name,User.email],q)
 
 
+# Query users data for the admin workflow.
 def users(db,limit,offset,role=None,status=None,q=None):
     query=user_query(role,status,q)
     total=db.scalar(select(func.count()).select_from(query.subquery()))
@@ -50,10 +58,12 @@ def users(db,limit,offset,role=None,status=None,q=None):
     return dict(total=total,limit=limit,offset=offset,users=[user_data(row) for row in rows])
 
 
+# Shape profile fields for the response contract.
 def profile_data(row):
     return {key:getattr(row,key) for key in ('approval_status','vehicle_type','registration_reference','reviewed_by','reviewed_at')} if row else None
 
 
+# Resolve the managed driver and include current profile and verification state.
 def driver_detail(db,ident):
     user=managed_user(db,ident,'driver')
     from app.services.admin_driver_documents import verification
@@ -61,6 +71,7 @@ def driver_detail(db,ident):
     return dict(**user_data(user),profile=profile_data(profile),verification=verification(db,ident,profile))
 
 
+# Query drivers data for the admin workflow.
 def drivers(db,limit,offset,status=None,approval=None,q=None):
     query=user_query('driver',status,q).outerjoin(DriverProfile,DriverProfile.user_id==User.user_id)
     if approval: query=query.where(DriverProfile.user_id.is_(None) if approval=='not_submitted' else DriverProfile.approval_status==approval)
@@ -69,6 +80,7 @@ def drivers(db,limit,offset,status=None,approval=None,q=None):
     return dict(total=total,limit=limit,offset=offset,drivers=[dict(**user_data(user),profile=profile_data(profile)) for user,profile in rows])
 
 
+# Query owner businesses data for the admin workflow.
 def owner_businesses(db,ident,limit,offset):
     managed_user(db,ident,'shop_owner')
     query=select(Business,BusinessMember).join(BusinessMember,BusinessMember.business_id==Business.business_id).where(BusinessMember.user_id==ident)
@@ -79,7 +91,9 @@ def owner_businesses(db,ident,limit,offset):
         membership_status=m.membership_status,business_role=m.business_role) for b,m in rows])
 
 
+# Build bounded platform summary counts for the administrator dashboard.
 def overview(db):
+    # Build a scalar count subquery for the administrator overview response.
     def count(model,*where): return select(func.count()).select_from(model).where(*where).scalar_subquery()
     fields={
         'total_shop_owners':count(User,User.platform_role=='shop_owner'),
@@ -95,18 +109,21 @@ def overview(db):
     return dict(db.execute(select(*(value.label(key) for key,value in fields.items()))).mappings().one())
 
 
+# Append the administrative decision to the audit trail so the actor and change remain traceable.
 def audit(db,actor,target_type,target_id,action,previous,new,reason):
     row=AdminAudit(admin_user_id=actor.user_id,target_type=target_type,target_id=target_id,
         action=action,previous_state=previous,new_state=new,reason=reason)
     db.add(row); db.flush(); return row
 
 
+# Resolve active assignments using a row lock so the caller can coordinate concurrent changes.
 def active_assignments(db,ident):
     return db.scalar(select(DeliveryAssignment.assignment_id).join(DeliveryRequest,
         DeliveryRequest.delivery_request_id==DeliveryAssignment.delivery_request_id).where(
         DeliveryAssignment.driver_user_id==ident,DeliveryRequest.status.in_(driver_service.ACTIVE)).limit(1).with_for_update(read=True)) is not None
 
 
+# Apply an explicit driver review decision and record its administrative effects.
 def decide_driver(db,actor,ident,payload):
     admin_actor(db,actor)
     managed_user(db,ident,'driver')
@@ -127,6 +144,7 @@ def decide_driver(db,actor,ident,payload):
     return driver_detail(db,ident)
 
 
+# Resolve account status using a row lock so the caller can coordinate concurrent changes.
 def account_status(db,actor,ident,payload):
     admin_actor(db,actor)
     preview=managed_user(db,ident) # Admins, including self/last Admin, are excluded.
@@ -158,6 +176,7 @@ def account_status(db,actor,ident,payload):
     return user_data(target)
 
 
+# Query audit events data for the admin workflow.
 def audit_events(db,limit,offset,target_type=None):
     administrative=select(literal('administrative').label('source'),AdminAudit.audit_id,AdminAudit.admin_user_id,
         AdminAudit.target_type,AdminAudit.target_id,AdminAudit.action,AdminAudit.previous_state,

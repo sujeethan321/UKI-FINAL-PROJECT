@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner customer create operations behind the HTTP layer so related business rules are shared by their callers.
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -7,6 +8,7 @@ from app.models import CustomerProfile
 from app.schemas.customer import CustomerCreate
 
 
+# Normalize phone for the shop owner customer create workflow.
 def normalize_phone(phone: str | None) -> str | None:
     if not phone:
         return None
@@ -19,6 +21,7 @@ def normalize_phone(phone: str | None) -> str | None:
     return digits
 
 
+# Create business customer for the shop owner customer create workflow.
 def create_business_customer(
     db: Session,
     business_id: int,

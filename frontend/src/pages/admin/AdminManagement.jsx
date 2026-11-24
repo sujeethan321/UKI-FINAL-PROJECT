@@ -1,3 +1,5 @@
+import DriverFinanceReview from '../../components/admin/DriverFinanceReview';
+// Purpose: Render the admin management screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
@@ -12,27 +14,35 @@ const card = 'min-w-0 rounded-2xl border border-[#D4E2EE] bg-white p-5 sm:p-6';
 const button = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#D4E2EE] bg-white px-3 py-2 text-sm font-semibold text-[#10243E] hover:border-[#12B8A6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12B8A6] disabled:cursor-not-allowed disabled:opacity-50';
 const input = 'min-h-11 min-w-0 w-full rounded-lg border border-[#D4E2EE] bg-white px-3 py-2 text-sm text-[#10243E] focus-visible:outline-2 focus-visible:outline-[#12B8A6] disabled:opacity-50';
 const names = { not_submitted: 'Not submitted', shop_owner: 'Shop Owner' };
+// Format label for display so screens use a consistent representation.
 const label = value => names[value] || value?.replaceAll('_', ' ') || 'Not available';
+// Render the management badge interface and connect its controls to the state and callbacks defined here.
 export function ManagementBadge({ value }) {
   const { tr } = useAppTranslation();
   const color = ['active', 'approved'].includes(value) ? 'bg-[#22C55E]/10' : value === 'pending' ? 'bg-[#F5B544]/15' : ['suspended', 'rejected'].includes(value) ? 'bg-[#DC4545]/10' : 'bg-[#F5F8FC]';
   return <span className={'inline-flex max-w-full break-words rounded-full px-3 py-1 text-xs font-semibold capitalize ' + color}>{tr(label(value))}</span>;
 }
+// Render the stamp interface and connect its controls to the state and callbacks defined here.
 function Stamp({ value }) { const { tr } = useAppTranslation(); const stamp = adminTimestamp(value); return stamp ? <time dateTime={stamp.iso}>{stamp.label}</time> : tr("Not available"); }
+// Render the detail interface and connect its controls to the state and callbacks defined here.
 function Detail({ title, children }) {
   const { tr } = useAppTranslation(); return <div className="min-w-0"><dt className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">{tr(title)}</dt><dd className="mt-1 break-words text-sm [overflow-wrap:anywhere]">{children ?? tr("Not provided")}</dd></div>; }
+// Render the resource interface and connect its controls to the state and callbacks defined here.
 function Resource({ value, loading, retry, children }) {
   const { tr } = useAppTranslation();
   return value.loading ? <p role="status" className="py-6 text-sm text-[#64748B]">{tr(loading)}</p> : value.error ? <div role="alert" className="my-4 space-y-3 border-l-4 border-[#DC4545] pl-3 text-sm"><p>{tr(value.error)}</p><button type="button" className={button} onClick={retry}>{tr("Try again")}</button></div> : value.data ? children : null;
 }
+// Render the management pagination interface and connect its controls to the state and callbacks defined here.
 export function ManagementPagination({ data, offset, busy, change, name = 'records' }) {
   const { tr } = useAppTranslation();
   if (!data) return null;
   return <nav aria-label={tr("{{section}} pagination", { section: tr(name) })} className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#E2EAF2] pt-4"><p className="text-sm text-[#64748B]">{tr("Showing")} {data.rows.length ? offset + 1 : 0}–{data.rows.length ? offset + data.rows.length : 0} {tr("of")} {data.total}</p><div className="flex flex-wrap gap-2"><button type="button" className={button} disabled={busy || offset === 0} onClick={() => change(Math.max(0, offset - 10))}><ChevronLeft size={16} aria-hidden="true" />{tr("Previous")}</button><button type="button" className={button} disabled={busy || offset + 10 >= data.total || offset + 10 > 1000000} onClick={() => change(offset + 10)}>{tr("Next")}<ChevronRight size={16} aria-hidden="true" /></button></div></nav>;
 }
+// Render the management confirmation interface and connect its controls to the state and callbacks defined here.
 export function ManagementConfirmation({ state, actions, kind }) {
   const { tr } = useAppTranslation();
   const dialog = useRef(null), operation = state.dialog;
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     if (operation && !dialog.current.open) dialog.current.showModal();
     if (!operation && dialog.current.open) dialog.current.close();
@@ -47,12 +57,14 @@ export function ManagementConfirmation({ state, actions, kind }) {
     </form>}
   </dialog>;
 }
+// Render the management details interface and connect its controls to the state and callbacks defined here.
 function ManagementDetails({ kind, state, actions, locked }) {
   const { tr } = useAppTranslation();
   const row = state.detail.data, business = kind === 'business';
   return <section className={card} aria-labelledby="management-details-heading"><div className="flex flex-wrap items-center justify-between gap-3"><h2 tabIndex={-1} id="management-details-heading" className="text-xl font-bold">{tr(managementAreas[kind].singular)} {tr("Details")}</h2><button type="button" className={button} onClick={actions.closeDetails} disabled={locked}>{tr("Close details")}</button></div><Resource value={state.detail} loading={tr("Loading details…")} retry={() => actions.load('detail')}>
     {row && <><h3 className="mt-5 break-words text-lg font-semibold [overflow-wrap:anywhere]">{row.full_name ?? row.business_name}</h3>
       {kind === 'driver' && <DriverDocumentReview key={`${row.user_id}:${row.verification?.documents.map(doc => `${doc.document_id}:${doc.review_status}`).join(',')}`} driverId={row.user_id} verification={row.verification} pending={row.profile?.approval_status === 'pending'} locked={locked} onChanged={() => actions.load('detail')} />}
+      {kind === 'driver' && <DriverFinanceReview key={'finance:'+row.user_id} driverId={row.user_id}/> }
       <dl className="mt-5 grid min-w-0 gap-5 sm:grid-cols-2 xl:grid-cols-3"><Detail title={tr("Record ID")}>{row.user_id ?? row.business_id}</Detail>{!business && <Detail title={tr("Email")}>{row.email}</Detail>}<Detail title={business ? tr("Approval status") : tr("Account status")}><ManagementBadge value={business ? row.approval_status : row.account_status} /></Detail><Detail title={tr("Registered")}><Stamp value={row.created_at} /></Detail>
       {business && <><Detail title={tr("Business type")}>{row.business_type}</Detail><Detail title={tr("Address")}>{row.address}</Detail><Detail title={tr("Phone")}>{row.phone}</Detail><Detail title={tr("Registration number")}>{row.registration_number}</Detail></>}
       {kind === 'driver' && <><Detail title={tr("Application status")}><ManagementBadge value={row.profile?.approval_status ?? "not_submitted"} /></Detail><Detail title={tr("Vehicle type")}>{row.profile?.vehicle_type}</Detail><Detail title={tr("Vehicle registration")}>{row.profile?.registration_reference}</Detail><Detail title={tr("Reviewed")}><Stamp value={row.profile?.reviewed_at} /></Detail></>}
@@ -65,9 +77,11 @@ function ManagementDetails({ kind, state, actions, locked }) {
     <div className="mt-6 flex flex-wrap gap-3 border-t border-[#E2EAF2] pt-5">{allowedManagementActions(kind, row).map(action => <button key={action} type="button" className={button} disabled={locked} onClick={() => actions.open(action)}>{tr(actionLabels[action])}{['approve', 'reject'].includes(action) ? ' ' + tr(managementAreas[kind].singular) : ''}</button>)}</div><p className="mt-3 text-xs text-[#64748B]">{tr("The server validates eligibility and operational safeguards before saving any change.")}</p></>}
   </Resource></section>;
 }
+// Render the admin management view interface and connect its controls to the state and callbacks defined here.
 export function AdminManagementView({ kind, state, actions }) {
   const { tr } = useAppTranslation();
   const [search, setSearch] = useState('');
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => { if (state.selectedId !== null) document.getElementById('management-details-heading')?.focus(); }, [state.selectedId]);
   const area = managementAreas[kind], business = kind === 'business', locked = state.submitting || Boolean(state.uncertain), filters = state.filters;
   const pendingField = business ? 'pending_business_approvals' : 'pending_driver_approvals';
@@ -87,12 +101,15 @@ export function AdminManagementView({ kind, state, actions }) {
     <ManagementConfirmation kind={kind} state={state} actions={actions} />
   </div>;
 }
+// Render the management session interface and connect its controls to the state and callbacks defined here.
 function ManagementSession({ kind }) {
   const [controller] = useState(() => createAdminManagement(adminManagementApi, kind));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => { controller.start(); return () => controller.dispose(); }, [controller]);
   return <AdminManagementView kind={kind} state={state} actions={controller} />;
 }
+// Render the admin management interface and connect its controls to the state and callbacks defined here.
 export default function AdminManagement({ kind }) {
   const { user, token, isAuthenticated } = useAuth();
   if (!isAuthenticated || user?.platform_role !== 'admin' || user.account_status !== 'active') return null;

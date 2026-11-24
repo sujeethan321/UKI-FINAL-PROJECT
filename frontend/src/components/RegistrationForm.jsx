@@ -1,3 +1,4 @@
+// Purpose: Render the reusable registration form interface and keep its presentation and interactions together.
 import Select from "./ui/Select";
 
 import { useState } from "react";
@@ -47,6 +48,7 @@ const initialForm = {
   preferred_language: "en",
 };
 
+// Render the registration form interface and connect its controls to the state and callbacks defined here.
 export default function RegistrationForm({ role }) {
   const navigate = useNavigate();
   const config = roleConfigs[role];
@@ -57,6 +59,7 @@ export default function RegistrationForm({ role }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Update field within the registration form workflow.
   function updateField(event) {
     const { name, value } = event.target;
 
@@ -66,6 +69,7 @@ export default function RegistrationForm({ role }) {
     }));
   }
 
+  // Respond to the submit interaction using the current component state.
   async function handleSubmit(event) {
     event.preventDefault();
     if (loading) return;

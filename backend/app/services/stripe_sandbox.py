@@ -1,3 +1,4 @@
+# Purpose: Wrap Stripe sandbox calls and signature verification behind explicit configuration and URL checks.
 """Sandbox-only REST adapter. No SDK retries, secrets in errors, or raw card data.
 
 All provider operations are invoked explicitly by billing requests; none at import.
@@ -14,20 +15,24 @@ from fastapi import HTTPException
 from app.core.config import settings
 
 
+# Read the explicit sandbox activation setting before provider operations are allowed.
 def enabled():
     return bool(getattr(settings, 'STRIPE_SANDBOX_ENABLED', False))
 
 
+# Check enabled and stop callers when the required conditions are not met.
 def require_enabled():
     if not enabled():
         raise HTTPException(503, 'Payment integration not configured')
 
 
+# Map supported plans and billing intervals to configured sandbox price identifiers.
 def price_map():
     return {(plan, interval): getattr(settings, f'STRIPE_{plan}_{interval.upper()}_PRICE', '')
             for plan in ('PRO', 'BUSINESS') for interval in ('month', 'year')}
 
 
+# Validate the provider-hosted destination before it is returned for browser navigation.
 def hosted_url(value, portal=False):
     parsed = urlsplit(value or '')
     if (parsed.scheme != 'https' or parsed.hostname != ('billing.stripe.com' if portal else 'checkout.stripe.com')
@@ -36,7 +41,9 @@ def hosted_url(value, portal=False):
     return value
 
 
+# Group the state and operations for provider in the stripe sandbox module.
 class Provider:
+    # Run the configured adapter operation with the input checks and error handling defined by this class.
     def call(self, method, path, data=None, key=None):
         require_enabled()
         secret = settings.STRIPE_TEST_SECRET_KEY.get_secret_value()
@@ -62,6 +69,7 @@ class Provider:
             raise HTTPException(502, 'Live resources are forbidden')
         return obj
 
+    # Verify price for the stripe sandbox workflow.
     def verify_price(self, price_id, plan, interval):
         price = self.call('GET', '/prices/' + price_id)
         amount = {('PRO', 'month'): 49900, ('PRO', 'year'): 499000,
@@ -75,6 +83,7 @@ class Provider:
             raise HTTPException(502, 'Sandbox price does not match the approved plan')
         return price
 
+    # Fetch bounded provider result pages and stop reconciliation if the pagination limit is exceeded.
     def pages(self, path, params):
         # Exhaust pagination before concluding absence. Bounded, fail closed.
         items = []
@@ -89,6 +98,7 @@ class Provider:
         raise HTTPException(502, 'Provider reconciliation requires operator review')
 
 
+# Verify the webhook signature before treating a provider payload as an event.
 def signed_event(body, signature, now=None):
     require_enabled()
     try:

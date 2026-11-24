@@ -1,3 +1,4 @@
+// Purpose: Render the reusable customer join requests interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useEffect, useRef, useState } from "react";
 import { cancelCustomerJoinRequest, getCustomerJoinRequests } from "../../services/customerJoinService";
@@ -8,6 +9,7 @@ import { customerButton, customerCard } from "./CustomerData";
 const PAGE_SIZE = 20;
 const statuses = new Set(["pending", "approved", "rejected", "cancelled"]);
 
+// Check join request page before the surrounding workflow uses it.
 export function parseJoinRequestPage(data, page) {
   if (!Number.isSafeInteger(data?.total) || data.total < 0 || data.page !== page || data.page_size !== PAGE_SIZE ||
       !Array.isArray(data.requests) || data.requests.length > PAGE_SIZE || data.requests.length > data.total ||
@@ -18,6 +20,7 @@ export function parseJoinRequestPage(data, page) {
   return data;
 }
 
+// Translate join request message outcomes into display text for the interface.
 export function joinRequestMessage(error) {
   const status = error?.response?.status;
   if (status === 401) return "Your session expired. Sign in again to view requests.";
@@ -27,8 +30,10 @@ export function joinRequestMessage(error) {
   return "Join requests could not be loaded. Check your connection and retry.";
 }
 
+// Check cancel join request before the surrounding workflow uses it.
 export function canCancelJoinRequest(row) { return row?.status === "pending"; }
 
+// Cancel pending request within the customer join requests workflow.
 export async function cancelPendingRequest(row, lock, send = cancelCustomerJoinRequest) {
   if (lock.current || !canCancelJoinRequest(row)) return null;
   lock.current = true;
@@ -39,6 +44,7 @@ export async function cancelPendingRequest(row, lock, send = cancelCustomerJoinR
   } finally { lock.current = false; }
 }
 
+// Render the customer join requests interface and connect its controls to the state and callbacks defined here.
 export default function CustomerJoinRequests() {
   const { tr } = useAppTranslation();
   const [page, setPage] = useState(1);
@@ -52,15 +58,19 @@ export default function CustomerJoinRequests() {
   const lock = useRef(false);
   const mounted = useRef(true);
 
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
   }, []);
+  // Attach browser listeners for this mounted resource and remove them during effect cleanup.
   useEffect(() => {
+    // Reload the resource on window focus so the view can reflect external changes.
     const refreshOnFocus = () => { setLoading(true); setRetry(value => value + 1); };
     window.addEventListener("focus", refreshOnFocus);
     return () => window.removeEventListener("focus", refreshOnFocus);
   }, []);
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     let active = true;
     getCustomerJoinRequests(page, PAGE_SIZE).then(result => {
@@ -72,7 +82,9 @@ export default function CustomerJoinRequests() {
     return () => { active = false; };
   }, [page, retry]);
 
+  // Load the current resource data and update the state consumed by the interface.
   function refresh() { setLoading(true); setRetry(value => value + 1); }
+  // Invalidate or release this workflow instance so old work cannot keep updating its consumers.
   async function cancel(row) {
     if (lock.current || !canCancelJoinRequest(row)) return;
     setCancelling(row.request_id); setError(""); setNotice("");

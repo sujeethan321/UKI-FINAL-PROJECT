@@ -1,10 +1,13 @@
+// Purpose: Render the reusable customer link invite interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import {useState} from 'react';
 import {createCustomerLinkInvitation} from '../../services/customerLinkService';
 
+// Render the customer link invite interface and connect its controls to the state and callbacks defined here.
 export default function CustomerLinkInvite({businessId,customerId}) {
   const { tr } = useAppTranslation();
   const [email,setEmail]=useState(''),[invitation,setInvitation]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  // Submit the current form through its workflow and expose pending, success, or error state to the interface.
   async function submit(event) {
     event.preventDefault();if(busy||!email.trim())return;
     setBusy(true);setInvitation('');setMessage('');

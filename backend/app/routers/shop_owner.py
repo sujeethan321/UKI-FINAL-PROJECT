@@ -1,3 +1,4 @@
+# Purpose: Expose shop owner HTTP endpoints and connect request validation and dependencies to the application services.
 from datetime import date
 from typing import Literal
 
@@ -56,6 +57,7 @@ router = APIRouter(
 )
 
 
+# Handle GET /reports/financial through the declared request and dependency contract.
 @router.get('/reports/financial')
 def read_financial_report(response: Response, business_id: int = Query(gt=0),
     start_date: date | None = None, end_date: date | None = None,
@@ -76,6 +78,7 @@ def read_financial_report(response: Response, business_id: int = Query(gt=0),
         raise HTTPException(500, 'Financial report unavailable', headers={'Cache-Control': 'no-store'}) from None
 
 
+# Handle GET /reports/financial.csv through the declared request and dependency contract.
 @router.get('/reports/financial.csv')
 def export_financial_report(response: Response, business_id: int = Query(gt=0),
     start_date: date = Query(), end_date: date = Query(),
@@ -90,6 +93,7 @@ def export_financial_report(response: Response, business_id: int = Query(gt=0),
     })
 
 
+# Handle GET /reports/financial.pdf through the declared request and dependency contract.
 @router.get('/reports/financial.pdf')
 def export_financial_report_pdf(response: Response, business_id: int = Query(gt=0),
     start_date: date = Query(), end_date: date = Query(), language: Literal['en','ta','si'] = 'en',
@@ -125,6 +129,7 @@ def find_duplicate_owned_business(
     Different businesses are allowed.
     """
 
+    # Compare trimmed lowercase text so owner lookups follow consistent matching rules.
     def normalized_match(column, value):
         if value is None:
             return column.is_(None)
@@ -300,6 +305,7 @@ def get_approved_owned_business(
 # ---------------------------------------------------
 
 
+# Handle GET /business-context through the declared request and dependency contract.
 @router.get("/business-context")
 def get_business_context(
     current_user: User = Depends(require_roles("shop_owner")),
@@ -344,6 +350,7 @@ def get_business_context(
 # ---------------------------------------------------
 
 
+# Handle POST /businesses/{business_id}/reports/ai-summary through the declared request and dependency contract.
 @router.post('/businesses/{business_id}/reports/ai-summary')
 async def report_ai_summary(business_id: int, payload: ReportAIRequest, request: Request, response: Response,
     current_user: User = Depends(require_roles('shop_owner')), db: Session = Depends(get_db),
@@ -357,11 +364,12 @@ async def report_ai_summary(business_id: int, payload: ReportAIRequest, request:
     plan=require_business_feature(db,business_id,'ai_summaries')
     ai_generation_limit(request,current_user.user_id,business_id,plan['ai_limit_multiplier'])
     context=await run_in_threadpool(build_context,db,business_id,payload)
-    text=await generate(context,payload,ai_client)
+    result=await generate(context,payload,ai_client)
     return dict(business_id=business_id,language=payload.language,start_date=payload.start_date,
-        end_date=payload.end_date,summary=text,model='openai/gpt-oss-120b',source='generated')
+        end_date=payload.end_date,question_id=payload.question_id,**result)
 
 
+# Handle GET /dashboard/summary through the declared request and dependency contract.
 @router.get("/dashboard/summary")
 def read_dashboard_summary(
     response: Response,
@@ -387,6 +395,7 @@ def read_dashboard_summary(
 # ---------------------------------------------------
 
 
+# Handle GET /dashboard/recent-transactions through the declared request and dependency contract.
 @router.get("/dashboard/recent-transactions")
 def read_recent_transactions(
     business_id: int,
@@ -416,6 +425,7 @@ def read_recent_transactions(
 # ---------------------------------------------------
 
 
+# Handle GET /customers through the declared request and dependency contract.
 @router.get("/customers")
 def read_shop_owner_customers(
     business_id: int,
@@ -447,6 +457,7 @@ def read_shop_owner_customers(
 # --------------------------------------------------
 
 
+# Handle POST /customers through the declared request and dependency contract.
 @router.post(
     "/customers",
     response_model=CustomerCreateResponse,
@@ -496,6 +507,7 @@ def add_shop_owner_customer(
         ) from None
 
 
+# Handle GET /customers/{customer_id} through the declared request and dependency contract.
 @router.get("/customers/{customer_id}")
 def read_shop_owner_customer_details(
     customer_id: int,
@@ -515,6 +527,7 @@ def read_shop_owner_customer_details(
     )
 
 
+# Commit the customer change through the router transaction boundary and handle a failed write.
 def save_customer_changes(db, business_id, customer_id, operation):
     try:
         operation()
@@ -532,6 +545,7 @@ def save_customer_changes(db, business_id, customer_id, operation):
         raise HTTPException(500, "Unable to save customer changes") from None
 
 
+# Handle PATCH /customers/{customer_id} through the declared request and dependency contract.
 @router.patch("/customers/{customer_id}")
 def edit_shop_owner_customer(
     customer_id: int, business_id: int, payload: CustomerUpdate,
@@ -543,6 +557,7 @@ def edit_shop_owner_customer(
         lambda: update_customer(db, business_id, customer_id, payload))
 
 
+# Handle POST /customers/{customer_id}/credit-account through the declared request and dependency contract.
 @router.post("/customers/{customer_id}/credit-account", status_code=201)
 def create_shop_owner_credit_account(
     customer_id: int, business_id: int, payload: CreditAccountCreate,
@@ -554,6 +569,7 @@ def create_shop_owner_credit_account(
         lambda: manage_credit_account(db, business_id, customer_id, payload, create=True))
 
 
+# Handle PATCH /customers/{customer_id}/credit-account through the declared request and dependency contract.
 @router.patch("/customers/{customer_id}/credit-account")
 def update_shop_owner_credit_account(
     customer_id: int, business_id: int, payload: CreditAccountUpdate,
@@ -565,6 +581,7 @@ def update_shop_owner_credit_account(
         lambda: manage_credit_account(db, business_id, customer_id, payload))
 
 
+# Commit the financial service result through the router transaction boundary and handle a failed write.
 def save_financial_operation(db, current_user, business_id, response, operation, label):
     # Both writers share retry/rollback behavior and the same account lock.
     for attempt in range(3):
@@ -593,6 +610,7 @@ def save_financial_operation(db, current_user, business_id, response, operation,
             raise HTTPException(500, f"Unable to record {label}") from None
 
 
+# Handle POST /credit-sales through the declared request and dependency contract.
 @router.post("/credit-sales", response_model=CreditSaleResponse, status_code=201)
 def add_shop_owner_credit_sale(
     payload: CreditSaleCreate,
@@ -605,6 +623,7 @@ def add_shop_owner_credit_sale(
         lambda: record_credit_sale(db, business_id, current_user.user_id, payload), "credit sale")
 
 
+# Handle POST /repayments through the declared request and dependency contract.
 @router.post("/repayments", response_model=RepaymentResponse, status_code=201)
 def add_shop_owner_repayment(
     payload: RepaymentCreate,
@@ -617,6 +636,7 @@ def add_shop_owner_repayment(
         lambda: record_repayment(db, business_id, current_user.user_id, payload), "repayment")
 
 
+# Read financial document for the shop owner workflow.
 def read_financial_document(db, current_user, business_id, response, operation):
     response.headers["Cache-Control"] = "no-store"
     try:
@@ -627,6 +647,7 @@ def read_financial_document(db, current_user, business_id, response, operation):
         raise HTTPException(500, "Unable to load financial document") from None
 
 
+# Handle GET /repayments/{repayment_id}/receipt through the declared request and dependency contract.
 @router.get("/repayments/{repayment_id}/receipt", response_model=RepaymentReceipt)
 def read_shop_owner_repayment_receipt(
     response: Response,
@@ -639,6 +660,7 @@ def read_shop_owner_repayment_receipt(
         lambda business: repayment_receipt(db, business, repayment_id))
 
 
+# Handle GET /customers/{customer_id}/statement through the declared request and dependency contract.
 @router.get("/customers/{customer_id}/statement", response_model=CustomerStatement)
 def read_shop_owner_customer_statement(
     response: Response,
@@ -655,6 +677,7 @@ def read_shop_owner_customer_statement(
         lambda business: customer_statement(db, business, customer_id, start_date, end_date))
 
 
+# Handle GET /outstanding-payments through the declared request and dependency contract.
 @router.get("/outstanding-payments", response_model=OutstandingPayments)
 def read_shop_owner_outstanding_payments(
     response: Response,

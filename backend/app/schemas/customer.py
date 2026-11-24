@@ -1,3 +1,4 @@
+# Purpose: Define typed customer API payloads so incoming data is validated and outgoing fields have an explicit contract.
 
 import re
 from decimal import Decimal
@@ -12,6 +13,7 @@ from pydantic import (
 )
 
 
+# Define the customer create field contract used when validating or serializing API data.
 class CustomerCreate(BaseModel):
     customer_name: str = Field(max_length=150)
     phone: str | None = Field(default=None, max_length=20)
@@ -19,6 +21,7 @@ class CustomerCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # Validate name before the schema accepts the value.
     @field_validator("customer_name")
     @classmethod
     def validate_name(cls, value: str) -> str:
@@ -31,6 +34,7 @@ class CustomerCreate(BaseModel):
 
         return name
 
+    # Validate phone before the schema accepts the value.
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, value: str | None) -> str | None:
@@ -51,6 +55,7 @@ class CustomerCreate(BaseModel):
             "Enter a valid Sri Lankan mobile number"
         )
 
+    # Validate address before the schema accepts the value.
     @field_validator("address")
     @classmethod
     def validate_address(cls, value: str | None) -> str | None:
@@ -60,6 +65,7 @@ class CustomerCreate(BaseModel):
         return " ".join(value.split()) or None
 
 
+# Define the customer create response field contract used when validating or serializing API data.
 class CustomerCreateResponse(BaseModel):
     customer_id: int
     business_id: int
@@ -69,9 +75,11 @@ class CustomerCreateResponse(BaseModel):
     message: str
 
 
+# Define the customer update field contract used when validating or serializing API data.
 class CustomerUpdate(CustomerCreate):
     customer_name: str = Field(default=None, max_length=150)
 
+    # Validate require changes before the schema accepts the value.
     @model_validator(mode="after")
     def require_changes(self):
         if not self.model_fields_set:
@@ -79,6 +87,7 @@ class CustomerUpdate(CustomerCreate):
         return self
 
 
+# Define the credit account create field contract used when validating or serializing API data.
 class CreditAccountCreate(BaseModel):
     credit_limit: Decimal = Field(default=Decimal("0.00"), ge=0, max_digits=14, decimal_places=2)
     payment_term_days: int = Field(default=30, gt=0, le=2147483647, strict=True)
@@ -87,7 +96,9 @@ class CreditAccountCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+# Define the credit account update field contract used when validating or serializing API data.
 class CreditAccountUpdate(CreditAccountCreate):
+    # Validate require changes before the schema accepts the value.
     @model_validator(mode="after")
     def require_changes(self):
         if not self.model_fields_set:

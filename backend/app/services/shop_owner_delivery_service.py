@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner delivery operations behind the HTTP layer so related business rules are shared by their callers.
 """Own-business delivery management on the existing Day 12 records.
 
 Write callers commit/rollback. Notifications share the event transaction; no ledger writes.
@@ -9,6 +10,7 @@ from app.models import BusinessMember, DeliveryRequest, DeliveryAssignment, Deli
 from app.services import driver_service as delivery
 
 
+# Resolve business within the access scope checked by this service.
 def authorized_business(db, user_id, business_id):
     # Preserve the current Shop Owner policy: active owner membership only.
     business = delivery.requesting_business(db, user_id, business_id)
@@ -20,12 +22,14 @@ def authorized_business(db, user_id, business_id):
     return business
 
 
+# Shape summary fields for the response contract.
 def summary_data(row):
     return {key: getattr(row, key) for key in (
         'delivery_request_id', 'reference', 'business_id', 'pickup_area', 'delivery_area',
         'status', 'created_at', 'updated_at')}
 
 
+# Resolve request within the access scope checked by this service.
 def scoped_request(db, business_id, request_id, current=False):
     query = select(DeliveryRequest).where(
         DeliveryRequest.business_id == business_id, DeliveryRequest.delivery_request_id == request_id)
@@ -37,6 +41,7 @@ def scoped_request(db, business_id, request_id, current=False):
     return row
 
 
+# Shape detail fields for the response contract.
 def detail_data(db, row, current=False):
     query = select(DeliveryAssignment, User.full_name).join(
         User, User.user_id == DeliveryAssignment.driver_user_id).where(
@@ -55,6 +60,7 @@ def detail_data(db, row, current=False):
         events=events, can_cancel=row.status == 'available' and assigned is None)
 
 
+# Create request for the shop owner delivery workflow.
 def create_request(db, user, business_id, payload, existing_order_id=None):
     authorized_business(db, user.user_id, business_id)
     row = delivery.create_delivery(db, user.user_id, business_id, payload.pickup_area, payload.delivery_area,existing_order_id)
@@ -63,6 +69,7 @@ def create_request(db, user, business_id, payload, existing_order_id=None):
     return detail_data(db, row, current=True)
 
 
+# List requests for the shop owner delivery workflow.
 def list_requests(db, user, business_id, page, page_size, status=None):
     authorized_business(db, user.user_id, business_id)
     query = select(DeliveryRequest).where(DeliveryRequest.business_id == business_id)
@@ -75,6 +82,7 @@ def list_requests(db, user, business_id, page, page_size, status=None):
                 deliveries=[summary_data(row) for row in rows])
 
 
+# Authorize the business and aggregate its delivery requests by status.
 def summary(db, user, business_id):
     authorized_business(db, user.user_id, business_id)
     counts = dict(db.execute(select(DeliveryRequest.status, func.count()).where(
@@ -85,11 +93,13 @@ def summary(db, user, business_id):
                 completed_count=counts.get('delivered', 0))
 
 
+# Request detail for the shop owner delivery workflow.
 def request_detail(db, user, business_id, request_id):
     authorized_business(db, user.user_id, business_id)
     return detail_data(db, scoped_request(db, business_id, request_id))
 
 
+# Cancel request for the shop owner delivery workflow.
 def cancel_request(db, user, business_id, request_id):
     authorized_business(db, user.user_id, business_id)
     delivery.lock_linked_order(db, request_id)

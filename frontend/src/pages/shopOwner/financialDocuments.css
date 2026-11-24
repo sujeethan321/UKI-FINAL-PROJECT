@@ -1,3 +1,4 @@
+/* Purpose: Define financial documents layout, spacing, colors, and responsive presentation separately from component behavior. */
 @media print {
   @page { margin: 16mm; }
   body:has(> .lpx-document-overlay) > *:not(.lpx-document-overlay) { display: none !important; }

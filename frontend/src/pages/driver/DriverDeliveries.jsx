@@ -1,3 +1,5 @@
+// Purpose: Render the driver deliveries screen and connect its user interactions to shared application state and services.
+import {Destination} from '../../components/customer/CustomerAddresses';
 import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import {useEffect,useState,useSyncExternalStore} from 'react';
@@ -11,10 +13,13 @@ import {driverEligibilityMessages,formatAssignedTime} from '../../utils/driverDa
 
 const card='min-w-0 rounded-2xl border border-[#D4E2EE] bg-white p-5 shadow-sm sm:p-6';
 const button='inline-flex min-h-11 items-center justify-center rounded-lg border border-[#DAE5F3] px-4 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-[#12B8A6] disabled:opacity-50';
+// Render the status interface and connect its controls to the state and callbacks defined here.
 function Status({value}) {
   const { tr } = useAppTranslation();return <span className={'inline-block rounded-full px-3 py-1 text-xs font-semibold '+(value==='delivered'?'bg-[#22C55E]/10':value==='cancelled'?'bg-[#DC4545]/10':'bg-[#12B8A6]/10')}>{tr(deliveryLabels[value])}</span>;}
+// Render the recorded time interface and connect its controls to the state and callbacks defined here.
 function RecordedTime({value}) {
   const { tr } = useAppTranslation();return value?<time dateTime={value+'Z'}>{formatAssignedTime(value)}</time>:<>{tr("Date not recorded")}</>;}
+// Render the driver deliveries view interface and connect its controls to the state and callbacks defined here.
 export function DriverDeliveriesView({state,actions,history=false,detail=false,initialQuery='',embedded=false}) {
   const { tr } = useAppTranslation();
   const [confirm,setConfirm]=useState(false),[selected,setSelected]=useState(null),[query,setQuery]=useState(initialQuery),[sort,setSort]=useState('newest');
@@ -36,8 +41,8 @@ export function DriverDeliveriesView({state,actions,history=false,detail=false,i
       <div className="flex flex-wrap items-start justify-between gap-3"><h3 className="break-all text-xl font-bold">{row.reference}</h3><Status value={row.status}/></div>
       <dl className="mt-5 grid min-w-0 gap-5 sm:grid-cols-2">{[['Requesting shop',row.business_name],['Pickup area',row.pickup_area],['Delivery area',row.delivery_area],['Assigned Driver',state.profile.data?.full_name||tr("Your Driver account")]].map(([label,value])=><div className="min-w-0" key={label}><dt className="text-sm text-[#64748B]">{tr(label)}</dt><dd className="mt-1 break-words font-semibold">{value}</dd></div>)}</dl>
       <p className="mt-5 text-sm">{tr("Assigned:")} <RecordedTime value={row.assigned_at}/></p>
-      <DeliveryTimeline status={row.status} events={state.detail.data.events}/>
-      <p className="mt-3 text-xs text-[#64748B]">{tr("Only recorded events are shown. Earlier progress dates may be unavailable. Precise addresses, customer contacts, vehicle requirements and operational instructions are not stored in this delivery record.")}</p>
+      <Destination value={row.destination}/><DeliveryTimeline status={row.status} events={state.detail.data.events}/>
+      {!row.destination&&<p className="mt-3 text-xs text-[#64748B]">{tr("Only recorded events are shown. Earlier progress dates may be unavailable. Precise addresses, customer contacts, vehicle requirements and operational instructions are not stored in this delivery record.")}</p>}
       {next&&eligible&&!state.uncertain&&<div className="mt-6">{confirm&&next==='delivered'?<div role="group" aria-label={tr("Confirm delivery completion")} className="space-y-3 rounded-xl bg-[#F5F8FC] p-4"><p>{tr("Confirm this delivery has reached its destination?")}</p><div className="flex flex-wrap gap-3"><button type="button" className={button+' bg-[#12B8A6] text-[#10243E]'} disabled={state.busy} onClick={()=>{setConfirm(false);actions.update();}}>{tr("Confirm Delivered")}</button><button type="button" className={button} disabled={state.busy} onClick={()=>setConfirm(false)}>{tr("Cancel")}</button></div></div>:<button type="button" className={button+' bg-[#12B8A6] text-[#10243E]'} disabled={state.busy||state.profile.loading} onClick={()=>next==='delivered'?setConfirm(true):actions.update()}>{state.busy?tr("Updating delivery..."):tr(deliveryActions[next])}</button>}</div>}
       {['delivered','cancelled'].includes(row.status)&&<p className="mt-5 text-sm">{tr("This delivery is")} {tr(deliveryLabels[row.status].toLowerCase())}{tr(". No further status updates are permitted.")}</p>}
       </>:<p className="py-5 text-sm">{tr("Refresh details to check the recorded delivery status.")}</p>}
@@ -52,12 +57,15 @@ export function DriverDeliveriesView({state,actions,history=false,detail=false,i
     </>}
   </div>;
 }
+// Render the delivery session interface and connect its controls to the state and callbacks defined here.
 function DeliverySession({userId,history,deliveryId,initialQuery='',embedded=false,onConfirmed}) {
   const [workflow]=useState(()=>createDeliveriesWorkflow({profile:getDriverProfile,summary:getDriverSummary,list:listDriverDeliveries,detail:readDriverDelivery,update:updateDriverDelivery},userId,{history,deliveryId}));
   const state=useSyncExternalStore(workflow.subscribe,workflow.getSnapshot,workflow.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(()=>{workflow.start();return()=>workflow.dispose();},[workflow]);
-  return <DriverDeliveriesView state={state} actions={onConfirmed?{...workflow,async update(){const result=await workflow.update();if(result)onConfirmed();return result;}}:workflow} history={history} detail={deliveryId!==null} initialQuery={initialQuery} embedded={embedded}/>;
+  return <DriverDeliveriesView state={state} actions={onConfirmed?{...workflow,/* Apply a draft or state update through the rules of this workflow. */ async update(){const result=await workflow.update();if(result)onConfirmed();return result;}}:workflow} history={history} detail={deliveryId!==null} initialQuery={initialQuery} embedded={embedded}/>;
 }
+// Render the driver deliveries interface and connect its controls to the state and callbacks defined here.
 export default function DriverDeliveries({history=false,detail=false}) {
   const { tr } = useAppTranslation();
   const {user,token,isAuthenticated}=useAuth(),{deliveryId}=useParams(),[search]=useSearchParams();

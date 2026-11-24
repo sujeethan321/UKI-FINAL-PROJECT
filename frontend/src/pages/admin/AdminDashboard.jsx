@@ -1,3 +1,4 @@
+// Purpose: Render the admin dashboard screen and connect its user interactions to shared application state and services.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Link } from 'react-router-dom';
@@ -9,19 +10,23 @@ import { adminMetrics, adminActions, adminTimestamp, createAdminDashboardReader 
 const card = 'min-w-0 rounded-2xl border border-[#D4E2EE] bg-white p-5 shadow-sm sm:p-6';
 const button = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#D4E2EE] bg-white px-4 py-2 text-sm font-semibold text-[#10243E] hover:border-[#12B8A6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12B8A6] disabled:cursor-wait disabled:opacity-50';
 const icons = [Users, Users, Truck, Store, Truck, Store, ShoppingBag, Package];
+// Render the loading interface and connect its controls to the state and callbacks defined here.
 function Loading({ children }) {
   return <p role="status" className="flex items-center gap-2 py-4 text-sm text-[#64748B]"><LoaderCircle size={18} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />{children}</p>;
 }
+// Render the failure interface and connect its controls to the state and callbacks defined here.
 function Failure({ message, retry, label }) {
   const { tr } = useAppTranslation();
   return <div role="alert" className="my-4 space-y-3 border-l-4 border-[#DC4545] pl-3 text-sm"><p>{tr(message)}</p><button type="button" className={button} onClick={retry}>{tr("Retry")}{" "}{tr(label)}</button></div>;
 }
+// Render the count interface and connect its controls to the state and callbacks defined here.
 function Count({ section, field }) {
   const { tr } = useAppTranslation();
   if (section.loading) return <span className="text-base font-medium text-[#64748B]">{tr("Loading…")}</span>;
   const value = section.data?.[field];
   return value === null || value === undefined ? <span className="text-base font-medium text-[#64748B]">{tr("Unavailable")}</span> : value.toLocaleString('en-LK');
 }
+// Render the admin dashboard view interface and connect its controls to the state and callbacks defined here.
 export function AdminDashboardView({ state, actions }) {
   const { tr } = useAppTranslation();
   const { overview, activity, authError } = state;
@@ -59,7 +64,7 @@ export function AdminDashboardView({ state, actions }) {
         <Link to="/admin/dashboard#recent-admin-activity" className={button}>{tr("Activity Logs")}<ArrowRight size={16} aria-hidden="true" /></Link>
         <Link to="/admin/notifications" className={button}>{tr("Notifications")}<ArrowRight size={16} aria-hidden="true" /></Link>
         {[['Shop Owners', '/admin/shop-owners'], ['Customers', '/admin/customers'], ['Delivery Drivers', '/admin/drivers']].map(([label, path]) => <Link key={path} to={path} className={button}>{tr(label)}<ArrowRight size={16} aria-hidden="true" /></Link>)}
-        <div className="min-w-0 rounded-xl border border-[#D4E2EE] p-4"><p className="text-sm font-semibold">{tr("Platform Reports")}</p><p className="mt-1 text-xs text-[#64748B]">{tr("Coming soon")}</p></div>
+        <Link to="/admin/reports" className={button}>{tr("Platform Reports")}<ArrowRight size={16} aria-hidden="true" /></Link>
       </div>
     </section>
     <section id="recent-admin-activity" className={card + ' scroll-mt-6'} aria-labelledby="recent-admin-activity-heading" aria-busy={activity.loading}>
@@ -74,12 +79,15 @@ export function AdminDashboardView({ state, actions }) {
     </section>
   </div>;
 }
+// Render the admin session interface and connect its controls to the state and callbacks defined here.
 function AdminSession() {
   const [reader] = useState(() => createAdminDashboardReader({ overview: getAdminOverview, activity: getRecentAdminActivity }));
   const state = useSyncExternalStore(reader.subscribe, reader.getSnapshot, reader.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => { reader.start(); return () => reader.dispose(); }, [reader]);
   return <AdminDashboardView state={state} actions={reader} />;
 }
+// Render the admin dashboard interface and connect its controls to the state and callbacks defined here.
 export default function AdminDashboard() {
   const { user, token, isAuthenticated } = useAuth();
   if (!isAuthenticated || user?.platform_role !== 'admin' || user.account_status !== 'active') return null;

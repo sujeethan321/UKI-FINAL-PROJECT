@@ -1,3 +1,4 @@
+// Purpose: Render the reusable notification inbox interface and keep its presentation and interactions together.
 import Select from "../ui/Select";
 import { useEffect } from "react";
 import { useNotifications } from "../../context/NotificationContext";
@@ -7,6 +8,7 @@ import NotificationItem from "./NotificationItem";
 const button = "rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm font-semibold text-[#36517B] disabled:opacity-50";
 const field = "mt-1 block max-w-full rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm text-[#10243E]";
 
+// Render the notification inbox view interface and connect its controls to the state and callbacks defined here.
 export function NotificationInboxView({ state, actions, role }) {
   return <section aria-label="Notification inbox" className="space-y-4 rounded-xl border border-[#E1EAF4] bg-white p-4 text-[#10243E] shadow-sm sm:p-5">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-lg font-bold">Your Notifications</h3><p className="text-sm text-[#587098]">Your personal inbox across businesses, newest first.</p></div><button type="button" className={button} disabled={state.mutating || !!state.authError || state.count === 0} onClick={actions.markAllRead}>{state.mutating && state.markingId === null ? "Updating..." : "Mark All as Read"}</button></div>
@@ -21,9 +23,11 @@ export function NotificationInboxView({ state, actions, role }) {
     </>}
   </section>;
 }
+// Render the notification inbox interface and connect its controls to the state and callbacks defined here.
 export default function NotificationInbox() {
   const context = useNotifications();
   const actions = context?.actions;
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => { if (!actions) return; actions.openInbox(); return () => actions.closeInbox(); }, [actions]);
   return context ? <NotificationInboxView {...context} /> : null;
 }

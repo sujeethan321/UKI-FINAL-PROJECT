@@ -1,4 +1,6 @@
+// Purpose: Keep api error data handling and workflow helpers separate from React rendering so callers use consistent rules.
 
+// Translate get api outcomes into display text for the interface.
 export function getApiErrorMessage(error) {
   const detail = error.response?.data?.detail;
 

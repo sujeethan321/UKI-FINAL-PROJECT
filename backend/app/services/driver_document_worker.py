@@ -1,3 +1,4 @@
+# Purpose: Validate driver-document content in a separate worker rather than processing untrusted files in the API process.
 """Private subprocess entry point. No app/settings/database imports or logging."""
 import json
 import os
@@ -5,9 +6,11 @@ from pathlib import Path
 import sys
 
 
+# Validate document contents with networking disabled in the document-processing worker.
 def validate(source, target, media):
     # Limits are installed before this function and before native parser imports.
     import socket
+    # Reject network connections from the isolated document-validation worker.
     def denied(*args, **kwargs): raise ValueError('Network unavailable')
     socket.socket.connect=denied; socket.create_connection=denied
     if media.startswith('image/'):
@@ -56,6 +59,7 @@ def validate(source, target, media):
     if not 0<Path(target).stat().st_size<=5*1024*1024: raise ValueError()
 
 
+# Provide the entry point for this module or its registered endpoint.
 def main():
     try:
         if os.name=='posix':

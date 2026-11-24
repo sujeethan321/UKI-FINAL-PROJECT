@@ -1,3 +1,5 @@
+// Purpose: Keep subscription data handling and workflow helpers separate from React rendering so callers use consistent rules.
+// Derive the plan and trial text shown to the owner from the current subscription state.
 export function subscriptionDisplay(data, now = Date.now()) {
   const end = data?.trial_ends_at ? Date.parse(data.trial_ends_at) : 0;
   const seconds = Math.max(0, Math.ceil((end - now) / 1000));
@@ -7,6 +9,7 @@ export function subscriptionDisplay(data, now = Date.now()) {
     upgrade: Boolean(data?.upgrade_required || (data?.status === "TRIALING" && !active)) };
 }
 
+// Format plan price for display so screens use a consistent representation.
 export function formatPlanPrice(minor, language = "en") {
   if (!Number.isSafeInteger(minor) || minor < 0) return "—";
   const whole = Math.trunc(minor / 100), cents = String(minor % 100).padStart(2, "0");

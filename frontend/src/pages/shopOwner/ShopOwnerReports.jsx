@@ -1,3 +1,4 @@
+// Purpose: Render the shop owner reports screen and connect its user interactions to shared application state and services.
 import usePlanAccess from '../../hooks/usePlanAccess';
 import PlanFeatureNotice from '../../components/shopOwner/PlanFeatureNotice';
 import Select from '../../components/ui/Select';
@@ -12,6 +13,7 @@ import { createReportCSVExporter } from '../../utils/reportCSVExport';
 import { useAppTranslation } from '../../i18n/useAppTranslation';
 import { formatDocumentMoney } from '../../utils/financialDocuments';
 
+// Render the credit trend interface and connect its controls to the state and callbacks defined here.
 export function CreditTrend({ title, field, report, loading, error }) {
   const { tr } = useAppTranslation();
   const days = report?.daily || [];
@@ -43,6 +45,7 @@ export function CreditTrend({ title, field, report, loading, error }) {
   </section>;
 }
 
+// Render the credit aging interface and connect its controls to the state and callbacks defined here.
 export function CreditAging({ report, loading, error }) {
   const { tr } = useAppTranslation();
   const data = !loading && !error ? report?.aging : null;
@@ -60,6 +63,7 @@ export function CreditAging({ report, loading, error }) {
   </section>;
 }
 
+// Render the shop owner reports view interface and connect its controls to the state and callbacks defined here.
 export function ShopOwnerReportsView({ businesses = [], businessId, onBusiness, summary, report, loading, error, onPeriod, onRetry,
   onExport, exportBusy = false, exportError = false }) {
   const { tr } = useAppTranslation();
@@ -96,6 +100,7 @@ export function ShopOwnerReportsView({ businesses = [], businessId, onBusiness, 
   </div>;
 }
 
+// Render the shop owner reports interface and connect its controls to the state and callbacks defined here.
 export default function ShopOwnerReports() {
   const { i18n } = useAppTranslation();
   const selectedLanguage = (i18n.resolvedLanguage || i18n.language || 'en').split('-')[0];
@@ -110,7 +115,9 @@ export default function ShopOwnerReports() {
   const [result, setResult] = useState(null);
   const [exporter] = useState(() => createReportCSVExporter(getFinancialReportCSV, undefined, getFinancialReportPDF));
   const exportState = useSyncExternalStore(exporter.subscribe, exporter.getSnapshot, exporter.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => () => exporter.cancel(), [exporter, businessId, range, refresh, language]);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(() => {
     if (!businessId) return;
     const controller = new AbortController();

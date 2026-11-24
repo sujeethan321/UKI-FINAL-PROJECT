@@ -1,3 +1,4 @@
+# Purpose: Implement driver document operations behind the HTTP layer so related business rules are shared by their callers.
 """Transaction-owned metadata foundations, not mounted upload/review endpoints."""
 from datetime import datetime, timezone
 import hashlib

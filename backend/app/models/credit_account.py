@@ -1,3 +1,4 @@
+# Purpose: Map credit account records to database tables so SQLAlchemy can persist and relate application data.
 
 from datetime import datetime
 from decimal import Decimal
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 
+# Map credit account to the credit_accounts table for ORM queries and persistence.
 class CreditAccount(Base):
     __tablename__ = "credit_accounts"
 
@@ -60,12 +62,14 @@ class CreditAccount(Base):
         ),
     )
 
+    # Use credit account id as the unique row identity for ORM lookups and related records.
     credit_account_id: Mapped[int] = mapped_column(
         BigInteger,
         primary_key=True,
         autoincrement=True,
     )
 
+    # Link creditor business id to businesses.business_id so the database enforces the record relationship.
     creditor_business_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("businesses.business_id", ondelete="RESTRICT"),
@@ -73,6 +77,7 @@ class CreditAccount(Base):
         index=True,
     )
 
+    # Link customer id to customer_profiles.customer_id so the database enforces the record relationship.
     customer_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey(
@@ -82,12 +87,14 @@ class CreditAccount(Base):
         nullable=True,
     )
 
+    # Link debtor business id to businesses.business_id so the database enforces the record relationship.
     debtor_business_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("businesses.business_id", ondelete="RESTRICT"),
         nullable=True,
     )
 
+    # Store credit limit as an exact decimal so persisted financial values avoid binary floating-point rounding.
     credit_limit: Mapped[Decimal] = mapped_column(
         Numeric(14, 2),
         nullable=False,
@@ -99,6 +106,7 @@ class CreditAccount(Base):
         default=30,
     )
 
+    # Store account lifecycle state so suspended or inactive records can be rejected by the relevant workflows.
     account_status: Mapped[str] = mapped_column(
         String(30),
         nullable=False,

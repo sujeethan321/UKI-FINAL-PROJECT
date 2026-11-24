@@ -1,3 +1,4 @@
+// Purpose: Render the available jobs screen and connect its user interactions to shared application state and services.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import {useEffect,useState,useSyncExternalStore} from 'react';
 import {Link} from 'react-router-dom';
@@ -11,13 +12,17 @@ import {driverEligibilityMessages,formatAssignedTime} from '../../utils/driverDa
 const card='min-w-0 rounded-2xl border border-[#D4E2EE] bg-white p-5 shadow-sm sm:p-6';
 const button='inline-flex items-center justify-center gap-2 rounded-lg border border-[#DAE5F3] bg-white px-3 py-2 text-sm font-semibold text-[#36517B] focus-visible:outline-2 focus-visible:outline-[#12B8A6] disabled:opacity-50';
 const acceptButton=button+' border-[#12B8A6] bg-[#12B8A6] text-[#10243E]';
+// Render the loading interface and connect its controls to the state and callbacks defined here.
 function Loading({children}){return <p role="status" className="flex items-center gap-2 py-5 text-sm text-[#64748B]"><LoaderCircle size={18} aria-hidden="true" className="animate-spin motion-reduce:animate-none"/>{children}</p>;}
+// Render the error state interface and connect its controls to the state and callbacks defined here.
 function ErrorState({message,retry,label}){
   const { tr } = useAppTranslation();return <div role="alert" className="my-4 space-y-3 border-l-4 border-[#DC4545] pl-3 text-sm"><p>{tr(message)}</p>{retry&&<button type="button" className={button} onClick={retry}>{tr("Retry")}{" "}{tr(label)}</button>}</div>;}
+// Render the job information interface and connect its controls to the state and callbacks defined here.
 export function JobInformation({job}){
   const { tr } = useAppTranslation();
  return <div className="min-w-0"><p className="break-all font-bold">{job.reference}</p><p className="mt-2 break-words font-semibold">{job.business_name}</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt className="flex items-center gap-2 text-[#64748B]"><MapPin size={15} aria-hidden="true"/>{tr("Pickup area")}</dt><dd className="mt-1 break-words">{job.pickup_area}</dd></div><div><dt className="text-[#64748B]">{tr("Destination area")}</dt><dd className="mt-1 break-words">{job.delivery_area}</dd></div></dl><p className="mt-4 text-xs text-[#64748B]">{tr("Created:")}{" "}<time dateTime={job.created_at+'Z'}>{formatAssignedTime(job.created_at)}</time></p><p className="mt-3 text-sm">{tr("Status:")}{" "}<span className="rounded-full bg-[#22C55E]/10 px-2 py-1 font-semibold">{tr("Available")}</span></p></div>;
 }
+// Render the available jobs view interface and connect its controls to the state and callbacks defined here.
 export function AvailableJobsView({state,actions,embedded=false}){
   const { tr, statusLabel } = useAppTranslation();
  const a=state.acceptance,mutating=['submitting','checking','uncertain'].includes(a.phase),busy=mutating||state.jobs.loading;
@@ -35,10 +40,13 @@ export function AvailableJobsView({state,actions,embedded=false}){
  </>}
  </div>;
 }
+// Render the driver jobs panel interface and connect its controls to the state and callbacks defined here.
 export function DriverJobsPanel({userId,embedded=false,onAssigned}){
  const [workflow]=useState(()=>createDriverJobsWorkflow({profile:getDriverProfile,summary:getDriverSummary,jobs:getAvailableJobs,detail:getAvailableJob,accept:acceptDriverJob,assignment:getAssignedDelivery,assigned:getDriverDeliveries},userId));
  const state=useSyncExternalStore(workflow.subscribe,workflow.getSnapshot,workflow.getSnapshot);
+ // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
  useEffect(()=>{workflow.start();return()=>workflow.dispose();},[workflow]);
- return <AvailableJobsView state={state} actions={onAssigned?{...workflow,async accept(id){const result=await workflow.accept(id);if(result)onAssigned();return result;},async checkAssignment(){const result=await workflow.checkAssignment();if(result)onAssigned();return result;}}:workflow} embedded={embedded}/>;
+ return <AvailableJobsView state={state} actions={onAssigned?{...workflow,/* Apply the acceptance action through the current resource workflow. */ async accept(id){const result=await workflow.accept(id);if(result)onAssigned();return result;},/* Refresh assignment state before treating an uncertain delivery action as resolved. */ async checkAssignment(){const result=await workflow.checkAssignment();if(result)onAssigned();return result;}}:workflow} embedded={embedded}/>;
 }
+// Render the available jobs interface and connect its controls to the state and callbacks defined here.
 export default function AvailableJobs(){const {user,token,isAuthenticated}=useAuth();if(!isAuthenticated||user?.platform_role!=='driver'||user.account_status!=='active')return null;return <DriverJobsPanel key={user.user_id+':'+token} userId={user.user_id}/>;}

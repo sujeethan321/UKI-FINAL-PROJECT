@@ -1,3 +1,4 @@
+// Purpose: Compose the customer layout shell and nested screen area so related pages share navigation and presentation.
 import AccountMenu from "../components/ui/AccountMenu";
 import LanguageSelector from "../components/LanguageSelector";
 import { useAppTranslation } from "../i18n/useAppTranslation.js";
@@ -13,10 +14,12 @@ import CustomerSidebar from "../components/customer/CustomerSidebar";
 import NotificationBell from "../components/notifications/NotificationBell";
 import { useAuth } from "../context/useAuth";
 
+// Render the customer layout interface and connect its controls to the state and callbacks defined here.
 export default function CustomerLayout() {
   const { tr } = useAppTranslation();
   const { user, token, logout } = useAuth();
   const location = useLocation(), navigate = useNavigate();
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(() => {
     if (["#my-shops", "#my-credit", "#transactions"].includes(location.hash)) document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: "start" });
   }, [location.pathname, location.hash]);

@@ -1,8 +1,11 @@
+// Purpose: Keep customer orders data handling and workflow helpers separate from React rendering so callers use consistent rules.
 import {orderStatuses} from './shopping.js';
 
 // Validate new Customer list projections without changing existing order services.
 export function parseCustomerOrdersPage(data,page=1,pageSize=10) {
+  // Accept only supported identifiers before response data is used for lookups or navigation.
   const id=value=>Number.isSafeInteger(value)&&value>0;
+  // Validate or format decimal monetary data at the interface boundary without changing the ledger.
   const money=value=>typeof value==='string'&&/^\d+\.\d{2}$/.test(value);
   if(data?.page!==page||data.page_size!==pageSize||!Number.isSafeInteger(data.total)||data.total<0||!Array.isArray(data.orders)||data.orders.length>Math.min(data.total,pageSize))throw Error('Invalid order page');
   const seen=new Set();

@@ -1,3 +1,4 @@
+// Purpose: Compose the admin layout shell and nested screen area so related pages share navigation and presentation.
 import AccountMenu from "../components/ui/AccountMenu";
 import LanguageSelector from "../components/LanguageSelector";
 import { useAppTranslation } from "../i18n/useAppTranslation.js";
@@ -10,16 +11,18 @@ import NotificationBell from "../components/notifications/NotificationBell";
 import AdminSidebar from "../components/admin/AdminSidebar.jsx";
 import { useAuth } from "../context/useAuth";
 
+// Render the admin layout interface and connect its controls to the state and callbacks defined here.
 export default function AdminLayout() {
   const { tr } = useAppTranslation();
     const { pathname, hash } = useLocation();
+    // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
     useEffect(() => {
         if (hash === '#recent-admin-activity') document.getElementById('recent-admin-activity')?.scrollIntoView();
     }, [pathname, hash]);
     const { user, logout } = useAuth();
 
     const title =
-        pathname === "/admin/notifications" ? "Notifications" : pathname === "/admin/businesses"
+        pathname === "/admin/profile" ? "Personal Profile" : pathname === "/admin/notifications" ? "Notifications" : pathname === "/admin/businesses"
             ? "Business Management"
             : ({ "/admin/shop-owners": "Shop Owner Management", "/admin/customers": "Customer Management", "/admin/drivers": "Delivery Driver Management" }[pathname] || "Platform Dashboard");
 
@@ -35,7 +38,7 @@ export default function AdminLayout() {
 
                     <div className="flex max-w-full flex-wrap items-center gap-3">
                         <LanguageSelector /><NotificationBell />
-                        <AccountMenu user={user} roleLabel="Platform Admin" onLogout={logout} />
+                        <AccountMenu user={user} roleLabel="Platform Admin" links={[{to:"/admin/profile",label:"Personal Profile"}]} onLogout={logout} />
                     </div>
                 </header>
 

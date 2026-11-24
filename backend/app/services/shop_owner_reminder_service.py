@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner reminder operations behind the HTTP layer so related business rules are shared by their callers.
 """Business-scoped, account-serialized internal reminder recording."""
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -14,6 +15,7 @@ from app.schemas.payment_reminder import PaymentReminderResponse
 from app.services.ledger_service import ZERO, account_balances, load_ledger_entries, lock_customer_credit_account
 
 
+# Shape reminder fields for the response contract.
 def reminder_response(row, replayed=False, db=None):
     fields = {key: getattr(row, key) for key in PaymentReminderResponse.model_fields
               if hasattr(PaymentReminder, key)}
@@ -30,6 +32,7 @@ def reminder_response(row, replayed=False, db=None):
     return PaymentReminderResponse(**fields, replayed=replayed)
 
 
+# Record reminder for the shop owner reminder workflow.
 def record_reminder(db, business, user_id, payload):
     account = lock_customer_credit_account(db, business.business_id, payload.customer_id)
     # Current locking reads avoid authorization's older MySQL repeatable-read snapshot.
@@ -86,6 +89,7 @@ def record_reminder(db, business, user_id, payload):
     return reminder_response(row, db=db)
 
 
+# Query reminder history data for the shop owner reminder workflow.
 def reminder_history(db, business_id, customer_id, status, page, page_size, ordering):
     if customer_id is not None and db.scalar(select(CustomerProfile.customer_id).where(
             CustomerProfile.business_id == business_id, CustomerProfile.customer_id == customer_id)) is None:

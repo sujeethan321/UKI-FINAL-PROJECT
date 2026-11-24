@@ -1,8 +1,10 @@
+// Purpose: Render the reusable subscription summary interface and keep its presentation and interactions together.
 import { Link } from "react-router-dom";
 import { useAppTranslation } from "../../i18n/useAppTranslation";
 import useSubscription from "../../hooks/useSubscription";
 import useTrialDisplay from "../../hooks/useTrialDisplay";
 
+// Render the trial notice interface and connect its controls to the state and callbacks defined here.
 export function TrialNotice({ data }) {
   const { tr, i18n } = useAppTranslation();
   const display = useTrialDisplay(data);
@@ -16,6 +18,7 @@ export function TrialNotice({ data }) {
   </div>;
 }
 
+// Render the subscription summary interface and connect its controls to the state and callbacks defined here.
 export default function SubscriptionSummary({ businessId }) {
   const { tr } = useAppTranslation();
   const { data, error, loading, retry } = useSubscription(businessId);

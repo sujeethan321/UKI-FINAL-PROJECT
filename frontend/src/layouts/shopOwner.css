@@ -1,3 +1,4 @@
+/* Purpose: Define shop owner layout, spacing, colors, and responsive presentation separately from component behavior. */
 .shop-owner-shell {
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   color: #10243e;

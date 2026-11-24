@@ -1,3 +1,4 @@
+# Purpose: Map business member records to database tables so SQLAlchemy can persist and relate application data.
 
 from sqlalchemy import (
     BigInteger,
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 
 
+# Map business member to the business_members table for ORM queries and persistence.
 class BusinessMember(Base):
     __tablename__ = "business_members"
 
@@ -21,12 +23,14 @@ class BusinessMember(Base):
         ),
     )
 
+    # Use membership id as the unique row identity for ORM lookups and related records.
     membership_id: Mapped[int] = mapped_column(
         BigInteger,
         primary_key=True,
         autoincrement=True,
     )
 
+    # Link business id to businesses.business_id so the database enforces the record relationship.
     business_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey(
@@ -37,6 +41,7 @@ class BusinessMember(Base):
         index=True,
     )
 
+    # Link user id to users.user_id so the database enforces the record relationship.
     user_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey(
@@ -54,6 +59,7 @@ class BusinessMember(Base):
         server_default="owner",
     )
 
+    # Retain membership status so workflow checks can decide which operations are currently allowed.
     membership_status: Mapped[str] = mapped_column(
         String(30),
         nullable=False,

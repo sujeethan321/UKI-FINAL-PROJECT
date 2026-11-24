@@ -1,3 +1,4 @@
+# Purpose: Implement customer dashboard operations behind the HTTP layer so related business rules are shared by their callers.
 """Read-only JWT-user-scoped customer projections over the existing ledger.
 
 Balances aggregate complete histories in SQL, rather than loading unbounded ORM
@@ -15,16 +16,19 @@ from app.models import Business, CreditAccount, CustomerProfile, LedgerEntry
 from app.services.ledger_service import ZERO, balance_position, entry_delta
 
 
+# Format financial values at the response or document boundary instead of exposing decimal internals.
 def money(value):
     return f"{Decimal(value):.2f}"
 
 
+# Query shops linked to the authenticated customer for customer-scoped reads.
 def linked_shops(user_id):
     return select(Business.business_id, Business.business_name).join(
         CustomerProfile, CustomerProfile.business_id == Business.business_id,
     ).where(CustomerProfile.user_id == user_id, Business.approval_status == "approved").distinct()
 
 
+# Resolve accounts within the access scope checked by this service.
 def scoped_accounts(user_id):
     # Both foreign keys must agree on business; a malformed legacy account is
     # excluded even if the customer profile itself belongs to this user.
@@ -40,6 +44,7 @@ def scoped_accounts(user_id):
     ).cte("customer_accounts")
 
 
+# Detect reversal records so cancelled ledger entries do not count toward current financial facts.
 def reversal_exists():
     reversal = aliased(LedgerEntry)
     return exists(select(1).where(
@@ -49,6 +54,7 @@ def reversal_exists():
     )).correlate(LedgerEntry)
 
 
+# Derive account balance positions from effective ledger entries for customer-facing summaries.
 def account_positions(user_id):
     accounts = scoped_accounts(user_id)
     balances = select(
@@ -65,6 +71,7 @@ def account_positions(user_id):
     ).cte("account_positions")
 
 
+# Shape account fields for the response contract.
 def account_data(row):
     return dict(
         credit_account_id=row["credit_account_id"], business_id=row["business_id"],
@@ -75,6 +82,7 @@ def account_data(row):
     )
 
 
+# Query credit accounts data for the customer dashboard workflow.
 def credit_accounts(db, user_id, page, page_size, business_id=None):
     positions = account_positions(user_id)
     query = select(positions)
@@ -90,6 +98,7 @@ def credit_accounts(db, user_id, page, page_size, business_id=None):
                 credit_accounts=[account_data(row) for row in rows])
 
 
+# Resolve the requested credit account from the customer-authorized balance projection.
 def credit_account_detail(db, user_id, credit_account_id):
     positions = account_positions(user_id)
     row = db.execute(select(positions).where(
@@ -100,6 +109,7 @@ def credit_account_detail(db, user_id, credit_account_id):
     return dict(account=account_data(row))
 
 
+# Query shops data for the customer dashboard workflow.
 def shops(db, user_id, page, page_size):
     links = linked_shops(user_id).subquery()
     positions = account_positions(user_id)
@@ -121,6 +131,7 @@ def shops(db, user_id, page, page_size):
     ) for row in rows])
 
 
+# Query transactions data for the customer dashboard workflow.
 def transactions(db, user_id, page, page_size, credit_account_id=None, business_id=None, entry_type=None, start_date=None, end_date=None):
     validate_period(start_date, end_date)
     accounts = scoped_accounts(user_id)
@@ -172,6 +183,7 @@ def transactions(db, user_id, page, page_size, credit_account_id=None, business_
     return dict(total=total, page=page, page_size=page_size, transactions=items)
 
 
+# Query dashboard summary data for the customer dashboard workflow.
 def dashboard_summary(db, user_id):
     positions = account_positions(user_id)
     count, outstanding = db.execute(select(
@@ -199,11 +211,13 @@ def dashboard_summary(db, user_id):
     )
 
 
+# Check period and stop callers when the required conditions are not met.
 def validate_period(start_date, end_date):
     if (start_date and end_date and start_date > end_date) or end_date == date.max:
         raise HTTPException(422, "Choose a valid inclusive date range ending before 9999-12-31")
 
 
+# Query statement data for the customer dashboard workflow.
 def statement(db, user_id, account_id, start_date, end_date):
     from app.services.shop_owner_financial_documents_service import customer_statement
     validate_period(start_date, end_date)

@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner customer details operations behind the HTTP layer so related business rules are shared by their callers.
 """Read-only customer details and effective credit ledger for one business."""
 from decimal import Decimal
 from fastapi import HTTPException
@@ -9,12 +10,15 @@ from app.services.ledger_service import (
 )
 
 
+# Format the financial value for the customer-details response.
 def cash(value: Decimal) -> str:
     return f"{value:.2f}"
 
+# Serialize an available date/time value for the response.
 def iso(dt):
     return dt.isoformat() if dt is not None else None
 
+# Get customer details for the shop owner customer details workflow.
 def get_customer_details(db: Session, business_id: int, customer_id: int) -> dict:
     customer = db.scalar(select(CustomerProfile).where(
         CustomerProfile.customer_id == customer_id,

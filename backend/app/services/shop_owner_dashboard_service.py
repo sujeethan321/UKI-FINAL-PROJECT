@@ -1,3 +1,4 @@
+# Purpose: Implement shop owner dashboard operations behind the HTTP layer so related business rules are shared by their callers.
 
 from decimal import Decimal
 from datetime import datetime

@@ -1,3 +1,4 @@
+// Purpose: Render the reusable order fulfilment interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import {useEffect,useState,useSyncExternalStore} from 'react';
 import {Link} from 'react-router-dom';
@@ -7,6 +8,7 @@ import {orderCard as card,orderButton as button,orderField as field} from '../..
 import {formatAssignedTime} from '../../utils/driverDashboard';
 import DeliveryTimeline from '../delivery/DeliveryTimeline';
 
+// Render the order fulfilment view interface and connect its controls to the state and callbacks defined here.
 export function OrderFulfilmentView({state,actions,businessId,compact=false}) {
   const { tr } = useAppTranslation();
  const data=state.data,delivery=data?.delivery;
@@ -29,10 +31,12 @@ export function OrderFulfilmentView({state,actions,businessId,compact=false}) {
   </form>}
  </section>;
 }
+// Render the order fulfilment interface and connect its controls to the state and callbacks defined here.
 export default function OrderFulfilment({orderId,businessId,compact=false,onConfirmed,blocked=false}) {
- const [workflow]=useState(()=>createOrderFulfilment({summary:ownerOrderDelivery,create:requestOrderDelivery,order:(id,business,signal)=>orderDetail(true,id,business,signal)},orderId,businessId));
+ const [workflow]=useState(()=>createOrderFulfilment({summary:ownerOrderDelivery,create:requestOrderDelivery,/* Load the selected order within the active reader context. */ order:(id,business,signal)=>orderDetail(true,id,business,signal)},orderId,businessId));
  const state=useSyncExternalStore(workflow.subscribe,workflow.getSnapshot,workflow.getSnapshot);
+ // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
  useEffect(()=>{workflow.start();return()=>workflow.dispose();},[workflow]);
- const actions={...workflow,create:async()=>{if(blocked)return;const result=await workflow.create();if(result)onConfirmed?.();}};
+ const actions={...workflow,/* Create the selected resource through this workflow mutation path. */ create:async()=>{if(blocked)return;const result=await workflow.create();if(result)onConfirmed?.();}};
  return <OrderFulfilmentView state={{...state,busy:state.busy||blocked}} actions={actions} businessId={businessId} compact={compact}/>;
 }

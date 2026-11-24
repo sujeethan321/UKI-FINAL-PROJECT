@@ -1,9 +1,11 @@
+# Purpose: Define typed business API payloads so incoming data is validated and outgoing fields have an explicit contract.
 
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+# Define the business create field contract used when validating or serializing API data.
 class BusinessCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -23,6 +25,7 @@ class BusinessCreate(BaseModel):
     phone: str | None = Field(default=None, max_length=20)
     address: str | None = Field(default=None, max_length=500)
 
+    # Validate clean text before the schema accepts the value.
     @field_validator("business_name", "registration_number",
                      "phone", "address")
     @classmethod
@@ -38,6 +41,7 @@ class BusinessCreate(BaseModel):
         return cleaned
 
 
+# Define the business create response field contract used when validating or serializing API data.
 class BusinessCreateResponse(BaseModel):
     business_id: int
     business_name: str

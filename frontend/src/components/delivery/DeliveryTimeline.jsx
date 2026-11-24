@@ -1,7 +1,9 @@
+// Purpose: Render the reusable delivery timeline interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import {deliveryTimeline} from '../../utils/deliveryTimeline';
 import {formatAssignedTime} from '../../utils/driverDashboard';
 const labels={assigned:'Assigned',picked_up:'Picked up',in_transit:'In transit',delivered:'Delivered',cancelled:'Cancelled'};
+// Render the delivery timeline interface and connect its controls to the state and callbacks defined here.
 export default function DeliveryTimeline({status,events,missingTimeLabel}) {
   const { tr } = useAppTranslation();
   return <div><h4 className="mt-6 font-bold">{tr("Recorded delivery progress")}</h4>

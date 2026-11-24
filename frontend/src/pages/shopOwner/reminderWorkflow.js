@@ -1,8 +1,13 @@
+// Purpose: Keep reminder workflow data handling and workflow helpers separate from React rendering so callers use consistent rules.
 import { reminderError, reminderValidation, reminderFingerprint, secureReminderKey, moneyValid, CHANNELS, LANGUAGES } from "../../utils/reminder.js";
+// Compare the relevant record identities before reusing current workflow state.
 const same = (a, b) => String(a) === String(b);
+// Accept only supported identifiers before response data is used for lookups or navigation.
 const id = value => Number.isSafeInteger(value) && value > 0;
+// Reject unsupported record shapes before accessing response properties.
 const validRecord = (row, businessId) => id(row?.reminder_id) && same(row.business_id, businessId) && id(row.customer_id) && id(row.credit_account_id) && row.currency === "LKR" && moneyValid(row.outstanding_amount) && row.status === "recorded" && typeof row.message === "string" && !!row.message.trim() && CHANNELS.some(([v]) => v === row.channel) && LANGUAGES.some(([v]) => v === row.language) && !Number.isNaN(Date.parse(row.created_at)) && row.delivery_allowed === false;
 
+// Create reminder workflow for the reminder workflow workflow.
 export function createReminderWorkflow({ api, store, makeKey = secureReminderKey, fingerprint = reminderFingerprint, initialBusinessId = "", initialCustomerId = "" }) {
   let recovery, storageError = "";
   try { recovery = store.read(); } catch { storageError = "Saved request storage is unavailable or invalid. Restore browser session storage before recording reminders."; }
@@ -14,12 +19,16 @@ export function createReminderWorkflow({ api, store, makeKey = secureReminderKey
   let active = true, contextVersion = 0, customerVersion = 0, detailVersion = 0, historyVersion = 0, locked = false;
   let customerAbort, detailAbort, historyAbort;
   const listeners = new Set();
+  // Replace the store snapshot and notify subscribers so React can render the new state.
   const publish = patch => { if (active) { state = { ...state, ...patch }; listeners.forEach(fn => fn()); } };
+  // Check whether the selected business is approved before enabling owner operations.
   const approved = () => state.businesses.some(b => same(b.business_id, state.businessId) && b.approval_status === "approved");
+  // Clear intent within the reminder workflow workflow.
   function clearIntent() {
     if (state.uncertain) return;
     try { store.clear(); } catch { publish({ storageError: "Browser session storage must be available before recording reminders." }); }
   }
+  // Load history within the reminder workflow workflow.
   async function loadHistory() {
     if (!active) return;
     historyAbort?.abort(); const version = ++historyVersion;
@@ -38,6 +47,7 @@ export function createReminderWorkflow({ api, store, makeKey = secureReminderKey
     } catch (error) { if (!signal.aborted && version === historyVersion) publish({ historyError: reminderError(error) }); }
     finally { if (!signal.aborted && version === historyVersion) publish({ historyLoading: false }); }
   }
+  // Select customer within the reminder workflow workflow.
   async function selectCustomer(customerId) {
     if (state.saving) return;
     detailAbort?.abort(); const version = ++detailVersion;
@@ -57,6 +67,7 @@ export function createReminderWorkflow({ api, store, makeKey = secureReminderKey
     } catch (error) { if (!signal.aborted && version === detailVersion) publish({ detailsError: reminderError(error) }); }
     finally { if (!signal.aborted && version === detailVersion) publish({ detailsLoading: false }); }
   }
+  // Load customers within the reminder workflow workflow.
   async function loadCustomers() {
     customerAbort?.abort(); const version = ++customerVersion;
     if (!approved()) { publish({ customers: [], customersLoading: false }); return; }
@@ -71,6 +82,7 @@ export function createReminderWorkflow({ api, store, makeKey = secureReminderKey
     } catch (error) { if (!signal.aborted && version === customerVersion) publish({ customers: [], customersError: reminderError(error) }); }
     finally { if (!signal.aborted && version === customerVersion) publish({ customersLoading: false }); }
   }
+  // Select business within the reminder workflow workflow.
   async function selectBusiness(businessId) {
     if (state.saving) return;
     const business = state.businesses.find(b => same(b.business_id, businessId));
@@ -82,6 +94,7 @@ export function createReminderWorkflow({ api, store, makeKey = secureReminderKey
       historyCustomerId: "", status: "", ordering: "newest", page: 1, channel: "internal", language: "en", note: "" });
     await Promise.all([loadCustomers(), loadHistory()]);
   }
+  // Load businesses within the reminder workflow workflow.
   async function loadBusinesses() {
     active = true; const version = ++contextVersion;
     publish({ contextLoading: true, contextError: "" });
@@ -96,11 +109,13 @@ export function createReminderWorkflow({ api, store, makeKey = secureReminderKey
     } catch (error) { if (version === contextVersion) publish({ contextError: reminderError(error), businesses: [], businessId: "", customerId: "", customers: [], details: null, history: null }); }
     finally { if (version === contextVersion) publish({ contextLoading: false }); }
   }
+  // Populate the editable form from the selected record instead of starting a new record.
   function edit(field, value) {
     if (state.saving || !["channel", "language", "note"].includes(field)) return;
     if (state[field] !== value) clearIntent();
     publish({ [field]: value, error: "", success: null });
   }
+  // Apply the requested filters and reload the relevant resource list.
   async function filter(field, value) {
     if (!["historyCustomerId", "status", "ordering", "page"].includes(field)) return;
     if (field === "historyCustomerId" && value && !state.customers.some(c => same(c.customer_id, value))) return;
@@ -109,6 +124,7 @@ export function createReminderWorkflow({ api, store, makeKey = secureReminderKey
     if (field === "page" && (!Number.isInteger(value) || value < 1 || value > 1000000)) return;
     publish({ [field]: value, ...(field !== "page" ? { page: 1 } : {}) }); await loadHistory();
   }
+  // Submit the current form through its workflow and expose pending, success, or error state to the interface.
   async function submit() {
     if (locked || state.success) return;
     const validation = reminderValidation(state);
@@ -142,6 +158,7 @@ export function createReminderWorkflow({ api, store, makeKey = secureReminderKey
       publish({ error: dispatched ? reminderError(error, true) : "Unable to prepare a securely saved request. Restore session storage and retry.", uncertain: wasUncertain || (dispatched && !rejected) });
     } finally { locked = false; publish({ saving: false }); }
   }
+  // Load the current resource data and update the state consumed by the interface.
   async function refresh() {
     if (state.saving || state.contextLoading) return;
     if (state.contextError || !approved()) return loadBusinesses();
@@ -153,8 +170,10 @@ export function createReminderWorkflow({ api, store, makeKey = secureReminderKey
     await Promise.all([loadCustomers(), loadHistory()]);
     if (active && same(state.businessId, businessId) && same(state.customerId, selected) && selected) await selectCustomer(selected);
   }
-  return { subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); }, getSnapshot: () => state,
+  return { /* Register a state listener and return cleanup so consumers can unsubscribe. */ subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); }, /* Expose the current store snapshot to subscribers without starting a request. */ getSnapshot: () => state,
     loadBusinesses, selectBusiness, selectCustomer, edit, filter, submit, loadHistory, refresh,
+    // Reset the reminder draft for a new operation after the previous result is handled.
     newReminder: () => { if (state.saving || state.uncertain || state.storageError) return; clearIntent(); publish({ success: null, note: "", error: "" }); },
+    // Release pending work and subscriptions when this resource reader is no longer used.
     dispose: () => { active = false; ++contextVersion; ++customerVersion; ++detailVersion; ++historyVersion; customerAbort?.abort(); detailAbort?.abort(); historyAbort?.abort(); } };
 }

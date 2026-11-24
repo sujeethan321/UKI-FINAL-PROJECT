@@ -1,0 +1,39 @@
+# A release archive must never contain workstation secrets or local evidence.
+.env export-ignore
+**/.env export-ignore
+**/.env.* export-ignore
+.env.example -export-ignore
+**/.env.example -export-ignore
+**/*credentials* export-ignore
+**/*.pem export-ignore
+**/*.key export-ignore
+**/*.sql export-ignore
+**/*.sql.gz export-ignore
+**/*.sql.enc export-ignore
+**/*.dump export-ignore
+**/*.backup export-ignore
+**/*.log export-ignore
+**/backups export-ignore
+output export-ignore
+output/** export-ignore
+tmp export-ignore
+.server-logs export-ignore
+backend/ai_snapshot_integration export-ignore
+**/__pycache__ export-ignore
+**/.pytest_cache export-ignore
+**/node_modules export-ignore
+**/private export-ignore
+**/private/** export-ignore
+**/evidence export-ignore
+**/evidence/** export-ignore
+**/checkpoints export-ignore
+**/checkpoints/** export-ignore
+**/uploads export-ignore
+**/uploads/** export-ignore
+
+# Credential provisioning implementation is source, never credential material.
+backend/scripts/viva_runtime_credentials.ps1 -export-ignore
+backend/scripts/provision_viva_runtime_credentials.ps1 -export-ignore
+
+# Byte-exact MySQL CHECK metadata fixture: preserve its verified original hash.
+backend/offline_tests/fixtures/viva_check_constraints_89.txt whitespace=-blank-at-eol

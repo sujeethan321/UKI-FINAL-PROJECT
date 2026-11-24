@@ -1,3 +1,4 @@
+// Purpose: Wrap customer delivery API calls so components use a shared request interface instead of building HTTP requests themselves.
 import {listOrders,customerOrderDelivery} from './orderService';
 import {parseCustomerOrdersPage} from '../utils/customerOrders';
 import {parseCustomerOrderDelivery} from '../utils/customerOrderTracking';

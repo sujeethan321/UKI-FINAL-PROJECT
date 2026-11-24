@@ -1,4 +1,10 @@
+// Purpose: Keep notification data handling and workflow helpers separate from React rendering so callers use consistent rules.
 export const NOTIFICATION_TYPES = [
+  ["support_created", "Support case created", "support_case"],
+  ["support_replied", "Support reply", "support_case"],
+  ["support_awaiting_user", "Support information requested", "support_case"],
+  ["support_resolved", "Support case resolved", "support_case"],
+  ["support_reopened", "Support case reopened", "support_case"],
   ["driver_approved", "Driver application approved", "admin_audit"],
   ["driver_rejected", "Driver application rejected", "admin_audit"],
   ["order_submitted", "Order submitted", "order"],
@@ -19,9 +25,13 @@ export const NOTIFICATION_TYPES = [
   ["business_approved", "Business approved", "business_approval_audit"],
   ["business_rejected", "Business rejected", "business_approval_audit"],
 ];
+// Check the notification identifier before allowing a read-state request.
 export const validNotificationId = value => Number.isSafeInteger(value) && value > 0;
+// Reject invalid totals so list counts cannot silently display malformed API values.
 export const validCount = value => Number.isSafeInteger(value) && value >= 0;
+// Check the date representation before using it in notification display or filtering.
 const validDate = value => typeof value === "string" && /(?:Z|[+-]\d{2}:\d{2})$/.test(value) && !Number.isNaN(Date.parse(value));
+// Check the notification fields before the inbox renders the record.
 export function validNotification(row) {
   const type = NOTIFICATION_TYPES.find(([value]) => value === row?.notification_type);
   return !!type && validNotificationId(row.notification_id) && (row.business_id === null || validNotificationId(row.business_id)) &&
@@ -31,6 +41,7 @@ export function validNotification(row) {
     typeof row.is_read === "boolean" && validDate(row.created_at) &&
     (row.is_read ? validDate(row.read_at) : row.read_at === null);
 }
+// Check pagination and notification rows before publishing inbox state.
 export function validNotificationPage(data, filters) {
   return data?.page === filters.page && data.page_size === filters.page_size && validCount(data.total) &&
     Array.isArray(data.notifications) && data.notifications.length <= filters.page_size &&
@@ -39,6 +50,7 @@ export function validNotificationPage(data, filters) {
       (!filters.notification_type || row.notification_type === filters.notification_type)) &&
     new Set(data.notifications.map(row => row.notification_id)).size === data.notifications.length;
 }
+// Translate notification outcomes into display text for the interface.
 export function notificationError(error, mutation = false) {
   const status = error?.response?.status;
   if (status === 401) return "Login required. Please sign in again.";
@@ -49,6 +61,7 @@ export function notificationError(error, mutation = false) {
   return mutation ? "The read update could not be confirmed. Refresh or retry safely." :
     status >= 500 ? "The notification service is unavailable. Please retry." : "Unable to load notifications. Check your connection and retry.";
 }
+// Resolve the inbox route for the active role using the supported role destinations.
 export function notificationInboxPath(role) {
   return role === "shop_owner" ? "/shop-owner/notifications" : role === "admin" ? "/admin/notifications" : role === "customer" ? "/customer/notifications" : role === "driver" ? "/driver/notifications" : null;
 }
@@ -57,6 +70,7 @@ export function notificationInboxPath(role) {
 // Minimal events cannot safely resolve a financial customer: never guess an ID.
 export function notificationDestination(row, role) {
   if (!validNotification(row)) return null;
+  if (row.related_entity_type === "support_case") { const root={admin:"admin",shop_owner:"shop-owner",customer:"customer",driver:"driver"}[role]; return root ? {to:`/${root}/support`,label:"View support cases"} : null; }
   if (role === "driver" && row.related_entity_type === "admin_audit" && ["driver_approved","driver_rejected"].includes(row.notification_type)) return {to:"/driver/dashboard",label:"View Driver application"};
   if (!validNotificationId(row.business_id)) return null;
   if (row.related_entity_type === "order") {
@@ -71,6 +85,7 @@ export function notificationDestination(row, role) {
   if (role === "admin" && ["business_approved", "business_rejected"].includes(row.notification_type)) return { to: "/admin/businesses", label: "View businesses" };
   return null;
 }
+// Format notification timestamps for inbox display.
 export function notificationTime(value, now = Date.now()) {
   const ms = Date.parse(value);
   if (Number.isNaN(ms)) return { relative: "Time unavailable", full: "Time unavailable" };

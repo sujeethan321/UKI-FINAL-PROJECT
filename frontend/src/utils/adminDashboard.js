@@ -1,3 +1,4 @@
+// Purpose: Keep admin dashboard data handling and workflow helpers separate from React rendering so callers use consistent rules.
 export const adminMetrics = [
   ['total_shop_owners', 'Total Shop Owners'],
   ['total_customers', 'Total Customers'],
@@ -14,15 +15,20 @@ export const adminActions = {
   account_suspended: 'Account suspended', account_reactivated: 'Account reactivated',
   admin_provisioned: 'Administrator provisioned',
 };
+// Validate count values before the interface uses them for totals or pagination.
 const count = value => Number.isSafeInteger(value) && value >= 0;
+// Accept only supported identifiers before response data is used for lookups or navigation.
 const id = value => Number.isSafeInteger(value) && value > 0;
+// Check that the value has a record shape before reading its fields.
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+// Check recorded timestamp values before rendering administrative events.
 export function adminTimestamp(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/.test(value)) return null;
   const iso = /(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? value : value + 'Z';
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? null : { iso, label: date.toISOString().slice(0, 19).replace('T', ' ') + ' UTC' };
 }
+// Check admin overview before the surrounding workflow uses it.
 export function parseAdminOverview(data) {
   if (!record(data)) throw Error('Invalid overview');
   const result = {};
@@ -34,6 +40,7 @@ export function parseAdminOverview(data) {
   if (Object.values(result).every(value => value === null)) throw Error('No verified counts');
   return result;
 }
+// Check admin activity before the surrounding workflow uses it.
 export function parseAdminActivity(data) {
   if (!record(data) || !count(data.total) || data.limit !== 5 || data.offset !== 0 ||
       !Array.isArray(data.events) || data.events.length > 5 || data.events.length > data.total) throw Error('Invalid activity page');
@@ -52,6 +59,7 @@ export function parseAdminActivity(data) {
   });
   return { total: data.total, events };
 }
+// Translate admin read outcomes into display text for the interface.
 export function adminReadError(error) {
   if (error?.response?.status === 401) return 'Your session has expired. Please sign in again.';
   if (error?.response?.status === 403) return 'Administrator access denied. Check your account status or sign out.';
@@ -61,16 +69,22 @@ export function adminReadError(error) {
   return 'Platform information is unavailable. Check your connection and retry.';
 }
 const sections = ['overview', 'activity'];
+// Create independent initial resource state so new readers do not inherit another instance state.
 const fresh = loading => ({ authError: '', ...Object.fromEntries(sections.map(key => [key, { data: null, loading, error: '' }])) });
+// Create admin dashboard reader for the admin dashboard workflow.
 export function createAdminDashboardReader(api) {
   let state = fresh(true), active = false, generation = 0;
   const listeners = new Set(), requests = {};
+  // Replace the store snapshot and notify subscribers so React can render the new state.
   const publish = next => { state = next; if (active) listeners.forEach(fn => fn()); };
+  // Cancel outstanding reads before the reader is reset or disposed.
   const abortAll = () => Object.values(requests).forEach(request => request.controller.abort());
+  // Load the current resource data and update the state consumed by the interface.
   function load(section) {
     if (!active || state.authError || !sections.includes(section)) return Promise.resolve();
     if (requests[section]) return requests[section].promise;
     const controller = new AbortController(), current = generation;
+    // Check valid before the surrounding workflow uses it.
     const valid = () => active && generation === current && !controller.signal.aborted;
     publish({ ...state, [section]: { data: null, loading: true, error: '' } });
     const promise = Promise.resolve().then(async () => {
@@ -93,13 +107,17 @@ export function createAdminDashboardReader(api) {
     return promise;
   }
   return {
+    // Expose the current store snapshot to subscribers without starting a request.
     getSnapshot: () => state,
+    // Register a state listener and return cleanup so consumers can unsubscribe.
     subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
     load,
+    // Start the resource workflow using its current context and selection.
     start() {
       if (!active) { active = true; generation++; publish(fresh(true)); }
       return Promise.allSettled(sections.map(load));
     },
+    // Release pending work and subscriptions when this resource reader is no longer used.
     dispose() {
       active = false; generation++; abortAll();
       for (const key of sections) delete requests[key];

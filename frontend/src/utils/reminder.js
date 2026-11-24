@@ -1,15 +1,21 @@
+// Purpose: Keep reminder data handling and workflow helpers separate from React rendering so callers use consistent rules.
 import { repaymentFingerprint, secureRepaymentKey } from "./repayment.js";
 export const reminderFingerprint = repaymentFingerprint;
+// Generate a cryptographically random reminder key for retry-safe request identity.
 export const secureReminderKey = () => secureRepaymentKey().replace("repayment:", "reminder:");
 export const CHANNELS = [["internal", "Internal"], ["copy", "Copy"], ["whatsapp", "WhatsApp (intended only)"], ["sms", "SMS (intended only)"]];
 export const LANGUAGES = [["en", "English"], ["ta", "Tamil"]];
+// Check money valid before the surrounding workflow uses it.
 export const moneyValid = value => typeof value === "string" && /^\d{1,23}\.\d{2}$/.test(value);
+// Identify an outstanding positive balance before enabling the associated financial action.
 export const positiveBalance = value => moneyValid(value) && BigInt(value.replace(".", "")) > 0n;
+// Format the reminder amount consistently with the financial values shown elsewhere.
 export function reminderMoney(value) {
   if (!moneyValid(value)) return "Unavailable";
   const [whole, fraction] = value.split(".");
   return "LKR " + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + fraction;
 }
+// Check reminder validation before the surrounding workflow uses it.
 export function reminderValidation(state) {
   if (!state.customerId || !state.details) return "Select a customer and load their current balance.";
   if (!CHANNELS.some(([v]) => v === state.channel) || !LANGUAGES.some(([v]) => v === state.language)) return "Select a valid channel and language.";
@@ -21,6 +27,7 @@ export function reminderValidation(state) {
   if (state.channel !== "internal" && !state.details.customer.phone) return "No contact number is available. Choose Internal.";
   return "";
 }
+// Build a reminder draft from the selected customer and financial context.
 export function draftReminder(details, business, language) {
   if (!details || !business || !moneyValid(details.outstanding_balance)) return "Select a customer to preview a reminder.";
   const name = details.customer.customer_name || "Customer";
@@ -30,6 +37,7 @@ export function draftReminder(details, business, language) {
     ? name + ", " + shop + " கடையில் உங்கள் நிலுவைத் தொகை " + amount + ". தயவுசெய்து பணம் செலுத்த ஏற்பாடு செய்யுங்கள். அண்மையில் பணம் செலுத்தியிருந்தால், உறுதிப்படுத்த கடையைத் தொடர்புகொள்ளவும்."
     : "Hello " + name + ", your outstanding balance with " + shop + " is " + amount + ". Please arrange payment. If you have recently paid, please contact the shop to confirm.";
 }
+// Translate reminder outcomes into display text for the interface.
 export function reminderError(error, mutation = false) {
   const status = error?.response?.status;
   if (status === 401) return "Login required. Please sign in again.";
@@ -55,6 +63,7 @@ export function reminderError(error, mutation = false) {
 // Same opaque hash/key pattern as repayments. No customer data is persisted.
 export function sessionReminderStore(userId) {
   const name = "lankapex_reminder_request_" + userId;
+  // Read the saved or current resource state used by this workflow.
   const read = () => {
     const raw = sessionStorage.getItem(name);
     if (!raw) return null;
@@ -62,6 +71,7 @@ export function sessionReminderStore(userId) {
     if (!/^[a-f0-9]{64}$/.test(value?.fingerprint) || !/^reminder:[A-Za-z0-9-]+$/.test(value?.key) || typeof value.pending !== "boolean") throw new Error("Invalid saved request");
     return value;
   };
-  return { read, write: value => sessionStorage.setItem(name, JSON.stringify(value)),
+  return { read, /* Persist the request metadata used by the workflow recovery path. */ write: value => sessionStorage.setItem(name, JSON.stringify(value)),
+    // Remove saved state only within the scope checked by this storage adapter.
     clear: key => { if (!key || read()?.key === key) sessionStorage.removeItem(name); } };
 }

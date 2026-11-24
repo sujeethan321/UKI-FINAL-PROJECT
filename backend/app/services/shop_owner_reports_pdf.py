@@ -1,3 +1,4 @@
+# Purpose: Render shop owner reports data into a PDF document for viewing or download.
 """In-memory, shaped multilingual PDF from the existing validated report.
 
 MuPDF Story handles Indic shaping; plain ReportLab glyph placement is not a
@@ -66,10 +67,12 @@ LABELS = {
 }
 
 
+# Distinguish report pdf unavailable failures so callers can handle this condition explicitly.
 class ReportPDFUnavailable(Exception):
     pass
 
 
+# Select a local font for the requested report language before PDF rendering.
 def report_font(language):
     candidates = [Path(__file__).parents[1] / 'assets/fonts' / {'en':'Vera.ttf','ta':'NotoSansTamil-Regular.ttf','si':'NotoSansSinhala-Regular.ttf'}[language]]
     if language == 'en':
@@ -85,10 +88,14 @@ def report_font(language):
     raise ReportPDFUnavailable('Required report font is unavailable')
 
 
+# Build localized report HTML while escaping dynamic text before PDF rendering.
 def report_html(data, language):
     labels = LABELS[language]
+    # HTML-escape dynamic values before inserting them into the report document.
     def e(value): return escape(str(value), quote=True)
+    # Format the financial value for the customer-details response.
     def cash(value): return f'{money(value):,.2f}'
+    # Render an escaped report label and its formatted amount as a table row.
     def pair(label, value): return f'<tr><td style="width:68%">{e(label)}</td><td style="width:32%" class="amount">{e(cash(value))}</td></tr>'
     body = f'''<div class="brand">LankaPex</div><div class="tagline">Business Connects Everyone</div>
 <h1>{e(labels['title'])}</h1>
@@ -121,6 +128,7 @@ def report_html(data, language):
     return f'<html lang="{language}"><body>{body}</body></html>'
 
 
+# Render report pdf for the shop owner reports pdf workflow.
 def render_report_pdf(data, language='en'):
     if language not in LABELS or not _render_lock.acquire(timeout=5):
         raise ReportPDFUnavailable('PDF export unavailable')

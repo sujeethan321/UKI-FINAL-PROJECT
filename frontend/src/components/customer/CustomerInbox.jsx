@@ -1,3 +1,4 @@
+// Purpose: Render the reusable customer inbox interface and keep its presentation and interactions together.
 import Select from "../ui/Select";
 import {useEffect} from 'react';
 import {Bell,Truck,ShoppingBag,Wallet,CheckCheck} from 'lucide-react';
@@ -6,6 +7,7 @@ import {NOTIFICATION_TYPES} from '../../utils/notification';
 import NotificationItem from '../notifications/NotificationItem';
 import {customerButton,customerCard} from './CustomerData';
 
+// Render the customer inbox view interface and connect its controls to the state and callbacks defined here.
 export function CustomerInboxView({state,actions}) {
   const blocked=state.mutating||!!state.authError;
   const tabs=[['','All'],['order_submitted','New Orders'],['delivery_in_transit','In Transit'],['repayment_recorded','Repayments']];
@@ -17,8 +19,10 @@ export function CustomerInboxView({state,actions}) {
     })}</ul>:<p className="customer-unavailable">{state.readFilter==='all'&&!state.typeFilter?'No notifications yet.':'No notifications match these filters.'}</p>}<nav aria-label="Notification pages" className="flex flex-wrap items-center justify-end gap-3 text-sm"><button className={customerButton} disabled={state.mutating||state.listLoading||state.page<=1} onClick={()=>actions.setFilter('page',state.page-1)}>Previous</button><span>Page {state.page} · {state.list.total} notifications</span><button className={customerButton} disabled={state.mutating||state.listLoading||state.page*state.pageSize>=state.list.total} onClick={()=>actions.setFilter('page',state.page+1)}>Next</button></nav></>}
   </section>;
 }
+// Render the customer inbox interface and connect its controls to the state and callbacks defined here.
 export default function CustomerInbox() {
   const context=useNotifications(),actions=context?.actions;
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(()=>{if(!actions)return;actions.openInbox();return()=>actions.closeInbox();},[actions]);
   return context?<CustomerInboxView state={context.state} actions={actions}/>:null;
 }

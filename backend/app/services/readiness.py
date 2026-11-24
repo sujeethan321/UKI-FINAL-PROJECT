@@ -1,3 +1,4 @@
+# Purpose: Probe database readiness with bounded waiting so health checks do not block indefinitely.
 """One bounded readiness worker per process; timed-out probes never queue up."""
 import asyncio
 import threading
@@ -16,18 +17,22 @@ probe_engine = create_engine(DATABASE_URL, poolclass=NullPool, hide_parameters=T
                              echo=False, connect_args=options)
 
 
+# Query database available data for the readiness workflow.
 def database_available():
     # No application session/pool checkout, schema scan, data mutation or migration.
     with probe_engine.connect() as connection:
         return connection.scalar(text('SELECT 1')) == 1
 
 
+# Group the state and operations for readiness probe in the readiness module.
 class ReadinessProbe:
+    # Initialize the dependencies and state this instance needs for later operations.
     def __init__(self, operation, timeout=3):
         self.operation, self.timeout = operation, timeout
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='readiness')
         self.busy = threading.Lock()
 
+    # Run a bounded database probe while preventing overlapping readiness work.
     async def check(self):
         if not self.busy.acquire(blocking=False):
             return False

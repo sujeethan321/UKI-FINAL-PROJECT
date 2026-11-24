@@ -1,9 +1,11 @@
+// Purpose: Render the reusable customer cart preview interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 import {Link} from 'react-router-dom';
 import {ShoppingBag} from 'lucide-react';
 import {useShopping} from '../../context/ShoppingContext';
 import {customerCard} from './CustomerData';
 
+// Render the customer cart preview interface and connect its controls to the state and callbacks defined here.
 export default function CustomerCartPreview() {
   const { tr } = useAppTranslation();
   const shopping=useShopping();

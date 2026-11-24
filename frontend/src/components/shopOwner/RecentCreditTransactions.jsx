@@ -1,7 +1,9 @@
+// Purpose: Render the reusable recent credit transactions interface and keep its presentation and interactions together.
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
 import { ReceiptText } from "lucide-react";
 
+// Format amount for display so screens use a consistent representation.
 function formatAmount(value) {
   if (value === null || value === undefined || value === "") {
     return "—";
@@ -19,6 +21,7 @@ function formatAmount(value) {
   })}`;
 }
 
+// Render the recent credit transactions interface and connect its controls to the state and callbacks defined here.
 export default function RecentCreditTransactions({
   transactions = null,
 }) {

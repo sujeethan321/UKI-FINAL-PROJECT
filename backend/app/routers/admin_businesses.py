@@ -1,3 +1,4 @@
+# Purpose: Expose admin businesses HTTP endpoints and connect request validation and dependencies to the application services.
 
 from typing import Literal
 
@@ -29,6 +30,7 @@ router = APIRouter(
 )
 
 
+# Shape business fields for the response contract.
 def business_response(business: Business) -> dict:
     return {
         "business_id": business.business_id,
@@ -42,6 +44,7 @@ def business_response(business: Business) -> dict:
     }
 
 
+# Handle GET  through the declared request and dependency contract.
 @router.get("", response_model=AdminBusinesses)
 def list_businesses(
     response: Response,
@@ -77,6 +80,7 @@ def list_businesses(
     }
 
 
+# Handle GET /{business_id} through the declared request and dependency contract.
 @router.get("/{business_id}", response_model=AdminBusinessDetail)
 def get_business_details(
     business_id: int,
@@ -123,6 +127,7 @@ def get_business_details(
         ],
     }
 
+# Handle PATCH /{business_id}/decision through the declared request and dependency contract.
 @router.patch("/{business_id}/decision", response_model=AdminBusinessDecision)
 def decide_business(
     business_id: int,
@@ -230,6 +235,7 @@ def decide_business(
         raise
 
 
+# Handle GET /{business_id}/audit-history through the declared request and dependency contract.
 @router.get("/{business_id}/audit-history", response_model=BusinessHistory)
 def get_business_audit_history(
     business_id: int,

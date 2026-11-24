@@ -1,3 +1,4 @@
+// Purpose: Render the registration form screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import { useAppTranslation } from "../../i18n/useAppTranslation.js";
 
@@ -33,16 +34,20 @@ const roleConfigs = {
   },
 };
 
+// Render the registration form interface and connect its controls to the state and callbacks defined here.
 export default function RegistrationForm({ controller, joinReturnTo }) {
   const { tr } = useAppTranslation();
   const { role, form, confirmPassword, loading, uncertain, error } = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const config = roleConfigs[role];
   const safeJoinReturnTo = role === "customer" ? validateJoinReturnPath(joinReturnTo) : null;
   const [showPassword, setShowPassword] = useState(false);
+  // Update field within the registration form workflow.
   function updateField(event) { controller.update(event.target.name, event.target.value); }
+  // Select role within the registration form workflow.
   function selectRole(value) {
     if (controller.selectRole(value)) setShowPassword(false);
   }
+  // Respond to the submit interaction using the current component state.
   function handleSubmit(event) { event.preventDefault(); return controller.submit(); }
 
   const inputClass =

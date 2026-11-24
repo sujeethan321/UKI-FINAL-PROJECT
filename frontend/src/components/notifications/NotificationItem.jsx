@@ -1,6 +1,8 @@
+// Purpose: Render the reusable notification item interface and keep its presentation and interactions together.
 import { Link } from "react-router-dom";
 import { notificationDestination, notificationTime } from "../../utils/notification";
 
+// Render the notification item interface and connect its controls to the state and callbacks defined here.
 export default function NotificationItem({ notification, role, busy, onRead, compact = false, onNavigate, leadingIcon }) {
   const time = notificationTime(notification.created_at);
   const destination = notificationDestination(notification, role);

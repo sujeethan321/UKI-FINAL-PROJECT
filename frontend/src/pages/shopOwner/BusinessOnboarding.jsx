@@ -1,3 +1,4 @@
+// Purpose: Render the business onboarding screen and connect its user interactions to shared application state and services.
 import Select from "../../components/ui/Select";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -38,6 +39,7 @@ const initialForm = {
 const inputStyle =
   "mt-2 w-full rounded-xl border border-[#D4E2EE] bg-white px-4 py-3 text-sm text-[#10243E] outline-none transition focus:border-[#12B8A6] focus:ring-2 focus:ring-[#12B8A6]/20 disabled:opacity-60";
 
+// Render the business onboarding interface and connect its controls to the state and callbacks defined here.
 export default function BusinessOnboarding() {
   const navigate = useNavigate();
 
@@ -49,6 +51,7 @@ export default function BusinessOnboarding() {
   const [verificationRequired, setVerificationRequired] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
 
+  // Update field within the business onboarding workflow.
   const updateField = (event) => {
     const { name, value } = event.target;
 
@@ -59,6 +62,7 @@ export default function BusinessOnboarding() {
   };
 
 
+  // Respond to the submit interaction using the current component state.
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -138,6 +142,7 @@ export default function BusinessOnboarding() {
     }
   }
 
+  // Check the driver registration/profile state before exposing the next application step.
   async function checkRegistrationStatus() {
     if (checkingStatus) return;
     setCheckingStatus(true);
@@ -148,6 +153,7 @@ export default function BusinessOnboarding() {
         throw new Error("Invalid business context response");
       }
 
+      // Normalize the current form value before using it in the workflow payload.
       const normalize = (value) => String(value ?? "").trim().toLowerCase();
       const candidate = context.businesses.find(
         (business) =>

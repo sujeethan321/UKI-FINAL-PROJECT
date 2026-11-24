@@ -1,3 +1,4 @@
+// Purpose: Initialize English, Tamil, and Sinhala resources and synchronize the selected language with storage and the document.
 import { createInstance } from "i18next";
 import { initReactI18next } from "react-i18next";
 import en from "./locales/en.json";
@@ -12,6 +13,7 @@ export const LANGUAGE_STORAGE_KEY = "lankapex_ui_language";
 export const SUPPORTED_LANGUAGES = Object.freeze(["en", "ta", "si"]);
 export const resources = { en: { translation: en, application: applicationEn }, ta: { translation: ta, application: applicationTa }, si: { translation: si, application: applicationSi } };
 
+// Restore a supported language preference and fall back to English when storage is unavailable or invalid.
 export function readLanguage(storage) {
   try {
     const value = storage?.getItem(LANGUAGE_STORAGE_KEY);
@@ -19,6 +21,7 @@ export function readLanguage(storage) {
   } catch { return "en"; }
 }
 
+// Create an isolated i18n instance with supported resources and English fallback for predictable translation behavior.
 export function createAppI18n({ language = "en" } = {}) {
   const instance = createInstance();
   instance.use(initReactI18next).init({
@@ -31,7 +34,9 @@ export function createAppI18n({ language = "en" } = {}) {
   return instance;
 }
 
+// Keep the HTML language and saved preference aligned with i18n changes and return a listener cleanup function.
 export function bindLanguagePreference(instance, storage, document) {
+  // Apply the supported language to the document and persist the current preference when storage is available.
   const sync = language => {
     const safe = SUPPORTED_LANGUAGES.includes(language) ? language : "en";
     if (document?.documentElement) document.documentElement.lang = safe;

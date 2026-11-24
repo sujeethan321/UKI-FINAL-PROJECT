@@ -1,0 +1,383 @@
+backend/app source guide
+========================
+
+Inline comments explain source files and named operations. Existing comments and docstrings are retained.
+JSON and image files are described here because their data should remain unchanged.
+Tests, migrations, operational scripts, dependencies, and generated files are outside this source-only scope.
+
+__init__.py
+  Mark app as the importable root package for the backend application.
+
+core/auth_dependencies.py
+  Resolve the signed-in database user and enforce account status and platform roles before protected endpoints run.
+
+core/config.py
+  Validate backend environment settings before startup, including database, CORS, TLS, rate limits, and integration configuration.
+
+core/database.py
+  Create the shared SQLAlchemy engine and request-scoped sessions, applying the configured database TLS policy.
+
+core/db_maintenance.py
+  Check database targets and identities before maintenance operations so a mistaken connection is rejected.
+
+core/driver_document_body_limit.py
+  Constrain driver-document multipart uploads while the request body is being parsed.
+
+core/http_security.py
+  Apply CORS, host checks, request limits, and safe HTTP error handling consistently across API routes.
+
+core/rate_limit.py
+  Apply request budgets to authentication and application operations to limit repeated or abusive calls.
+
+core/request_limits.py
+  Bound request bodies before endpoint processing to avoid accepting unbounded payloads.
+
+core/security.py
+  Hash and verify passwords and sign expiring access tokens so authentication never stores plaintext passwords.
+
+integrations/__init__.py
+  Mark the integrations directory as an importable application package.
+
+integrations/ai/__init__.py
+  Mark the integrations.ai directory as an importable application package.
+
+integrations/ai/base.py
+  Define the AI request, response, and client contracts so summary logic can use interchangeable providers.
+
+integrations/ai/groq_client.py
+  Adapt the Groq API to the application AI contract with bounded requests and provider-error handling.
+
+main.py
+  Assemble the FastAPI application, register versioned API routes, and install shared HTTP protections.
+
+models/__init__.py
+  Expose ORM models through app.models and import their table definitions into SQLAlchemy metadata.
+
+models/admin_audit.py
+  Map admin audit records to database tables so SQLAlchemy can persist and relate application data.
+
+models/business.py
+  Map business records to database tables so SQLAlchemy can persist and relate application data.
+
+models/business_approval_audit.py
+  Map business approval audit records to database tables so SQLAlchemy can persist and relate application data.
+
+models/business_join_link.py
+  Map business join link records to database tables so SQLAlchemy can persist and relate application data.
+
+models/business_member.py
+  Map business member records to database tables so SQLAlchemy can persist and relate application data.
+
+models/catalogue.py
+  Map catalogue records to database tables so SQLAlchemy can persist and relate application data.
+
+models/communication.py
+  Map communication records to database tables so SQLAlchemy can persist and relate application data.
+
+models/credit_account.py
+  Map credit account records to database tables so SQLAlchemy can persist and relate application data.
+
+models/customer_join_request.py
+  Map customer join request records to database tables so SQLAlchemy can persist and relate application data.
+
+models/customer_link_invitation.py
+  Map customer link invitation records to database tables so SQLAlchemy can persist and relate application data.
+
+models/customer_profile.py
+  Map customer profile records to database tables so SQLAlchemy can persist and relate application data.
+
+models/delivery.py
+  Map delivery records to database tables so SQLAlchemy can persist and relate application data.
+
+models/driver_document.py
+  Map driver document records to database tables so SQLAlchemy can persist and relate application data.
+
+models/enhancements.py
+  Map enhancements records to database tables so SQLAlchemy can persist and relate application data.
+
+models/ledger_entry.py
+  Map ledger entry records to database tables so SQLAlchemy can persist and relate application data.
+
+models/notification.py
+  Map notification records to database tables so SQLAlchemy can persist and relate application data.
+
+models/order.py
+  Map order records to database tables so SQLAlchemy can persist and relate application data.
+
+models/payment_reminder.py
+  Map payment reminder records to database tables so SQLAlchemy can persist and relate application data.
+
+models/subscription.py
+  Map subscription records to database tables so SQLAlchemy can persist and relate application data.
+
+models/user.py
+  Map user records to database tables so SQLAlchemy can persist and relate application data.
+
+routers/__init__.py
+  Mark the routers directory as an importable application package.
+
+routers/admin.py
+  Expose admin HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/admin_businesses.py
+  Expose admin businesses HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/auth.py
+  Expose auth HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/catalogue.py
+  Expose catalogue HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/customer.py
+  Expose customer HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/customer_join.py
+  Expose customer join HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/customer_link.py
+  Expose customer link HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/driver.py
+  Expose driver HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/health.py
+  Expose health HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/notifications.py
+  Expose notifications HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/orders.py
+  Expose orders HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/role_access.py
+  Expose role access HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/shop_owner.py
+  Expose shop owner HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/shop_owner_ai.py
+  Expose shop owner ai HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/shop_owner_communication.py
+  Expose shop owner communication HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/shop_owner_deliveries.py
+  Expose shop owner deliveries HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/shop_owner_reminders.py
+  Expose shop owner reminders HTTP endpoints and connect request validation and dependencies to the application services.
+
+routers/subscriptions.py
+  Expose subscriptions HTTP endpoints and connect request validation and dependencies to the application services.
+
+schemas/admin.py
+  Define typed admin API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/admin_business.py
+  Define typed admin business API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/ai_summary.py
+  Define typed ai summary API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/auth.py
+  Define typed auth API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/business.py
+  Define typed business API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/catalogue.py
+  Define typed catalogue API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/communication.py
+  Define typed communication API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/customer.py
+  Define typed customer API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/customer_dashboard.py
+  Define typed customer dashboard API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/customer_join.py
+  Define typed customer join API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/customer_link.py
+  Define typed customer link API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/driver.py
+  Define typed driver API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/financial_documents.py
+  Define typed financial documents API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/ledger.py
+  Define typed ledger API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/notification.py
+  Define typed notification API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/order.py
+  Define typed order API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/order_delivery.py
+  Define typed order delivery API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/payment_reminder.py
+  Define typed payment reminder API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/report_ai.py
+  Define typed report ai API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/shop_owner_delivery.py
+  Define typed shop owner delivery API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+schemas/subscription.py
+  Define typed subscription API payloads so incoming data is validated and outgoing fields have an explicit contract.
+
+services/admin_driver_documents.py
+  Implement admin driver documents operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/admin_provisioning.py
+  Implement admin provisioning operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/admin_service.py
+  Implement admin operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/aging_labels.json
+  Provide localized aging-report labels as data shared by report generation.
+  Top-level groups: en, ta, si.
+  Keep keys and value types aligned with the code that reads this resource; JSON does not allow comments.
+
+services/backup_manifest.py
+  Build backup/restore arguments and verify manifest structure and checksums for maintenance tooling.
+
+services/catalogue_service.py
+  Implement catalogue operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/communication_service.py
+  Implement communication operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/customer_dashboard_service.py
+  Implement customer dashboard operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/customer_financial_snapshot_service.py
+  Implement customer financial snapshot operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/customer_join_service.py
+  Implement customer join operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/customer_link_service.py
+  Implement customer link operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/customer_statement_pdf.py
+  Render customer statement data into a PDF document for viewing or download.
+
+services/dashboard_due_service.py
+  Implement dashboard due operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/database_integrity.py
+  Report relational and domain consistency counts for database inspection without repairing records.
+
+services/delivery_estimate_service.py
+  Implement delivery estimate operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/driver_document_limits.py
+  Attach operating-system resource limits to document processing workers.
+
+services/driver_document_service.py
+  Implement driver document operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/driver_document_storage.py
+  Validate and store driver documents in private storage with explicit path and resource checks.
+
+services/driver_document_worker.py
+  Validate driver-document content in a separate worker rather than processing untrusted files in the API process.
+
+services/driver_registration_service.py
+  Implement driver registration operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/driver_service.py
+  Implement driver operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/driver_vehicle_service.py
+  Implement driver vehicle operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/ledger_service.py
+  Calculate balances from effective ledger entries and share locking and replay checks across financial workflows.
+
+services/notification_service.py
+  Implement notification operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/order_delivery_service.py
+  Implement order delivery operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/order_service.py
+  Implement order operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/readiness.py
+  Probe database readiness with bounded waiting so health checks do not block indefinitely.
+
+services/registration_service.py
+  Create public user accounts through a shared registration path with password hashing and duplicate-email handling.
+
+services/report_ai_service.py
+  Build bounded report context, redact questions, and validate AI output before returning report assistance.
+
+services/shop_owner_aging_service.py
+  Implement shop owner aging operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_ai_summary_service.py
+  Implement shop owner ai summary operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_credit_sale_service.py
+  Implement shop owner credit sale operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_customer_create_service.py
+  Implement shop owner customer create operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_customer_details_service.py
+  Implement shop owner customer details operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_customer_manage_service.py
+  Implement shop owner customer manage operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_customer_service.py
+  Implement shop owner customer operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_dashboard_service.py
+  Implement shop owner dashboard operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_delivery_service.py
+  Implement shop owner delivery operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_financial_documents_service.py
+  Implement shop owner financial documents operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_reminder_service.py
+  Implement shop owner reminder operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_repayment_service.py
+  Implement shop owner repayment operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/shop_owner_reports_csv.py
+  Render shop owner reports data into CSV for spreadsheet export, including safe text and money formatting.
+
+services/shop_owner_reports_pdf.py
+  Render shop owner reports data into a PDF document for viewing or download.
+
+services/shop_owner_reports_service.py
+  Implement shop owner reports operations behind the HTTP layer so related business rules are shared by their callers.
+
+services/stripe_sandbox.py
+  Wrap Stripe sandbox calls and signature verification behind explicit configuration and URL checks.
+
+services/subscription_billing.py
+  Coordinate sandbox checkout, recovery, portal access, and verified webhook updates with local subscription records.
+
+services/subscription_service.py
+  Evaluate business plans, trial dates, feature entitlements, and capacity limits before restricted operations.
+
+services/tamil_credit_summary_prompt.py
+  Build a constrained Tamil summary request from validated financial facts rather than arbitrary customer text.
+
+services/tamil_credit_summary_service.py
+  Validate generated Tamil financial summaries and provide a deterministic fallback when generation is unavailable or unsuitable.

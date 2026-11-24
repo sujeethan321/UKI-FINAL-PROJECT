@@ -1,3 +1,4 @@
+// Purpose: Wrap auth API calls so components use a shared request interface instead of building HTTP requests themselves.
 
 import api from "./api";
 
@@ -30,6 +31,7 @@ export const registerDriver = async (driverData) => {
 
 // Login with email and password
 
+// Send normalized email and password as form data because the login endpoint uses the OAuth2 password-form contract.
 export const loginUser = async (email, password) => {
   const formData = new URLSearchParams();
 

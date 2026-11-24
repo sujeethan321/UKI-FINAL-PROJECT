@@ -1,3 +1,4 @@
+# Purpose: Build a constrained Tamil summary request from validated financial facts rather than arbitrary customer text.
 """Privacy-minimized prompt construction from authoritative financial facts."""
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -19,6 +20,7 @@ SYSTEM_PROMPT = """நீங்கள் LankaPex வாடிக்கையா
 எளிய இலங்கைத் தமிழில் இரண்டு அல்லது மூன்று குறுகிய வாக்கியங்களில் பதிலளிக்கவும்."""
 
 
+# Reject unsupported monetary values before they enter the AI prompt snapshot.
 def _validated_money(name: str, value: Decimal) -> Decimal:
     if not isinstance(value, Decimal):
         raise TypeError(f"{name} must be Decimal")
@@ -40,12 +42,16 @@ class FinancialSummarySnapshot:
     outstanding_balance: Decimal
     captured_at: datetime
     overdue_balance: Decimal | None = None
+    advance_balance: Decimal = Decimal('0.00')
 
+    # Validate snapshot currency and financial values immediately after the dataclass is constructed.
     def __post_init__(self):
         if self.currency not in SUPPORTED_CURRENCIES:
             raise ValueError("Unsupported currency")
-        for name in ("total_credit_purchases", "total_repayments", "outstanding_balance"):
+        for name in ("total_credit_purchases", "total_repayments", "outstanding_balance", "advance_balance"):
             object.__setattr__(self, name, _validated_money(name, getattr(self, name)))
+        if self.outstanding_balance and self.advance_balance:
+            raise ValueError('One account cannot have debt and advance simultaneously')
         if self.overdue_balance is not None:
             overdue = _validated_money("overdue_balance", self.overdue_balance)
             if overdue > self.outstanding_balance:
@@ -58,31 +64,27 @@ class FinancialSummarySnapshot:
         object.__setattr__(self, "captured_at", self.captured_at.astimezone(timezone.utc))
 
 
+# Convert a financial value to the decimal representation required by this module.
 def _money(value: Decimal) -> str:
     return format(value, ".2f")
 
 
-def build_tamil_credit_summary_request(snapshot: FinancialSummarySnapshot) -> GenerationRequest:
-    if not isinstance(snapshot, FinancialSummarySnapshot):
-        raise TypeError("snapshot must be FinancialSummarySnapshot")
-    overdue = (_money(snapshot.overdue_balance)
-               if snapshot.overdue_balance is not None
-               else "அதிகாரப்பூர்வமாகக் கணக்கிடப்படவில்லை")
-    captured = snapshot.captured_at.isoformat(timespec="seconds").replace("+00:00", "Z")
-    user_prompt = "\n".join((
-        "சரிபார்க்கப்பட்ட நிதிச் சுருக்கம்:",
-        f"நாணயம்: {snapshot.currency}",
-        f"மொத்த கடன் கொள்முதல்: {_money(snapshot.total_credit_purchases)}",
-        f"மொத்த திருப்பிச் செலுத்தல்கள்: {_money(snapshot.total_repayments)}",
-        f"தற்போதைய நிலுவைத் தொகை: {_money(snapshot.outstanding_balance)}",
-        f"தவணை கடந்த தொகை: {overdue}",
-        f"தகவல் எடுத்த நேரம் (UTC): {captured}",
-        "இந்தத் தொகைகளுக்கு இடையில் புதிய கணக்கீடு செய்யாமல் விளக்கவும்.",
-    ))
-    result = GenerationRequest(system_prompt=SYSTEM_PROMPT, user_prompt=user_prompt)
-    size = sum(len(value.encode("utf-8"))
-               for value in (result.system_prompt, result.user_prompt))
-    if size > MAX_GENERATION_INPUT_BYTES:
-        raise ValueError("Tamil credit summary prompt exceeds the provider input limit")
-    return result
+# Build tamil credit summary request for the tamil credit summary prompt workflow.
+def account_bundle(snapshot):
+    facts=dict(account_credit_purchases=_money(snapshot.total_credit_purchases),account_repayments=_money(snapshot.total_repayments),
+        current_outstanding=_money(snapshot.outstanding_balance),current_advances=_money(snapshot.advance_balance),
+        overdue=_money(snapshot.overdue_balance) if snapshot.overdue_balance is not None else None)
+    sections=[dict(section_id='account',fact_ids=list(facts),observation='overdue_unavailable' if snapshot.overdue_balance is None else 'provided_overdue')]
+    return facts,sections
 
+def build_tamil_credit_summary_request(snapshot: FinancialSummarySnapshot) -> GenerationRequest:
+    if not isinstance(snapshot,FinancialSummarySnapshot):raise TypeError('snapshot must be FinancialSummarySnapshot')
+    from app.services.financial_explanation import request
+    from dataclasses import replace
+    import json
+    facts,sections=account_bundle(snapshot)
+    result=request(dict(currency='LKR',facts=facts),sections,'ta')
+    result=replace(result,system_prompt=SYSTEM_PROMPT+'\n'+result.system_prompt)
+    size=sum(len(value.encode('utf-8')) for value in (result.system_prompt,result.user_prompt,json.dumps(result.response_schema)))
+    if size>MAX_GENERATION_INPUT_BYTES:raise ValueError('Tamil credit summary prompt exceeds the provider input limit')
+    return result

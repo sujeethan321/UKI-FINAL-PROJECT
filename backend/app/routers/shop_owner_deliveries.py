@@ -1,3 +1,4 @@
+# Purpose: Expose shop owner deliveries HTTP endpoints and connect request validation and dependencies to the application services.
 """Shop Owner delivery requests; follow existing business_id query selection."""
 from typing import Annotated
 
@@ -21,6 +22,7 @@ BusinessId = Annotated[int, Query(gt=0, le=9223372036854775807)]
 RequestId = Annotated[int, Path(gt=0, le=9223372036854775807)]
 
 
+# Wrap the service read with no-store caching and the endpoint error handling.
 def read(response, operation):
     response.headers['Cache-Control'] = 'no-store'
     try:
@@ -29,6 +31,7 @@ def read(response, operation):
         raise HTTPException(503, 'Delivery requests are temporarily unavailable') from None
 
 
+# Wrap the scoped delivery write with no-store caching and transaction/error handling.
 def write(db, response, operation):
     response.headers['Cache-Control'] = 'no-store'
     try:
@@ -46,11 +49,13 @@ def write(db, response, operation):
         raise HTTPException(503, 'Operation could not be confirmed. Refresh the delivery list before retrying.') from None
 
 
+# Handle POST  through the declared request and dependency contract.
 @router.post('', response_model=DeliveryRequestDetail, status_code=201)
 def create(response: Response, user: Owner, db: Database, business_id: BusinessId, payload: DeliveryRequestCreate):
     return write(db, response, lambda: service.create_request(db, user, business_id, payload))
 
 
+# Handle GET  through the declared request and dependency contract.
 @router.get('', response_model=ShopOwnerDeliveries)
 def deliveries(response: Response, user: Owner, db: Database, business_id: BusinessId,
                page: Annotated[int, Query(ge=1, le=1000000)] = 1,
@@ -59,16 +64,19 @@ def deliveries(response: Response, user: Owner, db: Database, business_id: Busin
     return read(response, lambda: service.list_requests(db, user, business_id, page, page_size, status))
 
 
+# Handle GET /summary through the declared request and dependency contract.
 @router.get('/summary', response_model=ShopOwnerDeliverySummary)
 def summary(response: Response, user: Owner, db: Database, business_id: BusinessId):
     return read(response, lambda: service.summary(db, user, business_id))
 
 
+# Handle GET /{request_id} through the declared request and dependency contract.
 @router.get('/{request_id}', response_model=DeliveryRequestDetail)
 def detail(response: Response, user: Owner, db: Database, business_id: BusinessId, request_id: RequestId):
     return read(response, lambda: service.request_detail(db, user, business_id, request_id))
 
 
+# Handle POST /{request_id}/cancel through the declared request and dependency contract.
 @router.post('/{request_id}/cancel', response_model=DeliveryRequestDetail)
 def cancel(response: Response, user: Owner, db: Database, business_id: BusinessId,
            request_id: RequestId, payload: CancelDeliveryRequest):

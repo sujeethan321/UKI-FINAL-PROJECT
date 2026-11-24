@@ -1,3 +1,4 @@
+# Purpose: Expose role access HTTP endpoints and connect request validation and dependencies to the application services.
 
 from fastapi import APIRouter, Depends
 
@@ -11,6 +12,7 @@ router = APIRouter(
 )
 
 
+# Handle GET /shop-owner through the declared request and dependency contract.
 @router.get("/shop-owner")
 def shop_owner_access(
     current_user: User = Depends(
@@ -23,6 +25,7 @@ def shop_owner_access(
     }
 
 
+# Handle GET /customer through the declared request and dependency contract.
 @router.get("/customer")
 def customer_access(
     current_user: User = Depends(
@@ -35,6 +38,7 @@ def customer_access(
     }
 
 
+# Handle GET /driver through the declared request and dependency contract.
 @router.get("/driver")
 def driver_access(
     current_user: User = Depends(
@@ -47,6 +51,7 @@ def driver_access(
     }
 
 
+# Handle GET /admin through the declared request and dependency contract.
 @router.get("/admin")
 def admin_access(
     current_user: User = Depends(

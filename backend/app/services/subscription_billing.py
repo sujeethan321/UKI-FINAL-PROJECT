@@ -1,3 +1,4 @@
+# Purpose: Coordinate sandbox checkout, recovery, portal access, and verified webhook updates with local subscription records.
 """Durable Checkout and authoritative sandbox reconciliation; billing tables only.
 
 The Business FOR UPDATE lock serializes provider operations and webhook applies.
@@ -17,15 +18,18 @@ from app.services.stripe_sandbox import Provider, require_enabled, price_map, ho
 from app.core.config import settings
 
 
+# Raise the billing error used to stop an unsupported or conflicting operation.
 def stop(message, code=409):
     raise HTTPException(code, message)
 
 
+# Resolve lock using a row lock so the caller can coordinate concurrent changes.
 def lock(db, business_id):
     return db.scalar(select(Business).where(Business.business_id == business_id)
                      .with_for_update().execution_options(populate_existing=True))
 
 
+# Resolve or create the provider customer associated with the business billing record.
 def provider_customer(provider, customer_id, business_id):
     customer = provider.call('GET', '/customers/' + customer_id)
     if (customer.get('livemode') is not False or customer.get('deleted')
@@ -83,11 +87,13 @@ def reconcile_subscription(db, business_id, provider):
     # active + cancel_at_period_end retains access until the verified period ends.
 
 
+# Return checkout attempt state and expose a hosted URL only when the attempt is open.
 def session_result(attempt, session):
     return {'attempt_id': attempt.attempt_id, 'status': attempt.status,
             'url': hosted_url(session['url']) if attempt.status == 'OPEN' else None}
 
 
+# Verify the provider session belongs to this local checkout attempt before adopting its identifiers and status.
 def adopt_session(attempt, session):
     if (session.get('livemode') is not False or session.get('mode') != 'subscription'
             or session.get('metadata', {}).get('attempt_id') != attempt.attempt_id
@@ -104,6 +110,7 @@ def adopt_session(attempt, session):
     attempt.active_business_id = attempt.business_id if status in ('OPEN', 'VERIFYING') else None
 
 
+# Update the local checkout attempt only after the provider session has been verified.
 def finish_verified_session(db, attempt, session):
     # Keep the active slot during eventual consistency: completing Checkout is
     # not proof that its subscription has been observed/reconciled yet.
@@ -193,6 +200,7 @@ def run_attempt(db, attempt, provider):
     return result
 
 
+# Query checkout data for the subscription billing workflow.
 def checkout(db, user, business_id, payload, provider=None):
     authorize_business(db, user, business_id, manage=True)
     require_enabled()
@@ -231,6 +239,7 @@ def checkout(db, user, business_id, payload, provider=None):
     return run_attempt(db, attempt, provider)
 
 
+# Query recover data for the subscription billing workflow.
 def recover(db, user, business_id, provider=None):
     authorize_business(db, user, business_id, manage=True)
     require_enabled()
@@ -243,6 +252,7 @@ def recover(db, user, business_id, provider=None):
     return run_attempt(db, attempt, provider or Provider())
 
 
+# Create the authorized provider portal session for the business subscription.
 def portal(db, user, business_id, provider=None):
     authorize_business(db, user, business_id, manage=True)
     require_enabled()
@@ -273,6 +283,7 @@ EVENTS = {'checkout.session.completed', 'customer.subscription.created', 'custom
           'customer.subscription.deleted', 'invoice.paid', 'invoice.payment_failed'}
 
 
+# Query webhook data for the subscription billing workflow.
 def webhook(db, event, provider=None):
     if event['type'] not in EVENTS:
         return {'received': True, 'ignored': True}

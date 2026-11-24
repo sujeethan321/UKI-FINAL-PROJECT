@@ -1,9 +1,11 @@
+# Purpose: Define typed financial documents API payloads so incoming data is validated and outgoing fields have an explicit contract.
 """Read-only financial documents. Amounts are exact decimal strings."""
 from datetime import date, datetime
 from typing import Literal
 from pydantic import BaseModel
 
 
+# Define the document business field contract used when validating or serializing API data.
 class DocumentBusiness(BaseModel):
     business_id: int
     business_name: str
@@ -11,6 +13,7 @@ class DocumentBusiness(BaseModel):
     address: str | None
 
 
+# Define the document customer field contract used when validating or serializing API data.
 class DocumentCustomer(BaseModel):
     customer_id: int
     business_id: int
@@ -19,6 +22,7 @@ class DocumentCustomer(BaseModel):
     address: str | None
 
 
+# Define the repayment receipt field contract used when validating or serializing API data.
 class RepaymentReceipt(BaseModel):
     business: DocumentBusiness
     customer: DocumentCustomer
@@ -37,6 +41,7 @@ class RepaymentReceipt(BaseModel):
     reversed_at: datetime | None
 
 
+# Define the statement entry field contract used when validating or serializing API data.
 class StatementEntry(BaseModel):
     entry_id: int
     entry_type: Literal["credit_sale", "repayment", "reversal"]
@@ -53,6 +58,7 @@ class StatementEntry(BaseModel):
     status: Literal["recorded", "reversed", "reversal"]
 
 
+# Define the customer statement field contract used when validating or serializing API data.
 class CustomerStatement(BaseModel):
     business: DocumentBusiness
     customer: DocumentCustomer
@@ -73,6 +79,7 @@ class CustomerStatement(BaseModel):
     transactions: list[StatementEntry]
 
 
+# Define the outstanding customer field contract used when validating or serializing API data.
 class OutstandingCustomer(BaseModel):
     customer_id: int
     customer_name: str
@@ -86,6 +93,7 @@ class OutstandingCustomer(BaseModel):
     overdue_amount: None = None
 
 
+# Define the outstanding payments field contract used when validating or serializing API data.
 class OutstandingPayments(BaseModel):
     business_id: int
     currency: Literal["LKR"] = "LKR"
