@@ -1,3 +1,4 @@
+# Purpose: Expose admin reports HTTP endpoints and connect request validation and dependencies to the application services.
 """Active-Admin-only aggregate reports. No commit, financial locks or writes."""
 from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -14,6 +15,7 @@ HEADERS={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}
 router=APIRouter(prefix='/admin/reports',tags=['Admin reports'])
 
 
+# Consume the administrator report request budget before expensive report reads or exports.
 def budget(request:Request,user:Annotated[User,Depends(require_admin)]):
     if hasattr(request.app.state,'rate_limit_config'):
         export=request.url.path.endswith(('.csv','.pdf'))
@@ -25,6 +27,7 @@ def budget(request:Request,user:Annotated[User,Depends(require_admin)]):
 router.dependencies=[Depends(budget)]
 
 
+# Capture the report dataset and map unavailable database state to the public endpoint error contract.
 def dataset(db,filters):
     try: return capture(db,filters)
     except HTTPException as error:
@@ -38,12 +41,14 @@ Selection=Annotated[Filters,Depends()]
 Language=Annotated[Literal['en','ta','si'],Query()]
 
 
+# Handle GET /overview through the declared request and dependency contract.
 @router.get('/overview',response_model=Overview)
 def overview(response:Response,db:Database,filters:Selection):
     response.headers.update(HEADERS)
     return dataset(db,filters)[0]
 
 
+# Handle GET /businesses through the declared request and dependency contract.
 @router.get('/businesses',response_model=Comparisons)
 def businesses(response:Response,db:Database,filters:Selection,limit:Annotated[int,Query(ge=1,le=100)]=20,offset:Annotated[int,Query(ge=0,le=1000)]=0):
     response.headers.update(HEADERS)
@@ -51,6 +56,7 @@ def businesses(response:Response,db:Database,filters:Selection,limit:Annotated[i
     return Comparisons(report=report,total=len(rows),limit=limit,offset=offset,sort=filters.sort,direction=filters.direction,rows=rows[offset:offset+limit])
 
 
+# Bound the exported business rows before rendering CSV or PDF output.
 def export(db,filters,language,format):
     report,rows=dataset(db,filters)
     if len(rows)>MAX_EXPORT_ROWS: raise HTTPException(422,'Export exceeds business limit',headers=HEADERS)
@@ -67,9 +73,11 @@ def export(db,filters,language,format):
     return Response(content,media_type=media,headers={**HEADERS,'Content-Disposition':f'attachment; filename="{filename}"'})
 
 
+# Handle GET /export.csv through the declared request and dependency contract.
 @router.get('/export.csv')
 def csv_export(db:Database,filters:Selection,language:Language='en'): return export(db,filters,language,'csv')
 
 
+# Handle GET /export.pdf through the declared request and dependency contract.
 @router.get('/export.pdf')
 def pdf_export(db:Database,filters:Selection,language:Language='en'): return export(db,filters,language,'pdf')

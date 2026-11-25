@@ -1,3 +1,4 @@
+// Purpose: Render the reusable support workspace interface and keep its presentation and interactions together.
 import {useEffect,useState,useSyncExternalStore} from 'react';
 import {useAuth} from '../../context/useAuth';
 import {useAppTranslation} from '../../i18n/useAppTranslation';
@@ -9,13 +10,17 @@ const card='min-w-0 rounded-2xl border border-[#D4E2EE] bg-white p-5 shadow-sm s
 const button='inline-flex min-h-11 items-center justify-center rounded-lg border border-[#D4E2EE] bg-white px-4 py-2 text-sm font-semibold text-[#10243E] hover:border-[#12B8A6] disabled:opacity-50';
 const field='mt-2 min-h-11 w-full rounded-lg border border-[#D4E2EE] bg-white p-3 text-sm text-[#10243E]';
 const blank={category:'account',subject:'',description:'',business_id:'',business_shared:false,kind:'',record_id:''};
+// Render the support view interface and connect its controls to the state and callbacks defined here.
 export function SupportView({state,actions,admin=false}){
  const {tr}=useAppTranslation();const [form,setForm]=useState(blank);const [reply,setReply]=useState('');const [note,setNote]=useState(false);
  const [filters,setFilters]=useState({status:'',category:'',priority:'',start_date:'',end_date:''});
  const [action,setAction]=useState('status');const [value,setValue]=useState('investigating');const [reason,setReason]=useState('');
  const locked=state.busy||!!state.pending;const row=state.detail?.case;const label=value=>tr(supportLabels[value]||value);
+ // Populate the editable form from the selected record instead of starting a new record.
  const edit=(key,value)=>setForm(previous=>({...previous,[key]:value}));
+ // Update the selected related-record type and clear incompatible support-reference input.
  const selection=()=>({...Object.fromEntries(Object.entries(filters).filter(([,value])=>value)),limit:20,offset:0});
+ // Submit the selected support action using the current case revision and explicit form values.
  const command=payload=>actions.send({kind:'action',reference:row.reference,payload:{...payload,expected_version:row.version}});
  const unavailable=!state.loading&&!state.list&&!state.detail&&!!state.error;
  return <div className="space-y-6 pb-6 text-[#10243E]"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-bold">{tr(admin?'Support & Disputes':'My Support Tickets')}</h2><button className={button} disabled={locked||state.loading} onClick={()=>actions.load()}>{tr('Refresh')}</button></div>
@@ -56,12 +61,15 @@ export function SupportView({state,actions,admin=false}){
   </section>}
  </div>;
 }
+// Render the support session interface and connect its controls to the state and callbacks defined here.
 function SupportSession({admin}){
  const [reader]=useState(()=>createSupportReader(admin?adminApi:supportApi));
  const state=useSyncExternalStore(reader.subscribe,reader.getSnapshot,reader.getSnapshot);
+ // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
  useEffect(()=>{reader.start();return()=>reader.dispose();},[reader]);
  return <SupportView key={state.detail?.case.reference||'queue'} state={state} actions={reader} admin={admin}/>;
 }
+// Render the support workspace interface and connect its controls to the state and callbacks defined here.
 export default function SupportWorkspace({role}){
  const {user,token,isAuthenticated}=useAuth();
  if(!isAuthenticated||user?.account_status!=='active'||user?.platform_role!==role)return null;

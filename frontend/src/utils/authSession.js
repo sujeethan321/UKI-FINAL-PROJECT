@@ -76,6 +76,7 @@ export function createAuthSession({ loginUser, getCurrentUser, storage, withLogi
       throw error;
     }
   };
+  // Publish an opaque cross-tab signal so other views refresh profile identity without sharing profile contents.
   const signalProfileChanged = () => {
     if(state.token&&storage().getItem(TOKEN_KEY)===state.token){
       // A nonce only: never send tokens, profile fields or customer identifiers.

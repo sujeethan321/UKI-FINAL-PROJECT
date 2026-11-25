@@ -1,3 +1,4 @@
+# Purpose: Implement driver finance rollout operations behind the HTTP layer so related business rules are shared by their callers.
 """Disabled by default; no new-table queries on legacy paths while disabled.
 
 Enable only after an operator verifies the migration (including ten immutable
@@ -18,10 +19,12 @@ REVISION='bf38d2a90176'
 REVIEWED_REVISIONS=frozenset({REVISION,'c04d9e7a6201','d15a8c902e64'})
 
 
+# Read the explicit feature setting without querying optional database tables.
 def enabled():
     return getattr(settings,'DRIVER_FINANCE_ENABLED',False) is True
 
 
+# Check ready and stop callers when the required conditions are not met.
 def require_ready(db):
     if not enabled():
         raise HTTPException(503,detail={'code':'DRIVER_FINANCE_NOT_ENABLED','message':'Driver finance is not enabled.'},headers={'Cache-Control':'no-store'})

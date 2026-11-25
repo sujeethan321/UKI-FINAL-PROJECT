@@ -1,3 +1,4 @@
+# Purpose: Implement admin reports operations behind the HTTP layer so related business rules are shared by their callers.
 """Bounded read-only platform reports. No optional document/finance-table reads.
 
 One request Session is used throughout. MySQL must supply REPEATABLE READ;
@@ -22,6 +23,7 @@ MAX_BUSINESSES = 1000
 MAX_EXPORT_ROWS = 1000
 
 
+# Limit the result set before building financial history so interactive requests cannot allocate unbounded records.
 def bounded(db, statement, limit=MAX_ROWS):
     rows = list(db.execute(statement.limit(limit + 1)).mappings())
     if len(rows) > limit:
@@ -29,6 +31,7 @@ def bounded(db, statement, limit=MAX_ROWS):
     return rows
 
 
+# Query capture data for the admin reports workflow.
 def capture(db, filters):
     connection = db.connection()
     dialect = connection.dialect.name
@@ -45,6 +48,7 @@ def capture(db, filters):
         raise HTTPException(409, 'Database reporting clock unavailable')
     start, end = period(filters.start_date, filters.end_date, now.date())
     lower, upper = datetime.combine(start, datetime.min.time()), datetime.combine(end + timedelta(days=1), datetime.min.time())
+    # Select timestamps inside the half-open reporting interval so adjacent report periods do not overlap.
     def inside(stamp): return lower <= stamp < upper
     business_query=select(Business.business_id, Business.business_name, Business.approval_status, Business.created_at)
     if filters.business_id is not None:
@@ -54,6 +58,7 @@ def capture(db, filters):
     if filters.approval_status is not None: business_query=business_query.where(Business.approval_status==filters.approval_status)
     businesses = bounded(db,business_query,MAX_BUSINESSES)
     ids = [b['business_id'] for b in businesses]
+    # Restrict this report query to the business identifiers selected for the captured dataset.
     def scoped(statement, column): return statement.where(column.in_(ids))
     decisions = bounded(db, scoped(select(BusinessApprovalAudit.new_status, BusinessApprovalAudit.created_at), BusinessApprovalAudit.business_id)
         .where(BusinessApprovalAudit.created_at >= lower, BusinessApprovalAudit.created_at < upper))
@@ -98,7 +103,9 @@ def capture(db, filters):
     user_days = Counter(u['created_at'].date().isoformat() for u in users)
     order_days = Counter(o['created_at'].date().isoformat() for o in orders)
     delivery_days = Counter(d['created_at'].date().isoformat() for d in deliveries)
+    # Expand daily counts across the requested dates so days without records remain explicit.
     def days(counts): return [dict(date=(start + timedelta(days=i)).isoformat(), count=counts[(start + timedelta(days=i)).isoformat()]) for i in range((end-start).days+1)]
+    # Count rows for each supported status in the report projection.
     def statuses(rows, field, allowed): return {key:sum(r[field]==key for r in rows) for key in allowed}
     report = Overview.model_validate(dict(generated_at=datetime.now(timezone.utc), database_today=now.date(), start_date=start, end_date=end,
         business_id=filters.business_id, approval_status=filters.approval_status, order_status=filters.order_status,

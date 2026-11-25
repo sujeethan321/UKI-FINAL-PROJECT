@@ -1,3 +1,4 @@
+# Purpose: Accrue and report driver fees and append authorized collection or settlement events without a platform payout workflow.
 """Direct-to-Driver pilot. No platform payouts, credit postings or external calls."""
 from decimal import Decimal
 from datetime import timedelta
@@ -15,12 +16,14 @@ from app.services.driver_finance_states import check_transition
 MAX_EVENTS=10000
 
 
+# Limit the result set before building financial history so interactive requests cannot allocate unbounded records.
 def bounded(db, query):
     rows=list(db.scalars(query.limit(MAX_EVENTS+1)))
     if len(rows)>MAX_EVENTS:raise HTTPException(422,'Financial history exceeds the interactive limit')
     return rows
 
 
+# Append an audit record that associates the driver-finance action with its actor and originating event.
 def audit(db,user_id,earning,action,reference):
     db.add(DriverFinancialAudit(actor_user_id=user_id,earning_id=earning.earning_id,action=action,
         accrual_driver_id=user_id if action=='accrued' else None,
@@ -28,6 +31,7 @@ def audit(db,user_id,earning,action,reference):
         settlement_event_id=reference if action not in ('accrued','declared','exception') else None))
 
 
+# Create the immutable driver earning associated with the completed delivery through the service consistency checks.
 def accrue(db,delivery,assignment,event):
     if not enabled():return
     require_ready(db)
@@ -49,6 +53,7 @@ def accrue(db,delivery,assignment,event):
     db.add(earning);db.flush();audit(db,assignment.driver_user_id,earning,'accrued',earning.earning_id)
 
 
+# Derive financial status from ordered immutable events and expose private evidence only for the administrative view.
 def view(earning,collections,settlements,private=False):
     status='pending'
     if any(c.kind=='declared' for c in collections):status='collection_declared'
@@ -75,6 +80,7 @@ def view(earning,collections,settlements,private=False):
     return data
 
 
+# Query history data for the driver finance workflow.
 def history(db,user,page=1,page_size=20,driver_id=None,period='month'):
     actor(db,user.user_id,'admin' if driver_id is not None else 'driver')
     require_ready(db)
@@ -104,6 +110,7 @@ def history(db,user,page=1,page_size=20,driver_id=None,period='month'):
                  'platform_payout_supported':False},earnings=rows[(page-1)*page_size:page*page_size])
 
 
+# Resolve operation using a row lock so the caller can coordinate concurrent changes.
 def operation(db,user,earning_id,payload,admin=False):
     actor(db,user.user_id,'admin' if admin else 'driver',lock=True)
     require_ready(db)
@@ -112,15 +119,18 @@ def operation(db,user,earning_id,payload,admin=False):
     earning=db.scalar(query.with_for_update().execution_options(populate_existing=True))
     if earning is None:raise HTTPException(404,'Earning not found')
     if earning.amount==0:raise HTTPException(409,'No collection or payout is due for a zero fee')
+    # Verification must come from a different actor than the earning's driver, even if the caller has an Admin role.
     if admin and user.user_id==earning.driver_user_id:raise HTTPException(403,'Independent Administrator verification is required')
     collections=bounded(db,select(DriverFeeCollection).where(DriverFeeCollection.earning_id==earning_id).with_for_update().execution_options(populate_existing=True))
     events=bounded(db,select(DriverSettlementEvent).where(DriverSettlementEvent.earning_id==earning_id).with_for_update().execution_options(populate_existing=True))
     cls=DriverSettlementEvent if admin else DriverFeeCollection
     digest=sha256(json.dumps([earning_id,payload.model_dump(mode='json')],sort_keys=True).encode()).hexdigest()
     previous=db.scalar(select(cls).where(cls.actor_user_id==user.user_id,cls.request_key==payload.request_key).with_for_update().execution_options(populate_existing=True))
+    # Reusing a request key confirms the original operation only when every hashed input still matches.
     if previous:
         if previous.request_hash!=digest:raise HTTPException(409,'Request key conflicts with a different financial operation')
         return view(earning,collections,events,private=admin)
+    # Rebuild the current state from locked events before checking whether this next transition is permitted.
     current=view(earning,collections,events)
     check_transition(current['status'],payload.kind,current['collection_verified'])
     if not admin:

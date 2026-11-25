@@ -1,3 +1,4 @@
+# Purpose: Render admin reports data into CSV for spreadsheet export, including safe text and money formatting.
 """Export the same validated report and bounded comparisons; never recalculate money."""
 import csv
 from io import StringIO
@@ -11,6 +12,7 @@ LABELS = {
 }
 
 
+# Project the localized report sections and business rows into the CSV export structure.
 def export_rows(report, comparisons, language='en'):
     labels=LABELS[language]
     data=report.model_dump(mode='json')
@@ -37,6 +39,7 @@ def export_rows(report, comparisons, language='en'):
     for row in comparisons: yield [money(getattr(row,key)) if key in ('product_order_total','credit_sales','repayments','outstanding','advances') else getattr(row,key) for key in fields]
 
 
+# Render report csv for the admin reports csv workflow.
 def render_report_csv(report, comparisons, language='en'):
     output=StringIO(newline='')
     writer=csv.writer(output,quoting=csv.QUOTE_ALL,lineterminator='\r\n')

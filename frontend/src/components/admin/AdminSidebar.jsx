@@ -64,9 +64,10 @@ export default function AdminSidebar() {
 
   const menu = (
     <div className="flex h-full flex-col bg-[#10243E] text-white">
-      <div className="border-b border-white/10 px-7 py-7">
-        <div className="p-2"><BrandLogo /></div>
-        <p className="mt-1 text-xs font-semibold tracking-widest text-[#12B8A6]">{tr("PLATFORM ADMIN")}</p>
+      <div className="relative border-b border-white/10 px-6 pb-7 pt-9">
+        <BrandLogo tone="dark" />
+        {/* Keep the role label inside the bottom padding so the logo area matches the Customer and Driver sidebars. */}
+        <p className="absolute bottom-2 left-6 text-xs font-semibold tracking-widest text-[#12B8A6]">{tr("PLATFORM ADMIN")}</p>
       </div>
 
       <nav

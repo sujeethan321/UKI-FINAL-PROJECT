@@ -29,10 +29,16 @@ source. All required settings must match the reviewed policy. Other modes keep
 their existing source precedence. Conflicting inherited settings, inherited DB
 password/JWT and external provider credentials are rejected rather than silently
 replaced. Process settings are restored in `finally`, including partial credential
-and preflight failures. No `.env` changes are needed.
+and preflight failures. The default mode does not need dotenv settings.
+`-EnableAI` reads only allowlisted AI settings from `backend/.env`, enables AI,
+and keeps Stripe sandbox disabled. `-EnableIntegrations` additionally enables
+Stripe sandbox and requires its test credentials, prices, and portal settings.
+Neither mode lets dotenv replace the pinned database, JWT, TLS, or feature flags.
 
 Address book, address checkout, support and Driver Finance are proposed enabled;
-AI and Stripe sandbox are disabled, rate limiting stays local. Address checkout
+AI and Stripe sandbox are disabled by default; the explicit switches above select
+the integration mode. INFO and request logs appear in the terminal, and rate
+limiting stays local. Address checkout
 depends on address book AND Driver Finance. All three existing rollout services
 require matching head DBA attestations and retain their request-time schema and
 CHECK/uniqueness validation. `-ConfirmDbaHeadAttestation` means the operator has
@@ -41,11 +47,12 @@ and restricted runtime grants. It is an explicit operator assertion, not a fresh
 independent trigger inspection or cryptographic attestation. The DML-only account
 does not need TRIGGER privileges. Do not supply the switch without that evidence.
 
-The new launcher does not configure/enable Driver private document storage.
-Dotenv-only storage configuration is deliberately not imported. If document
-submission is needed later, separately verify its existing protected path/ACLs
-and provide the approved `DRIVER_DOCUMENT_PRIVATE_ROOT` process setting. Missing
-storage remains fail-closed; this task does not enable uploads.
+The launcher now supplies the operator-provided existing document root
+`C:\Users\admin\AppData\Local\LankaPex\DriverVerificationDocuments` through
+`DRIVER_DOCUMENT_PRIVATE_ROOT`. It does not create the directory or change ACLs.
+The document service retains its path and private-permission checks; missing or
+inaccessible storage remains fail-closed. This path could not be verified from
+the agent account because metadata access was denied.
 
 Source inspection and an offline import under blocked network/DB connections,
 process launches, schema creation and background-thread starts found no automatic

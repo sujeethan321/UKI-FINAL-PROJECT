@@ -177,7 +177,7 @@ export default function App() {
               </Route>
             </Route>
 
-            {/* Administrator-only pages */}
+            {/* Administrator-only pages */}  
             <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<Navigate to="/admin/dashboard" replace />} />

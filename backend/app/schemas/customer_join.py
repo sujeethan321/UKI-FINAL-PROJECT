@@ -51,3 +51,4 @@ class JoinRequestList(BaseModel):
 class JoinRequestStatus(BaseModel):
     request_id: int | None
     status: Literal["none", "pending", "approved", "rejected", "cancelled", "already_linked"]
+    

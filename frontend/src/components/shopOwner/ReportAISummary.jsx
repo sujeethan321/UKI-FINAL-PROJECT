@@ -1,3 +1,4 @@
+// Purpose: Render the reusable report ai summary interface and keep its presentation and interactions together.
 import {useContext,useEffect,useState,useSyncExternalStore} from 'react';
 import Select from '../ui/Select';
 import {AuthContext} from '../../context/AuthContext';
@@ -5,12 +6,15 @@ import {useAppTranslation} from '../../i18n/useAppTranslation';
 import {generateReportSummary} from '../../services/reportAIService';
 import {createReportAIReader,reportQuestions} from '../../utils/reportAI';
 
+// Render the summary session interface and connect its controls to the state and callbacks defined here.
 function SummarySession({scope,...props}){
  const [reader]=useState(()=>createReportAIReader(generateReportSummary,scope));
  const state=useSyncExternalStore(reader.subscribe,reader.getSnapshot,reader.getSnapshot);
+ // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
  useEffect(()=>{reader.start();return()=>reader.dispose();},[reader]);
  return <ReportAISummaryView {...props} question={scope.question} language={scope.language} state={state} onSubmit={event=>{event.preventDefault();reader.generate();}}/>;
 }
+// Render the report ai summary interface and connect its controls to the state and callbacks defined here.
 export default function ReportAISummary({businessId,report,disabled=false}){
  const [question,setQuestion]=useState('credit_overview'),[language,setLanguage]=useState('en');
  const {user,token,isAuthenticated}=useContext(AuthContext)||{};
@@ -19,6 +23,7 @@ export default function ReportAISummary({businessId,report,disabled=false}){
  return <SummarySession key={[user?.user_id,token,businessId,scope.start,scope.end,question,language,disabled,authorized].join(':')}
   scope={scope} report={report} disabled={disabled||!authorized} onQuestion={setQuestion} onLanguage={setLanguage}/>;
 }
+// Render the report ai summary view interface and connect its controls to the state and callbacks defined here.
 export function ReportAISummaryView({report,disabled,question='credit_overview',language,state,onSubmit,onQuestion,onLanguage}){
  const {tr}=useAppTranslation();const data=state.data;
  return <section className="rounded-xl border border-[#E1EAF4] bg-white p-5">

@@ -1,3 +1,4 @@
+# Purpose: Define typed support API payloads so incoming data is validated and outgoing fields have an explicit contract.
 """Strict commands. Creator/role and financial state are never client authority."""
 from datetime import date
 from typing import Literal
@@ -7,8 +8,10 @@ Category=Literal['account','credit_sale','repayment','credit_balance','order','d
 Status=Literal['open','assigned','investigating','awaiting_user','resolved','closed']
 Priority=Literal['low','normal','high','urgent']
 
+# Define the strict field contract used when validating or serializing API data.
 class Strict(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
+    # Validate plain before the schema accepts the value.
     @field_validator('*')
     @classmethod
     def plain(cls,value):
@@ -16,10 +19,12 @@ class Strict(BaseModel):
             raise ValueError('Use nonblank plain text without control characters')
         return value
 
+# Define the reference field contract used when validating or serializing API data.
 class Reference(Strict):
     kind:Literal['order','delivery','credit_account','ledger_entry','earning']
     record_id:str=Field(min_length=1,max_length=36)
 
+# Define the create case field contract used when validating or serializing API data.
 class CreateCase(Strict):
     category:Category
     subject:str=Field(min_length=3,max_length=120)
@@ -29,6 +34,7 @@ class CreateCase(Strict):
     related:Reference|None=None
     request_key:str=Field(min_length=16,max_length=100,pattern=r'^[A-Za-z0-9_-]+$')
 
+# Define the command field contract used when validating or serializing API data.
 class Command(Strict):
     action:Literal['message','internal_note','assignment','priority','status','reopen']
     expected_version:int=Field(ge=1)
@@ -39,6 +45,7 @@ class Command(Strict):
     status:Status|None=None
     reason:str|None=Field(default=None,min_length=3,max_length=2000)
 
+    # Validate fields match before the schema accepts the value.
     @model_validator(mode='after')
     def fields_match(self):
         required={'message':{'body'},'internal_note':{'body'},'assignment':{'admin_id'},'priority':{'priority'},'status':{'status','reason'},'reopen':{'reason'}}[self.action]
@@ -46,6 +53,7 @@ class Command(Strict):
         if present!=required:raise ValueError('Fields do not match this support action')
         return self
 
+# Define the case filters field contract used when validating or serializing API data.
 class CaseFilters(Strict):
     status:Status|None=None
     category:Category|None=None

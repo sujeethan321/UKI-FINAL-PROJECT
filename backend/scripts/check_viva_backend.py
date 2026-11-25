@@ -8,6 +8,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.core import viva_tls
 from app.core.viva_runtime_policy import ENVIRONMENT, REVISION, dotenv_disabled
+from app.core.viva_runtime_policy import expected_environment, integrations_enabled
 
 TARGET = 'lankapex_viva_db'
 ACCOUNT = 'lankapex_viva_runtime@127.0.0.1'
@@ -25,7 +26,7 @@ def require(ok, code):
 
 def validate_configuration(settings, url):
     require(dotenv_disabled(), 'ISOLATED_CONFIGURATION_REQUIRED')
-    for name, expected in ENVIRONMENT.items():
+    for name, expected in expected_environment().items():
         if name == 'LANKAPEX_VIVA_RUNTIME':
             continue
         value = getattr(settings, name)
@@ -43,8 +44,16 @@ def validate_configuration(settings, url):
             'ENGINE_OPTIONS_MISMATCH')
     require(len(settings.JWT_SECRET_KEY) >= 64 and bool(settings.MYSQL_PASSWORD),
             'CREDENTIAL_INVALID')
-    require(not settings.GROQ_API_KEY and not settings.STRIPE_TEST_SECRET_KEY
-            and not settings.STRIPE_WEBHOOK_SECRET, 'INTEGRATION_CREDENTIAL_PRESENT')
+    if integrations_enabled():
+        # Require only the credentials for the selected mode; Settings validates their format without logging them.
+        require(bool(settings.GROQ_API_KEY), 'AI_CONFIGURATION_REQUIRED')
+        if settings.STRIPE_SANDBOX_ENABLED:
+            require(bool(settings.STRIPE_TEST_SECRET_KEY and settings.STRIPE_WEBHOOK_SECRET), 'STRIPE_CONFIGURATION_REQUIRED')
+        else:
+            require(not settings.STRIPE_TEST_SECRET_KEY and not settings.STRIPE_WEBHOOK_SECRET, 'STRIPE_CREDENTIAL_PRESENT')
+    else:
+        require(not settings.GROQ_API_KEY and not settings.STRIPE_TEST_SECRET_KEY
+                and not settings.STRIPE_WEBHOOK_SECRET, 'INTEGRATION_CREDENTIAL_PRESENT')
 
 
 def validate_identity(row):

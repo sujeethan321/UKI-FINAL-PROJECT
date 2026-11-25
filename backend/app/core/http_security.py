@@ -7,10 +7,33 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from sqlalchemy.exc import DBAPIError
 from app.core.rate_limit import configure_rate_limits
 from app.core.request_limits import RequestBodyLimitMiddleware
 
 logger = logging.getLogger("lankapex.security")
+
+
+def database_failure_diagnostic(exc):
+    """Numeric driver code only; never inspect/render SQL, params or messages."""
+    if not isinstance(exc, DBAPIError):
+        return 'UNAVAILABLE', 'NOT_DBAPI_ERROR'
+    args = getattr(exc.orig, 'args', ())
+    code = args[0] if isinstance(args, tuple) and args else None
+    if type(code) is not int or not 1000 <= code <= 9999:
+        return 'UNAVAILABLE', 'DATABASE_ERROR_UNCLASSIFIED'
+    categories = {
+        1040: 'CONNECTION_LIMIT', 1044: 'DATABASE_ACCESS_DENIED',
+        1045: 'AUTHENTICATION_FAILED', 1054: 'SCHEMA_COLUMN_MISMATCH',
+        1142: 'STATEMENT_PERMISSION_DENIED', 1143: 'COLUMN_PERMISSION_DENIED',
+        1146: 'SCHEMA_TABLE_MISSING', 1205: 'LOCK_WAIT_TIMEOUT',
+        1213: 'DEADLOCK', 1290: 'SERVER_RESTRICTION',
+        2002: 'CONNECTION_FAILED', 2003: 'CONNECTION_FAILED',
+        2006: 'CONNECTION_LOST', 2013: 'CONNECTION_LOST',
+        2026: 'TLS_CONNECTION_FAILED', 2055: 'CONNECTION_LOST',
+        3024: 'QUERY_TIMEOUT',
+    }
+    return code, categories.get(code, 'DATABASE_ERROR_UNCLASSIFIED')
 
 
 # Configure http security for the http security workflow.
@@ -40,8 +63,10 @@ def configure_http_security(app, settings):
         except Exception as exc:
             # Catch before ServerErrorMiddleware re-raises to ASGI server logging.
             route = request.scope.get("route")
-            logger.error("Unhandled %s on %s %s request_id=%s", type(exc).__name__, request.method,
-                         getattr(route, "path", "<unmatched>"), request_id)
+            mysql_code, category = database_failure_diagnostic(exc)
+            logger.error("Unhandled %s on %s %s request_id=%s mysql_code=%s diagnostic=%s",
+                         type(exc).__name__, request.method,
+                         getattr(route, "path", "<unmatched>"), request_id, mysql_code, category)
             response = JSONResponse(status_code=500, content={"detail": "Internal server error"})
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

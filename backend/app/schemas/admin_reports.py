@@ -1,9 +1,11 @@
+# Purpose: Define typed admin reports API payloads so incoming data is validated and outgoing fields have an explicit contract.
 """Aggregate-only Admin reporting contracts. No customer identities or raw events."""
 from datetime import date, datetime
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+# Define the filters field contract used when validating or serializing API data.
 class Filters(BaseModel):
     model_config = ConfigDict(extra='forbid')
     start_date: date | None = None
@@ -15,12 +17,14 @@ class Filters(BaseModel):
     direction: Literal['asc','desc'] = 'asc'
 
 
+# Define the domain field contract used when validating or serializing API data.
 class Domain(BaseModel):
     counts: dict[str, int]
     amounts: dict[str, str] = Field(default_factory=dict)
     daily: list[dict[str, str | int]] = Field(default_factory=list)
 
 
+# Define the business row field contract used when validating or serializing API data.
 class BusinessRow(BaseModel):
     business_id: int
     business_name: str
@@ -33,6 +37,7 @@ class BusinessRow(BaseModel):
     advances: str
 
 
+# Define the overview field contract used when validating or serializing API data.
 class Overview(BaseModel):
     generated_at: datetime
     database_today: date
@@ -53,6 +58,7 @@ class Overview(BaseModel):
     credit: Domain
 
 
+# Define the comparisons field contract used when validating or serializing API data.
 class Comparisons(BaseModel):
     report: Overview
     total: int

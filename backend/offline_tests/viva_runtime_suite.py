@@ -167,6 +167,80 @@ class RuntimeTests(unittest.TestCase):
             self.assertTrue(settings.ADDRESS_CHECKOUT_ENABLED)
             self.assertIsNone(settings.GROQ_API_KEY)
 
+    def integration_environment(self):
+        # Fictional inputs only; these tests never contact Groq, Stripe, or MySQL.
+        return dict(LANKAPEX_VIVA_INTEGRATIONS='true', AI_ENABLED='true', STRIPE_SANDBOX_ENABLED='true')
+
+    def integration_dotenv(self):
+        return dict(
+            GROQ_API_KEY='gsk_0123456789abcdefghijklmnopqrstuvwxyz',
+            STRIPE_TEST_SECRET_KEY='sk_test_fictional', STRIPE_WEBHOOK_SECRET='whsec_fictional',
+            STRIPE_PRO_MONTH_PRICE='price_pro_month', STRIPE_PRO_YEAR_PRICE='price_pro_year',
+            STRIPE_BUSINESS_MONTH_PRICE='price_business_month', STRIPE_BUSINESS_YEAR_PRICE='price_business_year',
+            STRIPE_PORTAL_CONFIGURATION='bpc_fictional', STRIPE_RETURN_ORIGIN='http://127.0.0.1:5176',
+            MYSQL_DATABASE='unapproved_db', MYSQL_PASSWORD='unapproved_password', JWT_SECRET_KEY='unapproved_key',
+            APP_DEBUG='true', AI_ENABLED='false', STRIPE_SANDBOX_ENABLED='false',
+        )
+
+    def test_integration_mode_reads_only_allowlisted_dotenv_fields(self):
+        from pydantic_settings import DotEnvSettingsSource
+        with patch.dict(os.environ, self.integration_environment()), patch.object(Path, 'is_file', return_value=True), patch.object(DotEnvSettingsSource, '__call__', return_value=self.integration_dotenv()):
+            settings = self.config.load_settings()
+            self.assertTrue(settings.AI_ENABLED)
+            self.assertTrue(settings.STRIPE_SANDBOX_ENABLED)
+            self.assertEqual(settings.MYSQL_DATABASE, ENV['MYSQL_DATABASE'])
+            self.assertEqual(settings.MYSQL_PASSWORD, ENV['MYSQL_PASSWORD'])
+            self.assertEqual(settings.JWT_SECRET_KEY, ENV['JWT_SECRET_KEY'])
+            self.assertFalse(settings.APP_DEBUG)
+            self.gate.validate_configuration(settings, self.url)
+
+    def test_integrations_cannot_be_enabled_by_flags_alone(self):
+        with patch.dict(os.environ, {'AI_ENABLED':'true', 'STRIPE_SANDBOX_ENABLED':'true'}):
+            with self.assertRaises(ValueError):
+                dotenv_disabled()
+
+    def test_ai_only_needs_no_stripe_settings_and_ignores_dotenv_stripe(self):
+        from pydantic_settings import DotEnvSettingsSource
+        env = dict(LANKAPEX_VIVA_INTEGRATIONS='ai-only', AI_ENABLED='true', STRIPE_SANDBOX_ENABLED='false')
+        # Even invalid Stripe values in .env are outside this mode's settings source.
+        values = self.integration_dotenv()
+        values['STRIPE_TEST_SECRET_KEY'] = 'sk_live_not_loaded'
+        with patch.dict(os.environ, env), patch.object(Path, 'is_file', return_value=True), patch.object(DotEnvSettingsSource, '__call__', return_value=values):
+            settings = self.config.load_settings()
+            self.assertTrue(settings.AI_ENABLED)
+            self.assertFalse(settings.STRIPE_SANDBOX_ENABLED)
+            self.assertIsNone(settings.STRIPE_TEST_SECRET_KEY)
+            self.assertIsNone(settings.STRIPE_WEBHOOK_SECRET)
+            self.gate.validate_configuration(settings, self.url)
+
+    def test_ai_only_rejects_inherited_stripe_credentials(self):
+        env = dict(LANKAPEX_VIVA_INTEGRATIONS='ai-only', AI_ENABLED='true', STRIPE_SANDBOX_ENABLED='false', STRIPE_TEST_SECRET_KEY='sk_test_fictional')
+        with patch.dict(os.environ, env), self.assertRaises(ValueError):
+            dotenv_disabled()
+
+    def test_invalid_integration_opt_in_rejected(self):
+        with patch.dict(os.environ, {'LANKAPEX_VIVA_INTEGRATIONS':'false'}), self.assertRaises(ValueError):
+            dotenv_disabled()
+
+    def test_integration_mode_still_rejects_database_override(self):
+        with patch.dict(os.environ, dict(self.integration_environment(), DATABASE_URL='unapproved')):
+            with self.assertRaises(ValueError):
+                dotenv_disabled()
+
+    def test_integration_mode_rejects_live_stripe_key(self):
+        from pydantic_settings import DotEnvSettingsSource
+        values = self.integration_dotenv()
+        values['STRIPE_TEST_SECRET_KEY'] = 'sk_live_fictional'
+        with patch.dict(os.environ, self.integration_environment()), patch.object(Path, 'is_file', return_value=True), patch.object(DotEnvSettingsSource, '__call__', return_value=values):
+            with self.assertRaises(RuntimeError):
+                self.config.load_settings()
+
+    def test_integration_mode_requires_provider_configuration(self):
+        from pydantic_settings import DotEnvSettingsSource
+        with patch.dict(os.environ, self.integration_environment()), patch.object(Path, 'is_file', return_value=True), patch.object(DotEnvSettingsSource, '__call__', return_value={}):
+            with self.assertRaises(RuntimeError):
+                self.config.load_settings()
+
     def test_other_modes_unchanged(self):
         with patch.dict(os.environ, {}, clear=True):
             self.assertFalse(dotenv_disabled())
@@ -322,6 +396,29 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertNotIn('password=', output)
         self.assertNotIn('customer details', output)
+
+    def test_http_database_failure_logs_only_numeric_code(self):
+        from fastapi.testclient import TestClient
+        from sqlalchemy.exc import OperationalError
+        from app.main import app
+        routes = list(app.router.routes)
+        async def failed_query():
+            raise OperationalError('private-SQL', {'password': 'private-parameter'},
+                                   Exception(2013, 'private-error-message'))
+        app.add_api_route('/offline-database-diagnostic', failed_query, methods=['GET'])
+        client = TestClient(app)
+        try:
+            with self.assertLogs('lankapex.security', level='ERROR') as captured:
+                response = client.get('/offline-database-diagnostic')
+            self.assertEqual(response.status_code, 500)
+            self.assertEqual(response.json(), {'detail': 'Internal server error'})
+            output = ' '.join(captured.output)
+            self.assertIn('mysql_code=2013', output)
+            self.assertIn('diagnostic=CONNECTION_LOST', output)
+            self.assertNotIn('private-', output)
+        finally:
+            client.close()
+            app.router.routes[:] = routes
 
     def test_ca_checksum_rejected_before_connection(self):
         engine, _ = self.mock_engine()

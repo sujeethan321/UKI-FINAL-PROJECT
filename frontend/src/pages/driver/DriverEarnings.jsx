@@ -1,3 +1,4 @@
+// Purpose: Render the driver earnings screen and connect its user interactions to shared application state and services.
 import {Link} from 'react-router-dom';
 import {useEffect,useRef,useState} from 'react';
 import {Wallet,Clock,BarChart3,Download} from 'lucide-react';
@@ -9,6 +10,7 @@ import {money} from '../../utils/shopping';
 const card='rounded-xl border border-[#E1EAF4] bg-white p-5';
 const button='rounded-lg border border-[#DAE5F3] px-4 py-2 text-sm';
 
+// Render the driver earnings view interface and connect its controls to the state and callbacks defined here.
 export function DriverEarningsView({data,loading,error,period,onPeriod,onRefresh,onDeclare,busy,uncertain}){
  const {tr}=useAppTranslation();
  return <div className="space-y-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><h2>{tr('My Earnings')}</h2><p className="mt-2 text-sm text-[#52698A]">{tr('Customer pays the Driver directly. Declarations require independent Admin verification.')}</p></div><button type="button" disabled className="inline-flex items-center gap-2 rounded-lg border border-[#DAE5F3] bg-white px-4 py-3 text-sm text-[#64748B]"><Download size={18}/>{tr('Export unavailable')}</button></div>
@@ -25,6 +27,7 @@ export function DriverEarningsView({data,loading,error,period,onPeriod,onRefresh
  <section className={card}><h3 className="text-xl font-bold">{tr('Payout Information')}</h3><p className="mt-4">{tr('Directly settled fees cannot be paid again by the platform. Platform payouts are unsupported.')}</p>{data&&<dl className="mt-3">{[['Collection declared','declared'],['Directly settled','directly_settled'],['Exception review','review']].map(([label,key])=><div key={key} className="flex justify-between"><dt>{tr(label)}</dt><dd>{money(data.summary[key])}</dd></div>)}</dl>}</section></div>;
 }
 
+// Render the collection form interface and connect its controls to the state and callbacks defined here.
 function CollectionForm({row,onDeclare,disabled}){
  const {tr}=useAppTranslation();const [evidence,setEvidence]=useState(''),[amount,setAmount]=useState(row.amount),[kind,setKind]=useState('declared');
  return <form onSubmit={e=>{e.preventDefault();onDeclare(row,{kind,amount,evidence});}} className="mt-3 space-y-2"><fieldset disabled={disabled}>
@@ -34,11 +37,14 @@ function CollectionForm({row,onDeclare,disabled}){
  <button type="submit" className={button}>{tr('Submit declaration')}</button></fieldset></form>;
 }
 
+// Render the driver earnings interface and connect its controls to the state and callbacks defined here.
 export default function DriverEarnings(){
  const {user,token}=useAuth();const [period,setPeriod]=useState('month'),[page,setPage]=useState(1),[revision,setRevision]=useState(0);
  const [result,setResult]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[uncertain,setUncertain]=useState(false);
  const attempt=useRef(null),lock=useRef(false),alive=useRef(true);const context=`${user?.user_id}:${token}:${period}:${page}:${revision}`;
+ // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+ // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
  useEffect(()=>{const controller=new AbortController();readDriverEarnings({period,page,page_size:20},controller.signal).then(data=>{
   if(!controller.signal.aborted){
    const verified=parseEarnings(data,user.user_id),intent=attempt.current;
@@ -49,6 +55,7 @@ export default function DriverEarnings(){
   }
  }).catch(error=>{if(!controller.signal.aborted)setResult({context,error:error?.response?.data?.detail?.code==='DRIVER_FINANCE_NOT_ENABLED'?'Driver finance is not enabled.':error?.response?.data?.detail?.code==='DRIVER_FINANCE_SCHEMA_NOT_READY'?'Driver finance requires verified schema readiness.':'Earnings could not be verified. Refresh recorded history before retrying.'});});return()=>controller.abort();},[context,period,page,user.user_id]);
  const current=result?.context===context?result:null;
+ // Record the driver collection declaration and retain its request identity if the outcome is uncertain.
  async function declare(row,fields){
   if(lock.current||uncertain)return;lock.current=true;setBusy(true);setError('');
   const key=JSON.stringify([row.earning_id,fields]);if(attempt.current?.key!==key)attempt.current={key,earningId:row.earning_id,payload:{...fields,request_key:crypto.randomUUID()}};

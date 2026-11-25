@@ -1,6 +1,6 @@
 # Dedicated operator launcher. Preflight is read-only; server startup requires release.
 [CmdletBinding()]
-param([switch]$PreflightOnly,[switch]$ConfirmDbaHeadAttestation,[switch]$ConfirmMaintenanceReleased)
+param([switch]$PreflightOnly,[switch]$ConfirmDbaHeadAttestation,[switch]$ConfirmMaintenanceReleased,[switch]$EnableIntegrations,[switch]$EnableAI)
 . (Join-Path $PSScriptRoot 'viva_runtime_credentials.ps1')
 function Invoke-VivaPython {
     param([string]$Python,[string[]]$Arguments)
@@ -8,7 +8,7 @@ function Invoke-VivaPython {
     if ($LASTEXITCODE -ne 0) { throw 'child_failed' }
 }
 function Invoke-VivaRuntime {
-param([switch]$PreflightOnly,[switch]$ConfirmDbaHeadAttestation,[switch]$ConfirmMaintenanceReleased)
+param([switch]$PreflightOnly,[switch]$ConfirmDbaHeadAttestation,[switch]$ConfirmMaintenanceReleased,[switch]$EnableIntegrations,[switch]$EnableAI)
 $ErrorActionPreference='Stop'
 $stage='CONFIRMATION'; $previous=@{}; $leases=@(); $secrets=@(); $pointers=@(); $locationPushed=$false
 try {
@@ -22,10 +22,24 @@ try {
         MYSQL_DATABASE='lankapex_viva_db'; MYSQL_USER='lankapex_viva_runtime'; MYSQL_TLS_MODE='local_viva_required';
         MYSQL_SSL_CA='C:\Program Files\LankaPex-TLS-Trust\ca.pem'; APP_DEBUG='false'; LOG_LEVEL='INFO'; RATE_LIMIT_MODE='local';
         ADDRESS_BOOK_ENABLED='true'; ADDRESS_CHECKOUT_ENABLED='true'; SUPPORT_ENABLED='true'; DRIVER_FINANCE_ENABLED='true';
+        # Existing private upload storage supplied by the operator; no directory or ACL changes are performed here.
+        DRIVER_DOCUMENT_PRIVATE_ROOT='C:\Users\admin\AppData\Local\LankaPex\DriverVerificationDocuments';
         ADDRESS_DBA_ATTESTED_REVISION='d15a8c902e64'; SUPPORT_DBA_ATTESTED_REVISION='d15a8c902e64'; DRIVER_FINANCE_DBA_ATTESTED_REVISION='d15a8c902e64';
         AI_ENABLED='false'; STRIPE_SANDBOX_ENABLED='false'; CORS_ALLOWED_ORIGINS='http://127.0.0.1:5173,http://127.0.0.1:5176'; ALLOWED_HOSTS='127.0.0.1,localhost'
     }
-    $forbidden=@('LANKAPEX_DISABLE_DOTENV','GROQ_API_KEY','STRIPE_TEST_SECRET_KEY','STRIPE_WEBHOOK_SECRET','DATABASE_URL','SQLALCHEMY_DATABASE_URI','MYSQL_PASSWORD','JWT_SECRET_KEY')
+    # Opt in explicitly; never infer integration enablement from inherited environment variables or .env flags.
+    if ($null -ne [Environment]::GetEnvironmentVariable('LANKAPEX_VIVA_INTEGRATIONS','Process')) { throw 'inherited_conflict' }
+    if ($EnableIntegrations) {
+        $configuration['LANKAPEX_VIVA_INTEGRATIONS']='true'
+        $configuration['AI_ENABLED']='true'
+        $configuration['STRIPE_SANDBOX_ENABLED']='true'
+    } elseif ($EnableAI) {
+        $configuration['LANKAPEX_VIVA_INTEGRATIONS']='ai-only'
+        $configuration['AI_ENABLED']='true'
+    }
+    $forbidden=@('LANKAPEX_DISABLE_DOTENV','DATABASE_URL','SQLALCHEMY_DATABASE_URI','MYSQL_PASSWORD','JWT_SECRET_KEY')
+    if (-not $EnableIntegrations) { $forbidden+=@('STRIPE_TEST_SECRET_KEY','STRIPE_WEBHOOK_SECRET') }
+    if (-not $EnableIntegrations -and -not $EnableAI) { $forbidden+=@('GROQ_API_KEY') }
     $stage='INHERITED_CONFIGURATION'
     foreach ($name in $forbidden) {
         if ($null -ne [Environment]::GetEnvironmentVariable($name,'Process')) { throw 'inherited_conflict' }
@@ -54,7 +68,7 @@ try {
         Write-Output 'VIVA_RUNTIME=PASS_PREFLIGHT_ONLY; SERVER_STARTED=no; FREEZE_UNCHANGED=yes'
     } else {
         $stage='UVICORN'
-        Invoke-VivaPython $python @('-B','-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8001','--log-level','info','--no-access-log')
+        Invoke-VivaPython $python @('-B','-m','uvicorn','app.main:app','--host','127.0.0.1','--port','8001','--log-level','info','--access-log')
     }
     return 0
 } catch {
@@ -69,7 +83,7 @@ try {
 }
 }
 if ($MyInvocation.InvocationName -ne '.') {
-    $result=@(Invoke-VivaRuntime -PreflightOnly:$PreflightOnly -ConfirmDbaHeadAttestation:$ConfirmDbaHeadAttestation -ConfirmMaintenanceReleased:$ConfirmMaintenanceReleased)
+    $result=@(Invoke-VivaRuntime -PreflightOnly:$PreflightOnly -ConfirmDbaHeadAttestation:$ConfirmDbaHeadAttestation -ConfirmMaintenanceReleased:$ConfirmMaintenanceReleased -EnableIntegrations:$EnableIntegrations -EnableAI:$EnableAI)
     $code=$result[-1]
     $result | Select-Object -SkipLast 1 | Write-Output
     exit $code

@@ -1,3 +1,4 @@
+# Purpose: Manage authorized support cases and append-only history with replay checks; support commands do not correct financial records.
 """Transactional case operations only. Never posts financial corrections.
 
 Routes commit once. Case/actor locks serialize retries and optimistic versions.
@@ -19,6 +20,7 @@ TRANSITIONS={'open':{'assigned','investigating','awaiting_user','resolved'},'ass
     'investigating':{'awaiting_user','resolved'},'awaiting_user':{'investigating','resolved'},'resolved':{'closed'},'closed':set()}
 MAX_HISTORY=1000
 
+# Resolve actor using a row lock so the caller can coordinate concurrent changes.
 def actor(db,user,admin=False,lock=False):
     query=select(User).where(User.user_id==user.user_id)
     if lock:query=query.with_for_update().execution_options(populate_existing=True)
@@ -27,6 +29,7 @@ def actor(db,user,admin=False,lock=False):
     if current is None or current.account_status!='active' or current.platform_role not in allowed:raise HTTPException(403,'Support access denied')
     return current
 
+# Build the requester visibility predicate, including explicitly business-shared cases for active owners.
 def visible(user):
     own=SupportCase.creator_id==user.user_id
     if user.platform_role=='shop_owner':
@@ -34,6 +37,7 @@ def visible(user):
         return or_(own,and_(SupportCase.business_shared.is_(True),SupportCase.business_id.in_(memberships)))
     return own
 
+# Resolve scoped using a row lock so the caller can coordinate concurrent changes.
 def scoped(db,user,reference,admin=False,lock=False):
     query=select(SupportCase).where(SupportCase.reference==reference)
     if not admin:query=query.where(visible(user))
@@ -42,14 +46,17 @@ def scoped(db,user,reference,admin=False,lock=False):
     if row is None:raise HTTPException(404,'Support case not found')
     return row
 
+# Fingerprint canonical input so a replay can be compared with the original operation.
 def digest(payload):return sha256(json.dumps(payload.model_dump(mode='json'),sort_keys=True,separators=(',',':')).encode()).hexdigest()
 
+# Project case fields with the public or administrative version and timestamp appropriate to the reader.
 def case_data(row,admin=False):
     data={key:getattr(row,key) for key in ('reference','business_id','business_shared','category','subject','description','priority','status','resolution','resolved_at','created_at')}
     data.update(version=row.version if admin else row.public_version,updated_at=row.updated_at if admin else row.public_updated_at)
     if admin:data.update(creator_id=row.creator_id,assigned_admin_id=row.assigned_admin_id)
     return data
 
+# List cases for the support workflow.
 def list_cases(db,user,filters,admin=False):
     actor(db,user,admin);require_ready(db)
     query=select(SupportCase)
@@ -64,10 +71,12 @@ def list_cases(db,user,filters,admin=False):
     rows=db.scalars(query.order_by(SupportCase.created_at.desc(),SupportCase.case_id.desc()).limit(filters.limit).offset(filters.offset))
     return dict(total=total,limit=filters.limit,offset=filters.offset,cases=[case_data(row,admin) for row in rows],financial_links=finance_capability(db))
 
+# Read the driver-finance rollout flag before exposing finance-related support capabilities.
 def _finance_enabled():
     from app.services.driver_finance_rollout import enabled
     return enabled()
 
+# Expose the driver-finance support capability only after its rollout readiness check.
 def finance_capability(db):
     if not _finance_enabled():return 'unavailable'
     from app.services.driver_finance_rollout import require_ready as finance_ready
@@ -77,6 +86,7 @@ def finance_capability(db):
         raise
     return 'available'
 
+# Query history data for the support workflow.
 def history(db,user,reference,kind,limit=100,offset=0,admin=False):
     actor(db,user,admin);require_ready(db);row=scoped(db,user,reference,admin)
     model=SupportMessage if kind=='messages' else SupportEvent
@@ -92,6 +102,7 @@ def history(db,user,reference,kind,limit=100,offset=0,admin=False):
             **(dict(actor_id=e.actor_id,sequence=e.sequence,visibility=e.visibility) if admin else {})) for e in records]
     return dict(total=total,limit=limit,offset=offset,items=items)
 
+# Query detail data for the support workflow.
 def detail(db,user,reference,admin=False):
     actor(db,user,admin);require_ready(db);row=scoped(db,user,reference,admin)
     references=[]
@@ -102,16 +113,19 @@ def detail(db,user,reference,admin=False):
     return dict(case=case_data(row,admin),references=references,
         messages=history(db,user,reference,'messages',admin=admin),events=history(db,user,reference,'events',admin=admin))
 
+# Append a support event so case history retains the recorded action rather than replacing earlier evidence.
 def append_event(db,row,user,action,payload,visibility='public',previous=None,new=None,message_id=None):
     event=SupportEvent(case_id=row.case_id,actor_id=user.user_id,actor_role=user.platform_role,sequence=row.version,action=action,visibility=visibility,
         previous_value=previous,new_value=new,reason=getattr(payload,'reason',None),message_id=message_id,
         request_key=payload.request_key,request_hash=digest(payload))
     db.add(event);db.flush();return event
 
+# Record the support-event notification through the shared notification service.
 def notify(db,row,event,kind):
     from app.services.notification_service import notify_support_event
     notify_support_event(db,row,event,kind)
 
+# Resolve create using a row lock so the caller can coordinate concurrent changes.
 def create(db,user,payload):
     user=actor(db,user,lock=True);require_ready(db)
     old=db.scalar(select(SupportCase).where(SupportCase.creator_id==user.user_id,SupportCase.request_key==payload.request_key).with_for_update())
@@ -126,6 +140,7 @@ def create(db,user,payload):
     event=append_event(db,row,user,'created',payload,new='open');notify(db,row,event,'support_created')
     return detail(db,user,row.reference)
 
+# Resolve and lock the actor before a support command applies its permission and replay checks.
 def command_actor(db,user,payload,admin):
     participants={}
     if admin and payload.action=='assignment':
@@ -137,6 +152,7 @@ def command_actor(db,user,payload,admin):
     else:user=actor(db,user,admin,lock=True)
     return user,participants
 
+# Apply an authorized support command with request identity, version, and workflow-state checks.
 def command(db,user,reference,payload,admin=False):
     user,participants=command_actor(db,user,payload,admin);require_ready(db);row=scoped(db,user,reference,admin,True)
     if not admin and row.creator_id!=user.user_id:

@@ -1,6 +1,9 @@
+// Purpose: Validate driver financial history and coordinate declarations or review actions without implying a platform payout.
 export const financeLabels={pending:'Pending earning',collection_declared:'Collection declared',directly_settled:'Directly settled',
  exception_review:'Exception review',disputed:'Disputed',reversed:'Refund/reversal pending',refund_pending:'Refund/reversal pending',refund_confirmed:'Refund confirmed',no_fee_due:'No fee due'};
+// Validate the decimal amount representation before using monetary data.
 const amount=value=>typeof value==='string'&&/^\d{1,20}\.\d{2}$/.test(value);
+// Check earnings before the surrounding workflow uses it.
 export function parseEarnings(data,driverId){
  if(data?.driver_user_id!==driverId||data.currency!=='LKR'||!Number.isSafeInteger(data.total)||data.total<0||
  !Number.isSafeInteger(data.page)||data.page<1||!Number.isSafeInteger(data.page_size)||data.page_size<1||data.page_size>50||
@@ -15,6 +18,7 @@ export function parseEarnings(data,driverId){
   if(row.directly_settled!==(row.status==='directly_settled')||(row.directly_settled&&!row.collection_verified)||
     (row.status==='collection_declared'&&row.collection_verified))throw Error('Unverified settlement status');
   seen.add(row.earning_id);
+  // Validate recorded event timestamps before rendering driver financial history.
   const stamp=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T/.test(value)&&Number.isFinite(Date.parse(value));
   if(!stamp(row.created_at)||row.collections.some(e=>!['declared','exception'].includes(e.kind)||typeof e.collection_id!=='string'||!amount(e.amount)||!stamp(e.created_at))||
     row.settlement_events.some(e=>!['direct_settled','disputed','reversed','refund_confirmed'].includes(e.kind)||typeof e.event_id!=='string'||!amount(e.amount)||!stamp(e.created_at)))throw Error('Unverified financial event');

@@ -9,7 +9,7 @@ foreach ($badPath in @((Join-Path $PSScriptRoot 'nonexistent-fictional-credentia
     try { $unused=& $actualReader ([pscustomobject]@{Credential=$badPath}) 'jwt' } catch { $failed=$true; Assert-True ($_.Exception.Message -ceq 'credential_invalid') 'unsafe credential diagnostic' }
     Assert-True $failed 'missing or invalid DPAPI credential accepted'
 }
-$script:calls=@(); $script:failChild=$false; $script:credentialFailure=$false; $script:failJwt=$false; $script:closed=0
+$script:calls=@(); $script:failChild=$false; $script:credentialFailure=$false; $script:failJwt=$false; $script:closed=0; $script:integrationExpected=$false
 function Get-VivaCredentialLease { param($Kind,$Mode) if ($script:credentialFailure) { throw 'credential_missing' }; [pscustomobject]@{Kind=$Kind} }
 function Read-VivaCredential { param($Lease,$Kind) if ($script:credentialFailure -or ($script:failJwt -and $Kind -eq 'jwt')) { throw 'credential_invalid' }; ConvertTo-SecureString ('fictional-only-'+('x'*80)) -AsPlainText -Force }
 function Close-DemoQrStorageLease { param($Lease) $script:closed++ }
@@ -18,7 +18,10 @@ function Invoke-VivaPython {
     $script:calls+=,($Arguments -join ' ')
     Assert-True ($env:MYSQL_DATABASE -ceq 'lankapex_viva_db') 'wrong child database'
     Assert-True ($env:MYSQL_USER -ceq 'lankapex_viva_runtime') 'wrong child account'
-    Assert-True ($env:AI_ENABLED -ceq 'false' -and $env:STRIPE_SANDBOX_ENABLED -ceq 'false') 'external feature enabled'
+    Assert-True ($env:DRIVER_DOCUMENT_PRIVATE_ROOT -ceq 'C:\Users\admin\AppData\Local\LankaPex\DriverVerificationDocuments') 'wrong document storage root'
+    $expected=if ($script:integrationExpected) { 'true' } else { 'false' }
+    Assert-True ($env:AI_ENABLED -ceq $expected -and $env:STRIPE_SANDBOX_ENABLED -ceq $expected) 'integration mode differs'
+    Assert-True (($env:LANKAPEX_VIVA_INTEGRATIONS -ceq 'true') -eq $script:integrationExpected) 'integration opt-in differs'
     Assert-True ($env:LANKAPEX_VIVA_RUNTIME -ceq 'true') 'dotenv isolation absent'
     Assert-True ($env:CORS_ALLOWED_ORIGINS -ceq 'http://127.0.0.1:5173,http://127.0.0.1:5176') 'VIVA origins differ from approved ports'
     if ($script:failChild) { throw 'secret-child-error-not-for-logs' }
@@ -26,6 +29,7 @@ function Invoke-VivaPython {
 # Save and remove only controlled environment settings; never print their values.
 $names=@('LANKAPEX_VIVA_RUNTIME','APP_ENV','MYSQL_HOST','MYSQL_PORT','MYSQL_DATABASE','MYSQL_USER','MYSQL_TLS_MODE','MYSQL_SSL_CA','APP_DEBUG','LOG_LEVEL','RATE_LIMIT_MODE','ADDRESS_BOOK_ENABLED','ADDRESS_CHECKOUT_ENABLED','SUPPORT_ENABLED','DRIVER_FINANCE_ENABLED','ADDRESS_DBA_ATTESTED_REVISION','SUPPORT_DBA_ATTESTED_REVISION','DRIVER_FINANCE_DBA_ATTESTED_REVISION','AI_ENABLED','STRIPE_SANDBOX_ENABLED','CORS_ALLOWED_ORIGINS','ALLOWED_HOSTS','LANKAPEX_DISABLE_DOTENV','GROQ_API_KEY','STRIPE_TEST_SECRET_KEY','STRIPE_WEBHOOK_SECRET','DATABASE_URL','SQLALCHEMY_DATABASE_URI','MYSQL_PASSWORD','JWT_SECRET_KEY')
 $saved=@{}
+$names+=@('LANKAPEX_VIVA_INTEGRATIONS','DRIVER_DOCUMENT_PRIVATE_ROOT')
 try {
     foreach ($name in $names) { $saved[$name]=[Environment]::GetEnvironmentVariable($name,'Process'); [Environment]::SetEnvironmentVariable($name,$null,'Process') }
     $env:LOG_LEVEL='INFO'
@@ -33,7 +37,13 @@ try {
     Assert-True ($result[-1] -eq 0) 'preflight failed'
     Assert-True ($script:calls.Count -eq 1 -and $script:calls[0] -eq '-B scripts/check_viva_backend.py') 'preflight started service'
     Assert-True ($env:LOG_LEVEL -ceq 'INFO' -and $null -eq $env:MYSQL_PASSWORD -and $null -eq $env:LANKAPEX_VIVA_RUNTIME) 'success environment not restored'
+    Assert-True ($null -eq $env:DRIVER_DOCUMENT_PRIVATE_ROOT) 'document path environment not restored'
     Assert-True ($script:closed -eq 2) 'credential leases leaked'
+    $script:integrationExpected=$true
+    $result=@(Invoke-VivaRuntime -PreflightOnly -ConfirmDbaHeadAttestation -EnableIntegrations)
+    Assert-True ($result[-1] -eq 0) 'integrated preflight failed'
+    Assert-True ($null -eq $env:LANKAPEX_VIVA_INTEGRATIONS -and $null -eq $env:AI_ENABLED -and $null -eq $env:STRIPE_SANDBOX_ENABLED) 'integration environment not restored'
+    $script:integrationExpected=$false
     $script:failChild=$true
     $result=@(Invoke-VivaRuntime -PreflightOnly -ConfirmDbaHeadAttestation)
     Assert-True ($result[-1] -eq 1) 'child failure accepted'

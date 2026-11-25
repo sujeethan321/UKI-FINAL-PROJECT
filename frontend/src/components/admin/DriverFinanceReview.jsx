@@ -1,15 +1,19 @@
+// Purpose: Render the reusable driver finance review interface and keep its presentation and interactions together.
 import {useEffect,useRef,useState} from 'react';
 import {useAppTranslation} from '../../i18n/useAppTranslation';
 import {readAdminDriverEarnings,verifyDriverCollection} from '../../services/driverFinanceService';
 import {parseEarnings,financeLabels} from '../../utils/driverFinance';
 import {money} from '../../utils/shopping';
 
+// Render the driver finance review interface and connect its controls to the state and callbacks defined here.
 export default function DriverFinanceReview({driverId}){
  const {tr}=useAppTranslation();const [data,setData]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[revision,setRevision]=useState(0);
  const [selection,setSelection]=useState(''),[kind,setKind]=useState('direct_settled'),[evidence,setEvidence]=useState('');
  const [page,setPage]=useState(1);
  const attempt=useRef(null),lock=useRef(false),alive=useRef(true);
+ // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+ // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
  useEffect(()=>{const controller=new AbortController();readAdminDriverEarnings(driverId,controller.signal,page).then(value=>{
   if(!controller.signal.aborted){
    const verified=parseEarnings(value,driverId),intent=attempt.current;setData(verified);
@@ -18,6 +22,7 @@ export default function DriverFinanceReview({driverId}){
    }
   }
  }).catch(()=>{if(!controller.signal.aborted)setError('Driver financial review is unavailable.');});return()=>controller.abort();},[driverId,revision,page]);
+ // Submit the current form through its workflow and expose pending, success, or error state to the interface.
  async function submit(event){
   event.preventDefault();if(lock.current)return;const row=data?.earnings.find(r=>r.earning_id===selection);if(!row)return;
   const declaration=row.collections.find(c=>c.kind==='declared');

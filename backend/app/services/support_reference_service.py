@@ -1,21 +1,26 @@
+# Purpose: Check access to records attached to a support case so a guessed identifier cannot disclose another account record.
 """Validate references using current ownership; no financial mutations or documents."""
 from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy import select
 from app.models import Business,BusinessMember,CustomerProfile,CreditAccount,LedgerEntry,Order,DeliveryRequest,DeliveryAssignment
 
+# Return the same unavailable-record error for inaccessible or missing support references.
 def missing():raise HTTPException(404,'Related record is unavailable for this account')
 
+# Resolve owner using a row lock so the caller can coordinate concurrent changes.
 def owner(db,user_id,business_id):
     return db.scalar(select(BusinessMember.business_id).where(BusinessMember.business_id==business_id,
         BusinessMember.user_id==user_id,BusinessMember.business_role=='owner',BusinessMember.membership_status=='active').with_for_update(read=True)) is not None
 
+# Query business access data for the support reference workflow.
 def business_access(db,user,business_id):
     if user.platform_role=='shop_owner':return owner(db,user.user_id,business_id)
     if user.platform_role=='customer':
         return db.scalar(select(CustomerProfile.customer_id).where(CustomerProfile.business_id==business_id,CustomerProfile.user_id==user.user_id).limit(1)) is not None
     return False
 
+# Query account access data for the support reference workflow.
 def account_access(db,user,account):
     if account is None:missing()
     if user.platform_role=='shop_owner' and owner(db,user.user_id,account.creditor_business_id):return account.creditor_business_id
@@ -25,6 +30,7 @@ def account_access(db,user,account):
         if profile:return account.creditor_business_id
     missing()
 
+# Query validate data for the support reference workflow.
 def validate(db,user,payload):
     related=payload.related;derived=None;values={}
     if related:

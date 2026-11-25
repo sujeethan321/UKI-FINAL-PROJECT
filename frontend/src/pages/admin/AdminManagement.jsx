@@ -115,3 +115,5 @@ export default function AdminManagement({ kind }) {
   if (!isAuthenticated || user?.platform_role !== 'admin' || user.account_status !== 'active') return null;
   return <ManagementSession key={kind + ':' + user.user_id + ':' + token} kind={kind} />;
 }
+
+

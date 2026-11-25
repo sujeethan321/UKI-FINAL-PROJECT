@@ -41,6 +41,7 @@ class CustomerAddress(Base):
     address_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     create_request_key: Mapped[str | None] = mapped_column(String(100,collation='utf8mb4_bin'),nullable=True)
+    # Retain the create request hash fingerprint used to compare values without persisting the corresponding raw value here.
     create_request_hash: Mapped[str | None] = mapped_column(String(64),nullable=True)
     label: Mapped[str] = mapped_column(String(50), nullable=False)
     recipient_name: Mapped[str] = mapped_column(String(150), nullable=False)

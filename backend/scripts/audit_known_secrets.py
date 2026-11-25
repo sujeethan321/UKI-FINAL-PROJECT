@@ -22,8 +22,9 @@ def known_secrets():
             key, value = line.split('=', 1)
             key, value = key.strip(), value.strip().strip('\"\'')
             if (value and 'EXPIRE' not in key.upper()
-                    and any(word in key.upper() for word in ('PASSWORD', 'SECRET', 'TOKEN', 'API_KEY'))):
-                secrets[key] = value.encode()
+                  and key.upper() != 'GROQ_MAX_OUTPUT_TOKENS'
+                  and any(word in key.upper() for word in ('PASSWORD', 'SECRET', 'TOKEN', 'API_KEY'))):
+             secrets[key] = value.encode()
     return secrets
 
 

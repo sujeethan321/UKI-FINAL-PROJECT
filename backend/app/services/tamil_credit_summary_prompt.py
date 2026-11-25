@@ -77,6 +77,7 @@ def account_bundle(snapshot):
     sections=[dict(section_id='account',fact_ids=list(facts),observation='overdue_unavailable' if snapshot.overdue_balance is None else 'provided_overdue')]
     return facts,sections
 
+# Build tamil credit summary request for the tamil credit summary prompt workflow.
 def build_tamil_credit_summary_request(snapshot: FinancialSummarySnapshot) -> GenerationRequest:
     if not isinstance(snapshot,FinancialSummarySnapshot):raise TypeError('snapshot must be FinancialSummarySnapshot')
     from app.services.financial_explanation import request

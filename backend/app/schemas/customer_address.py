@@ -1,3 +1,4 @@
+# Purpose: Define typed customer address API payloads so incoming data is validated and outgoing fields have an explicit contract.
 """Customer-owned address book; no client ownership or verification claims."""
 import unicodedata
 from typing import Annotated
@@ -5,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Positive = Annotated[int, Field(strict=True, gt=0, le=9223372036854775807)]
 
+# Define the address fields field contract used when validating or serializing API data.
 class AddressFields(BaseModel):
     model_config = ConfigDict(extra='forbid')
     label: str = Field(min_length=1, max_length=50)
@@ -13,6 +15,7 @@ class AddressFields(BaseModel):
     city: str | None = Field(default=None, max_length=100)
     phone: str | None = Field(default=None, max_length=20)
 
+    # Validate clean before the schema accepts the value.
     @field_validator('label','recipient_name','address_line','city','phone', mode='before')
     @classmethod
     def clean(cls, value, info):
@@ -28,21 +31,26 @@ class AddressFields(BaseModel):
             raise ValueError('Visible text required')
         return value
 
+# Define the address create field contract used when validating or serializing API data.
 class AddressCreate(AddressFields):
     version: Positive
     request_key: str = Field(min_length=16,max_length=100,pattern=r'^[A-Za-z0-9][A-Za-z0-9._:-]*$')
 
+# Define the address update field contract used when validating or serializing API data.
 class AddressUpdate(AddressFields):
     # Full editable projection on PATCH avoids ambiguous null/omission behavior.
     version: Positive
 
+# Define the address version field contract used when validating or serializing API data.
 class AddressVersion(BaseModel):
     model_config=ConfigDict(extra='forbid')
     version: Positive
 
+# Define the default address field contract used when validating or serializing API data.
 class DefaultAddress(AddressVersion):
     address_id: Positive | None
 
+# Define the destination field contract used when validating or serializing API data.
 class Destination(BaseModel):
     recipient_name: str
     phone: str | None

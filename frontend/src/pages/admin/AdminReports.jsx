@@ -1,3 +1,4 @@
+// Purpose: Render the admin reports screen and connect its user interactions to shared application state and services.
 import {useEffect,useState,useSyncExternalStore} from 'react';
 import {RefreshCw,Download} from 'lucide-react';
 import {useAuth} from '../../context/useAuth';
@@ -11,12 +12,16 @@ const card='min-w-0 rounded-2xl border border-[#D4E2EE] bg-white p-5 shadow-sm s
 const button='inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#D4E2EE] bg-white px-4 py-2 text-sm font-semibold text-[#10243E] hover:border-[#12B8A6] disabled:opacity-50';
 const input='min-h-11 w-full rounded-lg border border-[#D4E2EE] bg-white px-3 text-sm text-[#10243E]';
 const initial={start_date:'',end_date:'',business_id:'',approval_status:'',order_status:'',sort:'business_id',direction:'asc'};
+// Build report query parameters from the applied business and date selection.
 function parameters(filters,offset=0){return {...Object.fromEntries(Object.entries(filters).filter(([,value])=>value!=='')),limit:20,offset};}
+// Format the validated report amount for display in LKR.
 function currency(value){return (value.startsWith('-')?'− ':'')+money(value.replace(/^-/,''));}
 
+// Render the admin reports view interface and connect its controls to the state and callbacks defined here.
 export function AdminReportsView({state,actions}){
   const {tr,statusLabel}=useAppTranslation();const [filters,setFilters]=useState(initial);const [language,setLanguage]=useState('en');
   const data=state.data,r=data?.report;
+  // Apply the user change to the current form or filter state.
   const change=(key,value)=>setFilters(previous=>({...previous,[key]:value}));
   return <div className="space-y-6 pb-6 text-[#10243E]">
     <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-2xl font-bold">{tr('Platform Reports')}</h2><p className="mt-2 text-sm text-[#64748B]">{tr('Read-only platform activity and credit reporting.')}</p></div><button className={button} disabled={state.loading} onClick={()=>actions.load(state.selection||parameters(filters))}><RefreshCw size={17}/>{tr('Refresh')}</button></div>
@@ -44,12 +49,15 @@ export function AdminReportsView({state,actions}){
     </>}
   </div>;
 }
+// Render the session interface and connect its controls to the state and callbacks defined here.
 function Session(){
   const [reader]=useState(()=>createAdminReports(getAdminReport,getAdminReportExport,saveReportCSV));
   const state=useSyncExternalStore(reader.subscribe,reader.getSnapshot,reader.getSnapshot);
+  // Start resource work after rendering and cancel or dispose it during cleanup so obsolete work cannot update this view.
   useEffect(()=>{reader.start({limit:20,offset:0});return()=>reader.dispose();},[reader]);
   return <AdminReportsView state={state} actions={reader}/>;
 }
+// Render the admin reports interface and connect its controls to the state and callbacks defined here.
 export default function AdminReports(){
   const {user,token,isAuthenticated}=useAuth();
   if(!isAuthenticated||user?.platform_role!=='admin'||user?.account_status!=='active')return null;

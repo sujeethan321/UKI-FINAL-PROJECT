@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from pydantic import Field, SecretStr, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict, SettingsError
 from app.core.viva_runtime_policy import dotenv_disabled as viva_runtime_dotenv_disabled
+from app.core.viva_runtime_policy import integrations_enabled as viva_integrations_enabled, integration_fields
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 OriginList = Annotated[list[str], NoDecode]
@@ -138,7 +139,14 @@ class Settings(BaseSettings):
             raise ValueError('Dotenv isolation cannot be combined with another environment')
         if mode == 'production':
             return init_settings, env_settings, file_secret_settings
-        if dotenv_isolated or viva_runtime_dotenv_disabled():
+        if dotenv_isolated:
+            return init_settings, env_settings, file_secret_settings
+        if viva_runtime_dotenv_disabled():
+            if viva_integrations_enabled():
+                # Read integration configuration only; never let .env replace the pinned database, JWT, TLS, or flags.
+                def integration_dotenv():
+                    return {key: value for key, value in dotenv_settings().items() if key in integration_fields()}
+                return init_settings, env_settings, integration_dotenv, file_secret_settings
             # Also protects direct Settings() construction in this process;
             # application startup and request handling share this singleton.
             return init_settings, env_settings, file_secret_settings
@@ -292,7 +300,7 @@ class Settings(BaseSettings):
 # Load and validate settings before application services use them.
 def load_settings(**kwargs):
     try:
-        if isolated_browser_dotenv_disabled() or viva_runtime_dotenv_disabled():
+        if isolated_browser_dotenv_disabled() or (viva_runtime_dotenv_disabled() and not viva_integrations_enabled()):
             # Make the intent explicit for the application singleton in
             # addition to removing dotenv from all customized sources above.
             kwargs['_env_file'] = None

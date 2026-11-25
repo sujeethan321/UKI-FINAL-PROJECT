@@ -1,4 +1,6 @@
+// Purpose: Validate address-book responses and coordinate address changes with version and request-identity checks.
 const fields=['label','recipient_name','address_line','city','phone'];
+// Check destination before the surrounding workflow uses it.
 export function parseDestination(value){
  if(value==null)return null;
  if(typeof value.recipient_name!=='string'||!value.recipient_name.trim()||value.recipient_name.length>150||
@@ -6,6 +8,7 @@ export function parseDestination(value){
  !(value.phone===null||typeof value.phone==='string'&&value.phone.length<=20)||!(value.city===null||typeof value.city==='string'&&value.city.length<=100))throw Error('Invalid destination');
  return Object.fromEntries(['recipient_name','phone','address_line','city'].map(key=>[key,value[key]]));
 }
+// Check address book before the surrounding workflow uses it.
 export function parseAddressBook(data){
  if(!Number.isSafeInteger(data?.version)||data.version<1||!Array.isArray(data.addresses)||data.addresses.length>10||
  data.total!==data.addresses.length||data.page!==1||!Number.isSafeInteger(data.total)||
@@ -17,22 +20,27 @@ export function parseAddressBook(data){
  if(new Set(addresses.map(r=>r.address_id)).size!==addresses.length||data.default_address_id!==null&&!addresses.some(r=>r.address_id===data.default_address_id))throw Error('Invalid default address');
  return {version:data.version,default_address_id:data.default_address_id,addresses};
 }
+// Translate address outcomes into display text for the interface.
 export function addressError(error){
  const status=error?.response?.status;
  return status===503?'Address management is unavailable on this server.':status===409?'Address book changed. Reload and review before continuing.':
  status===401||status===403?'Address access is unavailable. Check your session.':status===422?'Check the address fields.':'Address request could not be confirmed. Reload before continuing.';
 }
+// Create address reader for the customer address workflow.
 export function createAddressReader(api){
  let state={data:null,loading:false,saving:false,error:''},active=false,generation=0,controller;
  const listeners=new Set();const publish=patch=>{if(active){state={...state,...patch};listeners.forEach(fn=>fn());}};
- const reader={subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},getSnapshot:()=>state,
+ const reader={/* Register a state listener and return cleanup so consumers can unsubscribe. */ subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},/* Expose the current store snapshot to subscribers without starting a request. */ getSnapshot:()=>state,
+ // Start the resource workflow using its current context and selection.
  start(){active=true;return reader.load();},
+ // Load the requested resource section and publish its loading or result state.
  async load(){
   if(state.saving)return;controller?.abort();controller=new AbortController();const signal=controller.signal,seq=++generation;
   publish({loading:true,data:null,error:''});
   try{const data=parseAddressBook(await api.listAddresses(signal));if(active&&!signal.aborted&&seq===generation)publish({loading:false,data});}
   catch(error){if(active&&!signal.aborted&&seq===generation)publish({loading:false,error:addressError(error)});}
  },
+ // Validate the draft and send its revision so a stale edit cannot overwrite a changed record.
  async save(operation,id,data){
   if(!active||state.saving||!state.data)return false;
   const version=state.data.version;controller?.abort();controller=new AbortController();const signal=controller.signal,seq=++generation;
@@ -47,6 +55,7 @@ export function createAddressReader(api){
    publish({saving:false});await reader.load();return true;
   }catch(error){if(active&&!signal.aborted&&seq===generation)publish({saving:false,error:addressError(error),...([401,403].includes(error?.response?.status)?{data:null}:{})});return false;}
  },
+ // Release pending work and subscriptions when this resource reader is no longer used.
  dispose(){active=false;generation++;controller?.abort();state={data:null,loading:false,saving:false,error:''};listeners.clear();}
  };return reader;
 }

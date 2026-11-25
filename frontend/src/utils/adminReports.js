@@ -1,3 +1,4 @@
+// Purpose: Validate platform report data and coordinate bounded report reads and exports for the administrator interface.
 export const sections=['businesses','users','orders','deliveries','credit'];
 export const metricLabels={
  current_total:'Current businesses',registered_in_period:'Registrations in period',current_pending:'Currently pending',current_approved:'Currently approved',current_rejected:'Currently rejected',current_suspended:'Currently suspended',approved_in_period:'Approval decisions in period',rejected_in_period:'Rejection decisions in period',
@@ -5,12 +6,19 @@ export const metricLabels={
  product_order_total:'Product order value',non_cancelled_product_total:'Non-cancelled product order value',cancelled_rejected_product_total:'Cancelled / rejected product order value',current_available:'Currently available',current_assigned:'Currently assigned',current_picked_up:'Currently picked up',current_in_transit:'Currently in transit',current_delivered:'Currently delivered',current_cancelled:'Currently cancelled',assigned_in_period:'Assigned in period',completed_in_period:'Completed in period',cancelled_in_period:'Cancelled in period',accounts:'Credit accounts',credit_sales:'Net credit sales',repayments:'Net repayments',current_outstanding:'Current outstanding',current_advances:'Current advances',outstanding:'Current outstanding',advances:'Current advances',orders:'Orders',business_id:'Business ID',business_name:'Business',approval_status:'Approval status'
 };
 export const sectionLabels={businesses:'Business registrations and approvals',users:'User registrations (platform-wide)',orders:'Orders (created in period; current status)',deliveries:'Delivery activity',credit:'Credit movements and current balances'};
+// Require a bounded safe integer before report totals or pagination enter view state.
 const integer=value=>Number.isSafeInteger(value)&&value>=0;
+// Check the date representation before it enters the displayed dataset.
 const date=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T00:00:00Z'));
+// Validate or format decimal monetary data at the interface boundary without changing the ledger.
 const money=value=>typeof value==='string'&&/^-?\d+\.\d{2}$/.test(value);
+// Validate text values at the response boundary before rendering them.
 const text=value=>typeof value==='string'&&value.length<=1000;
+// Check that the value has a record shape before reading its fields.
 const record=value=>value&&typeof value==='object'&&!Array.isArray(value);
+// Reject an unverified report response rather than displaying data that violates its contract.
 function assert(valid){if(!valid)throw Error('Invalid Admin report');}
+// Check admin report before the surrounding workflow uses it.
 export function parseAdminReport(raw){
   assert(record(raw)&&record(raw.report)&&integer(raw.total)&&raw.total<=1000&&integer(raw.offset)&&integer(raw.limit)&&raw.limit>=1&&raw.limit<=100&&Array.isArray(raw.rows)&&raw.rows.length<=raw.limit);
   const r=raw.report;
@@ -46,18 +54,25 @@ export function parseAdminReport(raw){
   });
   return {report,rows,total:raw.total,limit:raw.limit,offset:raw.offset};
 }
+// Translate report outcomes into display text for the interface.
 export function reportError(error){
   const status=error?.response?.status;
   return status===401?'Session expired. Please sign in again.':status===403?'Admin Reports access denied.':status===422?'Report exceeds limits or filters are invalid.':status===429?'Too many report requests. Please wait.':'Admin Reports unavailable. Try again.';
 }
+// Create admin reports for the admin reports workflow.
 export function createAdminReports(request,exportRequest,save){
   let controller=null,exportController=null,disposed=false,version=0;
   let state={loading:false,error:'',data:null,selection:null,exporting:false,exportError:''};const listeners=new Set();
+  // Apply the new state and notify the consumers or handlers registered by this workflow.
   const update=patch=>{if(disposed)return;state={...state,...patch};for(const fn of listeners)fn();};
+  // Remove the saved workflow value so it cannot be reused after reset.
   const clear=()=>{version++;controller?.abort();exportController?.abort();controller=null;exportController=null;};
   return {
-    subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},getSnapshot:()=>state,
+    // Register a state listener and return cleanup so consumers can unsubscribe.
+    subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},/* Expose the current store snapshot to subscribers without starting a request. */ getSnapshot:()=>state,
+    // Start the resource workflow using its current context and selection.
     start(selection={}){disposed=false;return this.load(selection);},
+    // Load the requested resource section and publish its loading or result state.
     async load(selection={}){
       if(disposed)return;clear();const active=new AbortController();controller=active;const generation=version;
       update({loading:true,error:'',data:null,selection:null,exporting:false,exportError:''});
@@ -84,6 +99,7 @@ export function createAdminReports(request,exportRequest,save){
         update({exporting:false,exportError:reportError(error),...(denied?{data:null,selection:null,error:reportError(error)}:{})});
       }}
     },
+    // Release pending work and subscriptions when this resource reader is no longer used.
     dispose(){clear();state={loading:false,error:'',data:null,selection:null,exporting:false,exportError:''};listeners.clear();disposed=true;}
   };
 }

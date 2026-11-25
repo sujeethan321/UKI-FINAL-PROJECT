@@ -1,3 +1,4 @@
+# Purpose: Render admin reports data into a PDF document for viewing or download.
 """Bounded multilingual Admin PDF. Reuses vetted font/shaping infrastructure."""
 from html import escape
 from io import BytesIO
@@ -6,6 +7,7 @@ from app.services.admin_reports_csv import export_rows, LABELS
 from app.services.shop_owner_reports_pdf import report_font, ReportPDFUnavailable, _render_lock
 
 
+# Render report pdf for the admin reports pdf workflow.
 def render_report_pdf(report,comparisons,language='en'):
     if language not in LABELS: raise ReportPDFUnavailable('Unsupported report language')
     if not _render_lock.acquire(blocking=False): raise ReportPDFUnavailable('PDF renderer busy')
@@ -21,6 +23,7 @@ def render_report_pdf(report,comparisons,language='en'):
         labels=LABELS[language];data=report.model_dump(mode='json')
         html='<h1>LankaPex - '+e(labels['title'])+'</h1><p>Business Connects Everyone | LKR</p>'
         html+=f'<p>{e(labels["period"])}: {e(data["start_date"])} - {e(data["end_date"])}<br>{e(labels["generated"])}: {e(data["generated_at"])}</p>'
+        # Render escaped key/value cells so dynamic report data cannot introduce HTML markup.
         def pairs(values):
             return '<table>'+''.join(f'<tr><td style="width:70%">{e(key)}</td><td style="width:30%">{e(value)}</td></tr>' for key,value in values.items())+'</table>'
         html+=pairs({key:data[key] if data[key] is not None else 'All' for key in ('business_id','approval_status','order_status','database_today','snapshot')})

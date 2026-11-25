@@ -48,6 +48,7 @@ engine = create_engine(
 )
 
 if DATABASE_URL.database == 'lankapex_viva_db':
+    # Check the connected viva peer before allowing the database connection to be used.
     @event.listens_for(engine,'connect')
     def verify_viva_peer(dbapi_connection,connection_record):
         from app.core.viva_tls import verify_socket

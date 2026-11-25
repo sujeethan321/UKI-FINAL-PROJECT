@@ -1,3 +1,4 @@
+# Purpose: Map driver finance records to database tables so SQLAlchemy can persist and relate application data.
 """Prospective Customer-funded fees; append-only financial event records."""
 from datetime import datetime
 from decimal import Decimal
@@ -11,6 +12,7 @@ from app.models.delivery import utc_now
 MYSQL_OPTIONS=dict(mysql_engine='InnoDB',mysql_charset='utf8mb4',mysql_collate='utf8mb4_unicode_ci')
 
 
+# Map order fulfilment charge to the order_fulfilment_charges table for ORM queries and persistence.
 class OrderFulfilmentCharge(Base):
     __tablename__ = 'order_fulfilment_charges'
     __table_args__ = (
@@ -21,17 +23,23 @@ class OrderFulfilmentCharge(Base):
         CheckConstraint("(mode='pickup' AND delivery_fee=0 AND fee_rate=0) OR (mode='delivery' AND fee_rate=0.030000 AND delivery_fee=ROUND(product_subtotal*fee_rate,2))", name='ck_ofc_rate'),
         MYSQL_OPTIONS,
     )
+    # Link order id to orders.order_id so the database enforces the record relationship.
     order_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('orders.order_id', ondelete='RESTRICT'), primary_key=True)
     mode: Mapped[str] = mapped_column(String(12))
+    # Store product subtotal as an exact decimal so persisted financial values avoid binary floating-point rounding.
     product_subtotal: Mapped[Decimal] = mapped_column(Numeric(14,2))
+    # Store delivery fee as an exact decimal so persisted financial values avoid binary floating-point rounding.
     delivery_fee: Mapped[Decimal] = mapped_column(Numeric(14,2))
+    # Store customer total as an exact decimal so persisted financial values avoid binary floating-point rounding.
     customer_total: Mapped[Decimal] = mapped_column(Numeric(14,2))
+    # Store fee rate as an exact decimal so persisted financial values avoid binary floating-point rounding.
     fee_rate: Mapped[Decimal] = mapped_column(Numeric(7,6))
     currency: Mapped[str] = mapped_column(String(3), default='LKR')
     policy_version: Mapped[str] = mapped_column(String(40), default='direct-driver-3pct-v1')
     confirmed_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
+# Map driver earning to the driver_earnings table for ORM queries and persistence.
 class DriverEarning(Base):
     __tablename__ = 'driver_earnings'
     __table_args__ = (
@@ -44,19 +52,29 @@ class DriverEarning(Base):
         UniqueConstraint('earning_id','driver_user_id',name='uq_de_driver'),
         UniqueConstraint('earning_id','amount',name='uq_de_amount'),
         Index('ix_de_driver_date','driver_user_id','created_at','earning_id'),MYSQL_OPTIONS)
+    # Use earning id as the unique row identity for ORM lookups and related records.
     earning_id: Mapped[str] = mapped_column(String(36),primary_key=True,default=lambda:str(uuid4()))
+    # Link order id to order_fulfilment_charges.order_id so the database enforces the record relationship.
     order_id: Mapped[int] = mapped_column(BigInteger,ForeignKey('order_fulfilment_charges.order_id',ondelete='RESTRICT'),unique=True)
+    # Link delivery request id to delivery_requests.delivery_request_id so the database enforces the record relationship.
     delivery_request_id: Mapped[int] = mapped_column(BigInteger,ForeignKey('delivery_requests.delivery_request_id',ondelete='RESTRICT'),unique=True)
+    # Link assignment id to delivery_assignments.assignment_id so the database enforces the record relationship.
     assignment_id: Mapped[int] = mapped_column(BigInteger,ForeignKey('delivery_assignments.assignment_id',ondelete='RESTRICT'),unique=True)
+    # Link completion event id to delivery_status_events.event_id so the database enforces the record relationship.
     completion_event_id: Mapped[int] = mapped_column(BigInteger,ForeignKey('delivery_status_events.event_id',ondelete='RESTRICT'),unique=True)
+    # Link driver user id to driver_profiles.user_id so the database enforces the record relationship.
     driver_user_id: Mapped[int] = mapped_column(BigInteger,ForeignKey('driver_profiles.user_id',ondelete='RESTRICT'))
+    # Store amount as an exact decimal so persisted financial values avoid binary floating-point rounding.
     amount: Mapped[Decimal] = mapped_column(Numeric(14,2))
     currency: Mapped[str] = mapped_column(String(3),default='LKR')
     charge_mode: Mapped[str] = mapped_column(String(12),default='delivery')
+    # Retain completion status so workflow checks can decide which operations are currently allowed.
     completion_status: Mapped[str] = mapped_column(String(20),default='delivered')
+    # Retain created at for history, ordering, and time-based queries.
     created_at: Mapped[datetime] = mapped_column(DateTime,default=utc_now)
 
 
+# Map driver fee collection to the driver_fee_collections table for ORM queries and persistence.
 class DriverFeeCollection(Base):
     __tablename__ = 'driver_fee_collections'
     __table_args__ = (
@@ -71,19 +89,27 @@ class DriverFeeCollection(Base):
         Index('ix_dfc_earning','earning_id','created_at','collection_id'),
         MYSQL_OPTIONS,
     )
+    # Use collection id as the unique row identity for ORM lookups and related records.
     collection_id: Mapped[str] = mapped_column(String(36),primary_key=True,default=lambda:str(uuid4()))
+    # Link earning id to driver_earnings.earning_id so the database enforces the record relationship.
     earning_id: Mapped[str] = mapped_column(String(36),ForeignKey('driver_earnings.earning_id',ondelete='RESTRICT'))
+    # Link actor user id to users.user_id so the database enforces the record relationship.
     actor_user_id: Mapped[int] = mapped_column(BigInteger,ForeignKey('users.user_id',ondelete='RESTRICT'))
     kind: Mapped[str] = mapped_column(String(16))
     declaration_slot: Mapped[int | None] = mapped_column(nullable=True)
+    # Store declared amount as an exact decimal so persisted financial values avoid binary floating-point rounding.
     declared_amount: Mapped[Decimal | None] = mapped_column(Numeric(14,2),nullable=True)
+    # Store amount as an exact decimal so persisted financial values avoid binary floating-point rounding.
     amount: Mapped[Decimal] = mapped_column(Numeric(14,2))
     evidence: Mapped[str] = mapped_column(String(1000))
     request_key: Mapped[str] = mapped_column(String(100,collation='utf8mb4_bin'))
+    # Retain the request hash fingerprint used to compare values without persisting the corresponding raw value here.
     request_hash: Mapped[str] = mapped_column(String(64))
+    # Retain created at for history, ordering, and time-based queries.
     created_at: Mapped[datetime] = mapped_column(DateTime,default=utc_now)
 
 
+# Map driver settlement event to the driver_settlement_events table for ORM queries and persistence.
 class DriverSettlementEvent(Base):
     __tablename__ = 'driver_settlement_events'
     __table_args__ = (
@@ -100,22 +126,30 @@ class DriverSettlementEvent(Base):
         Index('ix_dse_earning','earning_id','created_at','event_id'),
         MYSQL_OPTIONS,
     )
+    # Use event id as the unique row identity for ORM lookups and related records.
     event_id: Mapped[str] = mapped_column(String(36),primary_key=True,default=lambda:str(uuid4()))
+    # Link earning id to driver_earnings.earning_id so the database enforces the record relationship.
     earning_id: Mapped[str] = mapped_column(String(36),ForeignKey('driver_earnings.earning_id',ondelete='RESTRICT'))
+    # Link collection id to driver_fee_collections.collection_id so the database enforces the record relationship.
     collection_id: Mapped[str | None] = mapped_column(String(36),ForeignKey('driver_fee_collections.collection_id',ondelete='RESTRICT'),nullable=True)
     collection_kind: Mapped[str | None] = mapped_column(String(16),nullable=True)
+    # Link actor user id to users.user_id so the database enforces the record relationship.
     actor_user_id: Mapped[int] = mapped_column(BigInteger,ForeignKey('users.user_id',ondelete='RESTRICT'))
     kind: Mapped[str] = mapped_column(String(24))
     sequence_no: Mapped[int] = mapped_column(Integer)
     previous_sequence_no: Mapped[int | None] = mapped_column(Integer,nullable=True)
     settlement_slot: Mapped[int | None] = mapped_column(nullable=True)
+    # Store amount as an exact decimal so persisted financial values avoid binary floating-point rounding.
     amount: Mapped[Decimal] = mapped_column(Numeric(14,2))
     evidence: Mapped[str] = mapped_column(String(1000))
     request_key: Mapped[str] = mapped_column(String(100,collation='utf8mb4_bin'))
+    # Retain the request hash fingerprint used to compare values without persisting the corresponding raw value here.
     request_hash: Mapped[str] = mapped_column(String(64))
+    # Retain created at for history, ordering, and time-based queries.
     created_at: Mapped[datetime] = mapped_column(DateTime,default=utc_now)
 
 
+# Map driver financial audit to the driver_financial_audits table for ORM queries and persistence.
 class DriverFinancialAudit(Base):
     __tablename__ = 'driver_financial_audits'
     __table_args__=(CheckConstraint("action IN ('accrued','declared','exception','direct_settled','disputed','reversed','refund_confirmed')",name='ck_dfa_action'),
@@ -127,16 +161,21 @@ class DriverFinancialAudit(Base):
         ForeignKeyConstraint(['settlement_event_id','earning_id','actor_user_id','action'],['driver_settlement_events.event_id','driver_settlement_events.earning_id','driver_settlement_events.actor_user_id','driver_settlement_events.kind'],name='fk_dfa_settlement',ondelete='RESTRICT',onupdate='RESTRICT'),
         ForeignKeyConstraint(['earning_id','accrual_driver_id'],['driver_earnings.earning_id','driver_earnings.driver_user_id'],name='fk_dfa_accrual_owner',ondelete='RESTRICT',onupdate='RESTRICT'),
         Index('ix_dfa_earning_date','earning_id','created_at','audit_id'),MYSQL_OPTIONS)
+    # Use audit id as the unique row identity for ORM lookups and related records.
     audit_id: Mapped[str] = mapped_column(String(36),primary_key=True,default=lambda:str(uuid4()))
+    # Link actor user id to users.user_id so the database enforces the record relationship.
     actor_user_id: Mapped[int] = mapped_column(BigInteger,ForeignKey('users.user_id',ondelete='RESTRICT'))
+    # Link earning id to driver_earnings.earning_id so the database enforces the record relationship.
     earning_id: Mapped[str] = mapped_column(String(36),ForeignKey('driver_earnings.earning_id',ondelete='RESTRICT'))
     action: Mapped[str] = mapped_column(String(24))
     collection_id: Mapped[str | None] = mapped_column(String(36),nullable=True)
     settlement_event_id: Mapped[str | None] = mapped_column(String(36),nullable=True)
     accrual_driver_id: Mapped[int | None] = mapped_column(BigInteger,nullable=True)
+    # Retain created at for history, ordering, and time-based queries.
     created_at: Mapped[datetime] = mapped_column(DateTime,default=utc_now)
 
 
+# Reject mutation of retained driver financial events so corrections remain new traceable records.
 @event.listens_for(Session,'before_flush')
 def immutable_financial_events(session,context,instances):
     types=(OrderFulfilmentCharge,DriverEarning,DriverFeeCollection,DriverSettlementEvent,DriverFinancialAudit)
@@ -144,6 +183,7 @@ def immutable_financial_events(session,context,instances):
         raise ValueError('Driver financial records are append-only; use an authorized adjustment event')
 
 
+# Reject bulk operations that would bypass immutable driver financial history.
 @event.listens_for(Session,'do_orm_execute')
 def reject_bulk_financial_changes(context):
     if context.is_update or context.is_delete:

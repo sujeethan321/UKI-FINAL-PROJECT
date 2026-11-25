@@ -130,3 +130,4 @@ def decide(payload: JoinDecision, response: Response, business_id: int = Path(gt
     except SQLAlchemyError:
         db.rollback()
         raise HTTPException(503, "Join decision unavailable") from None
+   

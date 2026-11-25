@@ -1,3 +1,4 @@
+# Purpose: Define typed report ai API payloads so incoming data is validated and outgoing fields have an explicit contract.
 """No user-controlled prose crosses the provider boundary."""
 from datetime import date
 from typing import Literal,Annotated
@@ -8,34 +9,41 @@ Money=Annotated[str,Field(pattern=r'^-?(?:0|[1-9]\d{0,23})\.\d{2}$')]
 PositiveMoney=Annotated[str,Field(pattern=r'^(?:0|[1-9]\d{0,23})\.\d{2}$')]
 Language=Literal['en','ta','si']
 
+# Define the strict field contract used when validating or serializing API data.
 class Strict(BaseModel):model_config=ConfigDict(extra='forbid')
 
+# Define the report ai request field contract used when validating or serializing API data.
 class ReportAIRequest(Strict):
     question_id: Question='credit_overview'
     language: Language='en'
     start_date: date
     end_date: date
 
+# Define the period facts field contract used when validating or serializing API data.
 class PeriodFacts(Strict):
     start: date
     end: date
 
+# Define the movement facts field contract used when validating or serializing API data.
 class MovementFacts(Strict):
     credit_sales: Money
     repayments: Money
 
+# Define the current facts field contract used when validating or serializing API data.
 class CurrentFacts(Strict):
     total_outstanding: PositiveMoney
     customer_advances: PositiveMoney
     collected_today: Money | None
     overdue_amount: PositiveMoney | None
 
+# Define the coverage field contract used when validating or serializing API data.
 class Coverage(Strict):
     effective_sales: int=Field(ge=0)
     missing_due_dates: int=Field(ge=0)
     invalid_due_dates: int=Field(ge=0)
     unpaid_debt_fully_classified: bool
 
+# Define the aging facts field contract used when validating or serializing API data.
 class AgingFacts(Strict):
     status: Literal['complete','incomplete','unavailable']
     reconciliation: Literal['matched','unavailable']
@@ -43,10 +51,12 @@ class AgingFacts(Strict):
     buckets: dict[str,PositiveMoney] | None
     unclassified: PositiveMoney | None
 
+# Define the trend facts field contract used when validating or serializing API data.
 class TrendFacts(MovementFacts):
     start: date
     end: date
 
+# Define the report financial facts field contract used when validating or serializing API data.
 class ReportFinancialFacts(Strict):
     currency: Literal['LKR']='LKR'
     period: PeriodFacts
@@ -57,6 +67,7 @@ class ReportFinancialFacts(Strict):
     aging: AgingFacts
     trends: list[TrendFacts]=Field(min_length=1,max_length=12)
 
+    # Validate integrity before the schema accepts the value.
     @model_validator(mode='after')
     def integrity(self):
         from decimal import Decimal

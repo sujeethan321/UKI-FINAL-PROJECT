@@ -1,3 +1,4 @@
+# Purpose: Define allowed collection and correction transitions without treating a driver declaration as independently verified settlement.
 """Full-amount pilot correction states. Verification and direct settlement are atomic.
 
 No verified-but-unsettled wallet stage exists: the independent Admin event both
@@ -18,6 +19,7 @@ ALLOWED={
 }
 
 
+# Reject unsupported financial transitions and require prior verification for confirmed refunds.
 def check_transition(state,action,verified=False):
     if action not in ALLOWED.get(state,set()) or (action=='refund_confirmed' and not verified):
         raise HTTPException(409,'Financial state changed or this correction is not permitted; refresh history')

@@ -1,3 +1,4 @@
+# Purpose: Validate delivery destinations and preserve an order-specific address snapshot instead of following later address-book edits.
 """Destination acceptance and minimal purpose-scoped projection.
 
 Call before catalogue/order locks. Never reconstruct historical destinations.
@@ -8,8 +9,10 @@ from app.models.order_address import OrderDeliveryAddress
 from app.services import customer_address_service as addresses
 from app.services import customer_address_rollout as rollout
 
+# Project the recipient and delivery-contact fields that belong in an order snapshot.
 def destination(row):return {k:getattr(row,k) for k in ('recipient_name','phone','address_line','city')}
 
+# Resolve the selected owned address and bind its current version and digest to the quote acceptance.
 def acceptance(db,user,payload):
     if not rollout.enabled(True):
         if payload.address_id is not None or payload.address_version is not None:addresses.fail(503,'ADDRESS_CHECKOUT_DISABLED')
@@ -23,12 +26,14 @@ def acceptance(db,user,payload):
     row=addresses.selected(db,user,payload.address_id,payload.address_version)
     return dict(row=row,binding=[row.address_id,payload.address_version,addresses.digest(row)])
 
+# Store the accepted destination as an order-specific snapshot so future address-book edits do not alter it.
 def persist(db,order,accepted):
     if accepted is None:return
     row=accepted['row']
     db.add(OrderDeliveryAddress(order_id=order.order_id,customer_user_id=order.customer_user_id,
         source_address_id=row.address_id,**destination(row),accepted_version=accepted['binding'][1],address_digest=accepted['binding'][2]))
 
+# Query snapshot projection data for the order address workflow.
 def snapshot_projection(db,order_id):
     if not rollout.enabled(True):return None
     rollout.require_ready(db,True)

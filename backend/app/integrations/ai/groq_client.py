@@ -1,3 +1,4 @@
+# Purpose: Adapt the Groq API to the application AI contract with bounded requests and provider-error handling.
 """Bounded Groq-only transport. One attempt; no tools, redirects or retries."""
 from __future__ import annotations
 import asyncio
@@ -12,6 +13,7 @@ from app.integrations.ai.limits import budget
 MAX_INPUT_BYTES=MAX_GENERATION_INPUT_BYTES
 MODEL='openai/gpt-oss-120b'
 
+# Reject duplicate JSON object keys rather than accepting an ambiguous provider response.
 def unique_object(pairs):
     result={}
     for key,value in pairs:
@@ -19,12 +21,15 @@ def unique_object(pairs):
         result[key]=value
     return result
 
+# Group the state and operations for groq ai client in the groq client module.
 class GroqAIClient:
+    # Initialize the dependencies and state this instance needs for later operations.
     def __init__(self,config:Settings,http_client:httpx.AsyncClient):
         self._config=config;self._http=http_client
         timeout=config.GROQ_TIMEOUT_SECONDS
         self._timeout=httpx.Timeout(timeout,connect=min(3.0,timeout),read=timeout,write=timeout,pool=min(3.0,timeout))
 
+    # Require the enabled, approved provider configuration and a present private API key before generation.
     def _credential(self):
         if not self._config.AI_ENABLED or self._config.GROQ_API_KEY is None or self._config.GROQ_MODEL!=MODEL or self._config.GROQ_BASE_URL!='https://api.groq.com/openai/v1':
             raise AIClientError(AIFailureCategory.CONFIGURATION)
@@ -32,6 +37,7 @@ class GroqAIClient:
         if not secret.strip():raise AIClientError(AIFailureCategory.CONFIGURATION)
         return secret
 
+    # Check request and stop callers when the required conditions are not met.
     def _validate_request(self,request,credential):
         if not isinstance(request,GenerationRequest):raise AIClientError(AIFailureCategory.INVALID_REQUEST)
         prompts=(request.system_prompt,request.user_prompt)
@@ -42,6 +48,7 @@ class GroqAIClient:
         if sum(len(p.encode()) for p in prompts)+len(schema.encode())>MAX_INPUT_BYTES or credential in schema:
             raise AIClientError(AIFailureCategory.INVALID_REQUEST)
 
+    # Adapt only a valid, completed provider result into the application generation contract.
     @staticmethod
     def _result(payload,model,max_tokens):
         try:
@@ -57,6 +64,7 @@ class GroqAIClient:
             raise AIClientError(AIFailureCategory.INVALID_RESPONSE) from None
         return GenerationResult(content.strip(),model,'stop')
 
+    # Validate and bound the generation request, then process the provider result through the module output contract.
     async def generate(self,request):
         credential=self._credential();self._validate_request(request,credential)
         body={'model':MODEL,'messages':[{'role':'system','content':request.system_prompt},{'role':'user','content':request.user_prompt}],

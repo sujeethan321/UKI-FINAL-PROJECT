@@ -1,3 +1,4 @@
+# Purpose: Construct and validate explanations against authorized financial facts before rendering them as user-facing text.
 """The model can select/order reviewed sections, never write financial prose.
 
 Numbers and wording are rendered locally. Exact section/metric/observation
@@ -8,6 +9,7 @@ from app.integrations.ai.base import GenerationRequest,GenerationResult
 
 MODEL='openai/gpt-oss-120b'
 
+# Build a constrained explanation request from the allowed section and fact identifiers.
 def request(context,sections,language):
     section_ids=[s['section_id'] for s in sections]
     fact_ids=sorted({fact for s in sections for fact in s['fact_ids']})
@@ -23,8 +25,10 @@ def request(context,sections,language):
         user_prompt=json.dumps({'facts':context,'approved_sections':sections,'language':language},ensure_ascii=False,separators=(',',':')),
         response_schema=schema)
 
+# Validate the completed explanation against the allowed model, output shape, and authorized fact identifiers.
 def validate(result,sections,language):
     if not isinstance(result,GenerationResult) or result.model!=MODEL or result.finish_reason!='stop' or len(result.text.encode())>16000:raise ValueError('Invalid completion')
+    # Reject duplicate JSON keys so contradictory provider fields cannot be silently replaced.
     def unique(pairs):
         output={}
         for key,value in pairs:
@@ -71,8 +75,10 @@ TEXT={
  'coverage_counts':('Effective sales: {sales}; missing due dates: {missing}; invalid due dates: {invalid}.','செயலிலுள்ள விற்பனைகள்: {sales}; இல்லாத தவணைத் தேதிகள்: {missing}; செல்லாத தவணைத் தேதிகள்: {invalid}.','බලපැවැත්වෙන විකුණුම්: {sales}; නොමැති ගෙවීම් දින: {missing}; වලංගු නොවන ගෙවීම් දින: {invalid}.'),
 }
 
+# Select the fixed explanatory phrase for English, Tamil, or Sinhala.
 def phrase(key,language):return TEXT[key][{'en':0,'ta':1,'si':2}[language]]
 
+# Render one validated financial fact through the supported language phrases.
 def render_fact(ident,value,language):
     label=LABELS[ident][{'en':0,'ta':1,'si':2}[language]]
     return label+': '+(phrase('unavailable',language) if value is None else 'LKR '+value)+'.'

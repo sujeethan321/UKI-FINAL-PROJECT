@@ -1,3 +1,4 @@
+# Purpose: Reserve bounded local AI generation budgets before dispatching provider work.
 """Per-process admission only, NOT a global multi-worker quota.
 
 Counts attempts, including failures/ambiguous outcomes; never refunds or retries.
@@ -8,10 +9,13 @@ import time
 from contextlib import contextmanager
 from app.integrations.ai.base import AIClientError,AIFailureCategory
 
+# Group the state and operations for local generation budget in the limits module.
 class LocalGenerationBudget:
+    # Initialize the dependencies and state this instance needs for later operations.
     def __init__(self):
         self.lock=threading.Lock();self.active=0;self.count=0;self.started=time.monotonic()
 
+    # Reserve generation capacity under the local budget before the provider request is dispatched.
     @contextmanager
     def reserve(self,config):
         with self.lock:

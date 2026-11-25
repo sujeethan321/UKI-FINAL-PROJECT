@@ -1,3 +1,4 @@
+# Purpose: Build bounded report context, redact questions, and validate AI output before returning report assistance.
 """Read-only verified facts; provider selects templates, never supplies amounts."""
 import asyncio
 from datetime import datetime,timezone
@@ -13,6 +14,7 @@ from app.services import financial_explanation as explanation
 
 MODEL=explanation.MODEL
 
+# Get report ai client for the report ai workflow.
 async def get_report_ai_client():
     secret=getattr(settings,'GROQ_API_KEY',None)
     if not getattr(settings,'AI_ENABLED',False) or secret is None or not secret.get_secret_value().strip() or getattr(settings,'GROQ_MODEL',None)!=MODEL:
@@ -21,6 +23,7 @@ async def get_report_ai_client():
     from app.integrations.ai.groq_client import GroqAIClient
     async with httpx.AsyncClient(follow_redirects=False,trust_env=False) as transport:yield GroqAIClient(settings,transport)
 
+# Build context for the report ai workflow.
 def build_context(db,business_id,payload):
     data=report(db,business_id,payload.start_date,payload.end_date)
     days=data['daily'];width=max(1,ceil(len(days)/12));trends=[]
@@ -36,6 +39,7 @@ def build_context(db,business_id,payload):
     try:return ReportFinancialFacts.model_validate(values).model_dump(mode='json')
     except ValidationError:raise HTTPException(409,'Financial summary facts could not be verified. Review the financial report.') from None
 
+# Assemble the factual report sections used to constrain explanation generation.
 def facts_and_sections(context,question_id):
     # Revalidate even when called outside the router. No arbitrary/raw context.
     context=ReportFinancialFacts.model_validate(context).model_dump(mode='json')
@@ -56,6 +60,7 @@ def facts_and_sections(context,question_id):
     }
     return facts,[specs[name] for name in plans[question_id]]
 
+# Render only the allowed report facts through deterministic explanatory sections.
 def render(context,sections,language,question_id):
     facts,_=facts_and_sections(context,question_id);output=[]
     # Dates and amounts below are backend facts, never model-returned values.
@@ -79,11 +84,13 @@ def render(context,sections,language,question_id):
     if len(text)>6000:raise ValueError('Explanation exceeds bound')
     return text
 
+# Check output and stop callers when the required conditions are not met.
 def validate_output(result,context,language,question_id='credit_overview'):
     _,sections=facts_and_sections(context,question_id)
     verified=explanation.validate(result,sections,language)
     return render(context,verified,language,question_id)
 
+# Validate and bound the generation request, then process the provider result through the module output contract.
 async def generate(context,payload,client):
     # Integrity/validation failures occur OUTSIDE provider fallback handling.
     _,sections=facts_and_sections(context,payload.question_id)

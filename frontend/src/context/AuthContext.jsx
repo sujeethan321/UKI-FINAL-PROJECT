@@ -22,6 +22,7 @@ export function AuthProvider({ children }) {
     window.addEventListener("lankapex:session-expired", session.expire);
     // Restore the shared session after a relevant storage or browser-session event.
     const synchronize = event => {
+      // A profile signal refreshes identity fields without logging out or creating a new bearer token.
       if(event?.key===PROFILE_SIGNAL_KEY){void session.refreshIdentity().catch(()=>{});return;}
       // A null storage key means storage was cleared; unrelated storage entries do not require identity checks.
       if (!event || event.key === TOKEN_KEY || event.key === null) void session.restore();
@@ -40,6 +41,7 @@ export function AuthProvider({ children }) {
       setAuthTokenReader(() => null);
     };
   }, [session]);
+  // Synchronize this component with its external state after rendering, rerunning when the declared dependencies change.
   useEffect(()=>{
     const language=state.user?.preferred_language;
     if(['en','ta','si'].includes(language))void i18n.changeLanguage(language);

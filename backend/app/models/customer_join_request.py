@@ -31,3 +31,4 @@ class CustomerJoinRequest(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Link decided by to users.user_id so the database enforces the record relationship.
     decided_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.user_id", ondelete="RESTRICT"), nullable=True)
+  

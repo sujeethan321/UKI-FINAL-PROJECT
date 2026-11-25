@@ -1,3 +1,4 @@
+# Purpose: Manage customer-owned addresses under consistent locks, version checks, and replay-safe create requests.
 """Caller owns transaction. Lock User -> preference -> owned addresses.
 
 Current locking reads avoid stale RR snapshots after waiting on the User lock.
@@ -13,10 +14,13 @@ from app.services import customer_address_rollout as rollout
 FIELDS=('label','recipient_name','address_line','city','phone')
 HEADERS={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}
 
+# Raise a classified address-operation error while keeping stored address contents out of the response.
 def fail(status,code):raise HTTPException(status,detail={'code':code,'message':'Address operation unavailable or changed. Reload your address book.'},headers=HEADERS)
 
+# Resolve locked using a row lock so the caller can coordinate concurrent changes.
 def locked(db,query):return query.with_for_update().execution_options(populate_existing=True)
 
+# Check rollout readiness and lock the current customer and preference rows before address-book access.
 def book(db,user):
     rollout.require_ready(db)
     row=db.scalar(locked(db,select(User).where(User.user_id==user.user_id)))
@@ -25,11 +29,14 @@ def book(db,user):
     # Reads must not create rows. First mutation creates under the User lock.
     return pref
 
+# Expose the current preference version or the initial empty-book version without creating a row.
 def version(pref):return pref.version if pref else 1
 
+# Reject stale address-book versions before the operation modifies the customer records.
 def check(pref,expected):
     if version(pref)!=expected:fail(409,'ADDRESS_BOOK_STALE')
 
+# Advance the address-book version under the owning user lock so concurrent edits can detect stale input.
 def bump(db,user,pref):
     if pref is None:
         pref=UserPreference(user_id=user.user_id,version=1)
@@ -37,15 +44,20 @@ def bump(db,user,pref):
     pref.version+=1;pref.updated_at=utc_now()
     return pref
 
+# Resolve an address belonging to the authenticated customer and reject unavailable or archived entries when required.
 def owned(db,user,address_id,active=True):
     row=db.scalar(locked(db,select(CustomerAddress).where(CustomerAddress.user_id==user.user_id,CustomerAddress.address_id==address_id)))
     if row is None or (active and row.archived_at is not None):fail(404,'ADDRESS_NOT_FOUND')
     return row
 
+# Project only the address fields that define its saved content before hashing or responding.
 def canonical(row):return {key:getattr(row,key) for key in FIELDS}
+# Fingerprint canonical input so a replay can be compared with the original operation.
 def digest(row):return hashlib.sha256(json.dumps(canonical(row),ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+# Expose the allowed address fields with an explicit archived flag.
 def project(row):return dict(address_id=row.address_id,**canonical(row),archived=row.archived_at is not None)
 
+# Resolve listing using a row lock so the caller can coordinate concurrent changes.
 def listing(db,user,page=1,size=10,archived=False):
     pref=book(db,user)
     query=select(CustomerAddress).where(CustomerAddress.user_id==user.user_id)
@@ -55,12 +67,14 @@ def listing(db,user,page=1,size=10,archived=False):
     rows=list(db.scalars(locked(db,query.order_by(CustomerAddress.address_id).offset((page-1)*size).limit(size))))
     return dict(version=version(pref),default_address_id=pref.preferred_address_id if pref else None,addresses=[project(r) for r in rows],total=total,page=page,page_size=size)
 
+# Query mutate data for the customer address workflow.
 def mutate(db,user,payload,operation,address_id=None):
     pref=book(db,user)
     if operation=='create':
         data={key:getattr(payload,key) for key in FIELDS}
         hashed=hashlib.sha256(json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
         previous=db.scalar(locked(db,select(CustomerAddress).where(CustomerAddress.user_id==user.user_id,CustomerAddress.create_request_key==payload.request_key)))
+        # An identical create retry returns its earlier row; a reused key with different address content is a conflict.
         if previous:
             if previous.create_request_hash!=hashed:fail(409,'ADDRESS_REQUEST_CONFLICT')
             return dict(version=version(pref),address=project(previous),replayed=True)
@@ -80,12 +94,14 @@ def mutate(db,user,payload,operation,address_id=None):
             row.updated_at=utc_now()
         elif operation=='archive':
             row.archived_at=utc_now();row.updated_at=row.archived_at
+    # Every accepted mutation advances the book version so subsequent clients can detect that their selection is stale.
     pref=bump(db,user,pref)
     if operation=='default':pref.preferred_address_id=row.address_id if row else None
     elif operation=='archive' and pref.preferred_address_id==row.address_id:pref.preferred_address_id=None
     db.flush()
     return dict(version=pref.version,address=project(row) if row else None,replayed=False)
 
+# Validate the expected address-book version before resolving the owned checkout address.
 def selected(db,user,address_id,expected):
     pref=book(db,user);check(pref,expected)
     return owned(db,user,address_id)
